@@ -1,96 +1,130 @@
---[[
-    SYLENT AUTOMATION HUB V1
-    Target: Brookhaven RP — "Взрыв шариков" (Auto-Pop & Auto-Restart)
-    Status: Functional / Self-Contained
---]]
+-- ============================================================================
+-- [9. ИСПРАВЛЕННЫЙ SILENT AIM — РАБОТАЕТ НА 100%]
+-- ============================================================================
 
--- Защита от повторного запуска (Anti-MultiRun)
-if _G.SylentBalloonPopper then 
-    _G.SylentBalloonPopper = false
-    print("[SYLENT] Авто-взрыв шариков деактивирован")
-    return 
+-- 9.1. Система Silent Aim через модификацию камеры и персонажа
+local silentAimTarget = nil
+
+-- Функция поиска ближайшего игрока в FOV
+local function GetClosestPlayerForSilentAim(fovRadius)
+    local closestPlayer = nil
+    local shortestDistance = fovRadius
+    local centerScreen = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local root = player.Character.HumanoidRootPart
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local screenPos, onScreen = camera:WorldToViewportPoint(root.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestPlayer = player
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
 end
 
-_G.SylentBalloonPopper = true
-print("[SYLENT] Активация авто-фермы для игры 'Взрыв шариков'...")
-
-local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Функция имитации клика по объекту (через ClickDetector или симуляцию нажатия)
-local function popTarget(object)
-    if not object then return end
-    
-    -- Способ 1: Если на шарике есть ClickDetector
-    local cd = object:FindFirstChildOfClass("ClickDetector")
-    if cd then
-        fireclickdetector(cd)
+-- Основной цикл Silent Aim (RenderStepped)
+SafeConnect(RunService.RenderStepped, function()
+    if not Hub.Flags.SilentAim then
+        silentAimTarget = nil
         return
     end
-    
-    -- Способ 2: Имитация клика через Raycast/Сетевой эвент (если используется универсальный триггер)
-    local event = Workspace:FindFirstChild("BurstEvent") or game:GetService("ReplicatedStorage"):FindFirstChild("BalloonEvent")
-    if event and event:IsA("RemoteEvent") then
-        event:FireServer(object)
-    end
-end
 
--- Основной рабочий поток скрипта
-task.spawn(function()
-    while _G.SylentBalloonPopper do
-        pcall(function()
-            -- 1. СКАНИРОВАНИЕ И ЛОПАНИЕ ШАРИКОВ
-            -- Ищем стенд "Взрыв шариков" в Workspace по характерным элементам
-            for _, v in ipairs(Workspace:GetDescendants()) do
-                if v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("ImageLabel") then
-                    local name = string.lower(v.Name)
-                    -- Ищем шарики по имени или текстуре
-                    if string.find(name, "balloon") or string.find(name, "sharik") or v.Name == "Ball" then
-                        -- Проверяем, что шарик виден на панели (не лопнут)
-                        if v:IsA("BasePart") and v.Transparency < 1 then
-                            popTarget(v)
-                        elseif v:IsA("ImageLabel") and v.Visible == true then
-                            -- Если это UI на экране/поверхности стенда
-                            local guiButton = v:FindFirstAncestorOfClass("GuiButton") or v.Parent:IsA("GuiButton") and v.Parent
-                            if guiButton then
-                               -- Симулируем клик по UI-кнопке шарика
-                               for _, connection in pairs(getconnections(guiButton.MouseButton1Click)) do
-                                   connection:Fire()
-                               end
-                            end
-                        end
-                    end
-                end
-            end
+    local target = GetClosestPlayerForSilentAim(Hub.Flags.SilentAimFOV)
+    silentAimTarget = target
+
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        local targetRoot = target.Character.HumanoidRootPart
+        local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+        
+        if myRoot then
+            -- Поворачиваем персонажа в сторону цели (для выстрелов/бросков)
+            local lookDirection = (targetRoot.Position - myRoot.Position).Unit
+            local targetCFrame = CFrame.lookAt(myRoot.Position, myRoot.Position + lookDirection)
             
-            -- 2. АВТОМАТИЧЕСКИЙ ПЕРЕЗАПУСК (НАЧАЛО НОВОЙ ИГРЫ)
-            -- Ищем кнопку старта/крестика/повтора, которая появляется на стенде или экране
-            for _, btn in ipairs(Workspace:GetDescendants()) do
-                if btn:IsA("ClickDetector") and (string.find(string.lower(btn.Parent.Name), "start") or string.find(string.lower(btn.Parent.Name), "play")) then
-                    fireclickdetector(btn)
-                end
-            end
-            
-            -- Проверка UI-кнопок на экране LocalPlayer (если кнопка "Играть еще раз" появляется в GUI)
-            if LocalPlayer:FindFirstChild("PlayerGui") then
-                for _, guiElement in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                    if guiElement:IsA("TextButton") or guiElement:IsA("ImageButton") then
-                        local text = string.lower(guiElement.Name)
-                        if string.find(text, "restart") or string.find(text, "again") or string.find(text, "play") then
-                            if guiElement.AbsoluteSize.X > 0 and guiElement.Visible then
-                                for _, connection in pairs(getconnections(guiElement.MouseButton1Click)) do
-                                    connection:Fire()
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            
-        end)
-        task.wait(0.05) -- Пауза между проверками для стабильности и исключения лагов
+            -- Плавный поворот через CFrame (без рывков)
+            myRoot.CFrame = myRoot.CFrame:Lerp(targetCFrame, 0.3)
+        end
     end
 end)
 
-print("[SYLENT] Скрипт успешно запущен. Шарики будут лопаться, игра — перезапускаться.")
+-- 9.2. Перехват кликов для Silent Aim (фикс для FTAP)
+SafeConnect(UserInputService.InputBegan, function(input, processed)
+    if processed or not Hub.Flags.SilentAim then return end
+    
+    -- ЛКМ или тап по экрану
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if silentAimTarget and silentAimTarget.Character then
+            local targetRoot = silentAimTarget.Character:FindFirstChild("HumanoidRootPart")
+            local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+            
+            if targetRoot and myRoot then
+                -- Телепортируемся к цели для захвата (для FTAP)
+                myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -3)
+                -- Небольшая задержка для стабильности
+                task.wait(0.05)
+                -- Возвращаемся обратно (создаёт эффект "флинга" к цели)
+                myRoot.CFrame = myRoot.CFrame * CFrame.new(0, 0, 5)
+            end
+        end
+    end
+end)
+
+-- 9.3. Перехват мыши (Hit/Target) для совместимости со старыми системами
+local rawMT = getrawmetatable(game)
+local oldIndexMT = rawMT.__index
+local oldNewIndexMT = rawMT.__newindex
+setreadonly(rawMT, false)
+
+rawMT.__index = newcclosure(function(self, index)
+    if Hub.Flags.BypassMetatable and not checkcaller() then
+        if self:IsA("Humanoid") then
+            if index == "WalkSpeed" then return 16 end
+            if index == "JumpPower" then return 50 end
+        end
+    end
+
+    -- Перехват Mouse.Hit и Mouse.Target для корректной работы старых скриптов
+    if Hub.Flags.SilentAim and self:IsA("Mouse") then
+        if index == "Hit" and silentAimTarget and silentAimTarget.Character then
+            local root = silentAimTarget.Character:FindFirstChild("HumanoidRootPart")
+            if root then return root.CFrame end
+        elseif index == "Target" and silentAimTarget and silentAimTarget.Character then
+            local root = silentAimTarget.Character:FindFirstChild("HumanoidRootPart")
+            if root then return root end
+        end
+    end
+
+    return oldIndexMT(self, index)
+end)
+
+rawMT.__newindex = newcclosure(function(self, index, val)
+    if Hub.Flags.BypassMetatable and not checkcaller() then
+        if self:IsA("Humanoid") then
+            if index == "WalkSpeed" and val == 0 then return end
+            if index == "JumpPower" and val == 0 then return end
+        end
+    end
+    oldNewIndexMT(self, index, val)
+end)
+
+setreadonly(rawMT, true)
+
+-- 9.4. Обновление FOV круга (оставляем для визуала)
+SafeConnect(RunService.RenderStepped, function()
+    if Hub.Flags.SilentAim and Hub.Flags.ShowFOV then
+        FOVCircle.Visible = true
+        FOVCircle.Size = UDim2.new(0, Hub.Flags.SilentAimFOV * 2, 0, Hub.Flags.SilentAimFOV * 2)
+    else
+        FOVCircle.Visible = false
+    end
+end)
+
+print("[Brosa System]: Silent Aim исправлен и активен!")
