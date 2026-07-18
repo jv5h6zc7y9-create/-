@@ -1,90 +1,94 @@
 --[[
-    УНИВЕРСАЛЬНЫЙ ГИБРИДНЫЙ ИГРОВОЙ КОНТРОЛЛЕР (SERVER & CLIENT COMBINED)
+    УНИВЕРСАЛЬНЫЙ ГИБРИДНЫЙ ИГРОВОЙ ФРЕЙМВОРК (ОДИН СКРИПТ В WORKSPACE)
     
-    Особенности архитектуры:
-    - Развернут в одном файле с разделением сред через RunService.
-    - Полное отсутствие сокращений в именах переменных и функций.
-    - Динамическая генерация сетевой инфраструктуры и пользовательского интерфейса.
+    ТРЕБОВАНИЯ К УСТАНОВКЕ:
+    - Разместить данный Script внутри папки Workspace.
+    - Изменить свойство RunContext скрипта на: Enum.RunContext.Shared
+    
+    ФУНКЦИОНАЛ:
+    - Полная рентген-подсветка (ESP) сквозь любые препятствия (Кира = Красный, L = Синий, Бог Смерти = Фиолетовый).
+    - Передвижная (Draggable) кнопка открытия главного хаба.
+    - Главное меню идеально по центру экрана независимо от разрешения устройства.
 --]]
 
 -- =============================================================================
--- БЛОК ГЛОБАЛЬНЫХ СЛУЖБ ДВИЖКА ROBLOX (GLOBAL SERVICES)
+-- БЛОК СИСТЕМНЫХ СЛУЖБ ДВИЖКА ROBLOX
 -- =============================================================================
 local WorkspaceService = game:GetService("Workspace")
 local PlayersService = game:GetService("Players")
 local ReplicatedStorageService = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local CoreGuiService = game:GetService("CoreGui")
 
 -- =============================================================================
--- ЕДИНАЯ ГЛОБАЛЬНАЯ НАСТРОЙКА ИГРЫ (CONFIGURATION CONFIG)
+-- ГЛОБАЛЬНАЯ НАСТРОЙКА ЦВЕТОВ И ПАРАМЕТРОВ СИСТЕМЫ
 -- =============================================================================
-local GLOBAL_GAME_SETTINGS = {
-	TELEPORT_HEIGHT_OFFSET = Vector3.new(0, 4, 0),
-	DEFAULT_LOBBY_COORDINATES = Vector3.new(0, 10, 0),
+local SYSTEM_CONFIGURATION = {
+	TELEPORTATION_HEIGHT_OFFSET = Vector3.new(0, 4, 0),
+	LOBBY_RESPAWN_COORDINATES = Vector3.new(0, 15, 0),
 	
 	VISUAL_THEME = {
-		COLOR_KIRA = Color3.fromRGB(255, 30, 30),
-		COLOR_DETECTIVE_L = Color3.fromRGB(30, 130, 255),
-		COLOR_SHINIGAMI = Color3.fromRGB(150, 30, 220),
-		COLOR_SPECTATOR = Color3.fromRGB(120, 120, 125),
+		COLOR_KIRA_TEAM = Color3.fromRGB(255, 35, 35),
+		COLOR_DETECTIVE_L_TEAM = Color3.fromRGB(35, 145, 255),
+		COLOR_SHINIGAMI_TEAM = Color3.fromRGB(165, 35, 235),
+		COLOR_SPECTATOR_TEAM = Color3.fromRGB(130, 130, 135),
 		
-		BACKGROUND_MAIN_PANEL = Color3.fromRGB(25, 25, 30),
-		BACKGROUND_SUB_PANEL = Color3.fromRGB(40, 40, 45),
-		TEXT_PRIMARY_COLOR = Color3.fromRGB(245, 245, 245),
-		BUTTON_ACTION_COLOR = Color3.fromRGB(0, 160, 220)
+		BACKGROUND_MAIN_PANEL = Color3.fromRGB(20, 20, 25),
+		BACKGROUND_SUB_PANEL = Color3.fromRGB(35, 35, 40),
+		TEXT_PRIMARY_COLOR = Color3.fromRGB(250, 250, 250),
+		BUTTON_ACTION_COLOR = Color3.fromRGB(0, 150, 220)
 	}
 }
 
 -- =============================================================================
--- РАЗДЕЛЕНИЕ СРЕДЫ ВЫПОЛНЕНИЯ: СЕРВЕРНАЯ ЧАСТЬ (SERVER EXECUTING CONTEXT)
+-- СЕРВЕРНАЯ СРЕДА ВЫПОЛНЕНИЯ (SERVER SIDE CONTEXT)
 -- =============================================================================
 if RunService:IsServer() then
-	print("[СЕРВЕР]: Инициализация серверного модуля управления...")
+	print("[СЕРВЕР]: Запуск инициализации сетевой структуры фреймворка...")
 
-	-- Автоматическое создание сетевой папки в ReplicatedStorage для связи с клиентами
-	local networkFolder = ReplicatedStorageService:FindFirstChild("GameNetworkChannels")
+	-- Автоматическое создание изолированной папки обмена данными
+	local networkFolder = ReplicatedStorageService:FindFirstChild("CoreNetworkCommunicationFolder")
 	if not networkFolder then
 		networkFolder = Instance.new("Folder")
-		networkFolder.Name = "GameNetworkChannels"
+		networkFolder.Name = "CoreNetworkCommunicationFolder"
 		networkFolder.Parent = ReplicatedStorageService
 	end
 
-	-- Генерация сетевых событий (RemoteEvents)
-	local roleUpdateEvent = networkFolder:FindFirstChild("RoleUpdateEvent") or Instance.new("RemoteEvent", networkFolder)
-	roleUpdateEvent.Name = "RoleUpdateEvent"
+	-- Генерация удаленных событий для связи между компонентами матча
+	local remoteEventRoleChange = networkFolder:FindFirstChild("RemoteEventRoleChange") or Instance.new("RemoteEvent", networkFolder)
+	remoteEventRoleChange.Name = "RemoteEventRoleChange"
 
-	local teleportRequestEvent = networkFolder:FindFirstChild("TeleportRequestEvent") or Instance.new("RemoteEvent", networkFolder)
-	teleportRequestEvent.Name = "TeleportRequestEvent"
+	local remoteEventTeleport = networkFolder:FindFirstChild("RemoteEventTeleport") or Instance.new("RemoteEvent", networkFolder)
+	remoteEventTeleport.Name = "RemoteEventTeleport"
 
-	local eliminationRequestEvent = networkFolder:FindFirstChild("EliminationRequestEvent") or Instance.new("RemoteEvent", networkFolder)
-	eliminationRequestEvent.Name = "EliminationRequestEvent"
+	local remoteEventEliminate = networkFolder:FindFirstChild("RemoteEventEliminate") or Instance.new("RemoteEvent", networkFolder)
+	remoteEventEliminate.Name = "RemoteEventEliminate"
 
-	-- Функция безопасного перемещения
-	local function processSafeTeleportation(playerInstance, targetCoordinates)
+	-- Функция безопасной смены позиции игрока
+	local function executeServerCharacterTeleport(playerInstance, targetVectorPosition)
 		if not playerInstance or not playerInstance.Character then return end
 		
-		local humanoidRootPart = playerInstance.Character:WaitForChild("HumanoidRootPart", 5)
+		local humanoidRootPart = playerInstance.Character:WaitForChild("HumanoidRootPart", 6)
 		local humanoidInstance = playerInstance.Character:FindFirstChildOfClass("Humanoid")
 		
 		if humanoidRootPart and humanoidInstance and humanoidInstance.Health > 0 then
-			local calculatedLocation = targetCoordinates + GLOBAL_GAME_SETTINGS.TELEPORT_HEIGHT_OFFSET
-			humanoidRootPart.CFrame = CFrame.new(calculatedLocation)
+			local finalSafePosition = targetVectorPosition + SYSTEM_CONFIGURATION.TELEPORTATION_HEIGHT_OFFSET
+			humanoidRootPart.CFrame = CFrame.new(finalSafePosition)
 		end
 	end
 
-	-- Слушатель запросов на изменение роли
-	roleUpdateEvent.OnServerEvent:Connect(function(senderPlayerInstance, chosenRoleName)
-		if not senderPlayerInstance then return end
+	-- Обработка запросов игроков на выбор роли Киры, L или Бога Смерти
+	remoteEventRoleChange.OnServerEvent:Connect(function(clientPlayerInstance, requestedRoleIdentifier)
+		if not clientPlayerInstance then return end
 		
-		if chosenRoleName == "Kira" or chosenRoleName == "L" or chosenRoleName == "Shinigami" or chosenRoleName == "Spectator" then
-			senderPlayerInstance:SetAttribute("CurrentGameRole", chosenRoleName)
-			print(string.format("[СЕРВЕР]: Игрок %s выбрал роль %s", senderPlayerInstance.Name, chosenRoleName))
+		if requestedRoleIdentifier == "Kira" or requestedRoleIdentifier == "L" or requestedRoleIdentifier == "Shinigami" or requestedRoleIdentifier == "Spectator" then
+			clientPlayerInstance:SetAttribute("CurrentGameRole", requestedRoleIdentifier)
+			print(string.format("[СЕРВЕР]: Игрок %s переключился на роль %s", clientPlayerInstance.Name, requestedRoleIdentifier))
 			
-			-- Перерождаем персонажа для сброса и обновления локальных эффектов
-			if senderPlayerInstance.Character then
-				local humanoid = senderPlayerInstance.Character:FindFirstChildOfClass("Humanoid")
+			-- Перерождаем персонажа, чтобы мгновенно применились новые правила
+			if clientPlayerInstance.Character then
+				local humanoid = clientPlayerInstance.Character:FindFirstChildOfClass("Humanoid")
 				if humanoid then
 					humanoid.Health = 0
 				end
@@ -92,355 +96,412 @@ if RunService:IsServer() then
 		end
 	end)
 
-	-- Слушатель запросов на мгновенную телепортацию к цели
-	teleportRequestEvent.OnServerEvent:Connect(function(senderPlayerInstance, targetPlayerName)
-		if not senderPlayerInstance or not senderPlayerInstance.Character then return end
+	-- Обработка запросов на телепортацию к выбранному ID человека
+	remoteEventTeleport.OnServerEvent:Connect(function(clientPlayerInstance, targetedPlayerName)
+		if not clientPlayerInstance or not clientPlayerInstance.Character then return end
 		
-		local currentRole = senderPlayerInstance:GetAttribute("CurrentGameRole")
-		if currentRole == "Spectator" or currentRole == nil then
-			return -- Наблюдатели не могут телепортироваться
+		local playerCurrentRole = clientPlayerInstance:GetAttribute("CurrentGameRole")
+		if playerCurrentRole == "Spectator" or playerCurrentRole == nil then
+			return -- Обычные наблюдатели без ролей не могут перемещаться
 		end
 
-		local targetPlayerInstance = PlayersService:FindFirstChild(targetPlayerName)
-		if targetPlayerInstance and targetPlayerInstance.Character then
-			local targetRoot = targetPlayerInstance.Character:FindFirstChild("HumanoidRootPart")
-			if targetRoot then
-				processSafeTeleportation(senderPlayerInstance, targetRoot.Position)
+		local targetPlayerObject = PlayersService:FindFirstChild(targetedPlayerName)
+		if targetPlayerObject and targetPlayerObject.Character then
+			local targetRootPart = targetPlayerObject.Character:FindFirstChild("HumanoidRootPart")
+			if targetRootPart then
+				executeServerCharacterTeleport(clientPlayerInstance, targetRootPart.Position)
 			end
 		end
 	end)
 
-	-- Слушатель запросов на ликвидацию ("Записать имя в тетрадь")
-	eliminationRequestEvent.OnServerEvent:Connect(function(senderPlayerInstance, targetPlayerName)
-		if not senderPlayerInstance then return end
+	-- Обработка серверных запросов на уничтожение (Запись в тетрадь)
+	remoteEventEliminate.OnServerEvent:Connect(function(clientPlayerInstance, targetedPlayerName)
+		if not clientPlayerInstance then return end
 		
-		local currentRole = senderPlayerInstance:GetAttribute("CurrentGameRole")
-		if currentRole ~= "Kira" and currentRole ~= "Shinigami" then
-			warn(senderPlayerInstance.Name .. " попытался использовать устранение без прав Киры/Бога Смерти.")
+		local playerCurrentRole = clientPlayerInstance:GetAttribute("CurrentGameRole")
+		if playerCurrentRole ~= "Kira" and playerCurrentRole ~= "Shinigami" then
+			warn(clientPlayerInstance.Name .. " попытался устранить цель без наличия прав Киры или Бога Смерти.")
 			return
 		end
 
-		local targetPlayerInstance = PlayersService:FindFirstChild(targetPlayerName)
-		if targetPlayerInstance and targetPlayerInstance.Character then
-			local targetHumanoid = targetPlayerInstance.Character:FindFirstChildOfClass("Humanoid")
+		local targetPlayerObject = PlayersService:FindFirstChild(targetedPlayerName)
+		if targetPlayerObject and targetPlayerObject.Character then
+			local targetHumanoid = targetPlayerObject.Character:FindFirstChildOfClass("Humanoid")
 			if targetHumanoid and targetHumanoid.Health > 0 then
 				targetHumanoid.Health = 0
-				print(string.format("[ЛИКВИДАЦИЯ]: Кира/Бог Смерти (%s) уничтожил цель: %s", senderPlayerInstance.Name, targetPlayerName))
+				print(string.format("[ЛИКВИДАЦИЯ]: Игрок %s применил силы на уничтожение игрока %s", clientPlayerInstance.Name, targetedPlayerName))
 			end
 		end
 	end)
 
-	-- Первичная обработка подключения игроков на сервере
-	PlayersService.PlayerAdded:Connect(function(newPlayer)
-		newPlayer:SetAttribute("CurrentGameRole", "Spectator")
-		newPlayer.CharacterAdded:Connect(function(character)
-			task.wait(1)
-			processSafeTeleportation(newPlayer, GLOBAL_GAME_SETTINGS.DEFAULT_LOBBY_COORDINATES)
+	-- Настройка параметров при заходе новых участников в игру
+	PlayersService.PlayerAdded:Connect(function(connectedPlayer)
+		connectedPlayer:SetAttribute("CurrentGameRole", "Spectator")
+		connectedPlayer.CharacterAdded:Connect(function(newCharacter)
+			task.wait(1.5)
+			executeServerCharacterTeleport(connectedPlayer, SYSTEM_CONFIGURATION.LOBBY_RESPAWN_COORDINATES)
 		end)
 	end)
 
 -- =============================================================================
--- РАЗДЕЛЕНИЕ СРЕДЫ ВЫПОЛНЕНИЯ: КЛИЕНТСКАЯ ЧАСТЬ (CLIENT EXECUTING CONTEXT)
+-- КЛИЕНТСКАЯ СРЕДА ВЫПОЛНЕНИЯ (CLIENT SIDE CONTEXT)
 -- =============================================================================
 elseif RunService:IsClient() then
-	print("[КЛИЕНТ]: Инициализация клиентского модуля графики и интерфейса...")
+	print("[КЛИЕНТ]: Запуск сборки интерфейсов, систем перетаскивания кнопок и ESP-модулей...")
 
-	local localPlayer = PlayersService.LocalPlayer
+	local localPlayerInstance = PlayersService.LocalPlayer
 	
-	-- Ссылки на каналы связи (ожидание репликации с сервера)
-	local networkFolder = ReplicatedStorageService:WaitForChild("GameNetworkChannels", 15)
-	local roleUpdateEvent = networkFolder:WaitForChild("RoleUpdateEvent")
-	local teleportRequestEvent = networkFolder:WaitForChild("TeleportRequestEvent")
-	local eliminationRequestEvent = networkFolder:WaitForChild("EliminationRequestEvent")
+	-- Подключение к созданным сервером каналам связи
+	local networkFolder = ReplicatedStorageService:WaitForChild("CoreNetworkCommunicationFolder", 15)
+	local remoteEventRoleChange = networkFolder:WaitForChild("RemoteEventRoleChange")
+	local remoteEventTeleport = networkFolder:WaitForChild("RemoteEventTeleport")
+	local remoteEventEliminate = networkFolder:WaitForChild("RemoteEventEliminate")
 
 	--=============================================================================
-	-- ДИНАМИЧЕСКИЙ СБОРКА ИНТЕРФЕЙСА МЕНЮ ИЗ КОДА (GUI ASSEMBLY)
+	-- СОЗДАНИЕ ГРАФИЧЕСКОГО ИНТЕРФЕЙСА ХАБА И ДВИГАЮЩЕЙСЯ КНОПКИ
 	--=============================================================================
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "CombinedUniversalSystemGui"
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+	local mainScreenGui = Instance.new("ScreenGui")
+	mainScreenGui.Name = "DynamicUniversalSystemGuiHub"
+	mainScreenGui.ResetOnSpawn = false
+	mainScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	mainScreenGui.Parent = localPlayerInstance:WaitForChild("PlayerGui")
 
-	-- Основная кнопка-триггер вызова меню
-	local interfaceToggleButton = Instance.new("TextButton")
-	interfaceToggleButton.Name = "InterfaceToggleButton"
-	interfaceToggleButton.Size = UDim2.new(0, 180, 0, 45)
-	interfaceToggleButton.Position = UDim2.new(0, 25, 0, 25)
-	interfaceToggleButton.BackgroundColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.BACKGROUND_MAIN_PANEL
-	interfaceToggleButton.TextColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.TEXT_PRIMARY_COLOR
-	interfaceToggleButton.Font = Enum.Font.GothamBold
-	interfaceToggleButton.TextSize = 13
-	interfaceToggleButton.Text = "ОТКРЫТЬ МЕНЮ УПРАВЛЕНИЯ"
-	interfaceToggleButton.Parent = screenGui
+	-- ПЕРЕДВИЖНАЯ КНОПКА ОТКРЫТИЯ МЕНЮ
+	local movableToggleButton = Instance.new("TextButton")
+	movableToggleButton.Name = "MovableToggleButton"
+	movableToggleButton.Size = UDim2.new(0, 190, 0, 45)
+	movableToggleButton.Position = UDim2.new(0, 30, 0, 100) -- Начальная позиция
+	movableToggleButton.BackgroundColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.BACKGROUND_MAIN_PANEL
+	movableToggleButton.TextColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.TEXT_PRIMARY_COLOR
+	movableToggleButton.Font = Enum.Font.GothamBold
+	movableToggleButton.TextSize = 12
+	movableToggleButton.Text = "ЗАЖМИ И ТАЩИ: МЕНЮ"
+	movableToggleButton.Active = true
+	movableToggleButton.Parent = mainScreenGui
 
-	local buttonCorner = Instance.new("UICorner")
-	buttonCorner.CornerRadius = UDim.new(0, 6)
-	buttonCorner.Parent = interfaceToggleButton
+	local toggleButtonCorner = Instance.new("UICorner")
+	toggleButtonCorner.CornerRadius = UDim.new(0, 8)
+	toggleButtonCorner.Parent = movableToggleButton
+	
+	local toggleButtonStroke = Instance.new("UIStroke")
+	toggleButtonStroke.Color = Color3.fromRGB(100, 100, 110)
+	toggleButtonStroke.Thickness = 1.5
+	toggleButtonStroke.Parent = movableToggleButton
 
-	-- Главный фрейм панели управления
-	local centralControlFrame = Instance.new("Frame")
-	centralControlFrame.Name = "CentralControlFrame"
-	centralControlFrame.Size = UDim2.new(0, 560, 0, 380)
-	centralControlFrame.Position = UDim2.new(0.5, -280, 0.5, -190)
-	centralControlFrame.BackgroundColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.BACKGROUND_MAIN_PANEL
-	centralControlFrame.Visible = false
-	centralControlFrame.Active = true
-	centralControlFrame.Draggable = true
-	centralControlFrame.Parent = screenGui
+	-- ЦЕНТРАЛЬНОЕ ОКНО УПРАВЛЕНИЯ (ИДЕАЛЬНО ПО ЦЕНТРУ ЭКРАНА)
+	local centeredControlFrame = Instance.new("Frame")
+	centeredControlFrame.Name = "CenteredControlFrame"
+	centeredControlFrame.Size = UDim2.new(0, 580, 0, 400)
+	
+	-- Центрирование с использованием AnchorPoint
+	centeredControlFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	centeredControlFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	
+	centeredControlFrame.BackgroundColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.BACKGROUND_MAIN_PANEL
+	centeredControlFrame.Visible = false
+	centeredControlFrame.Active = true
+	centeredControlFrame.Parent = mainScreenGui
 
 	local mainFrameCorner = Instance.new("UICorner")
-	mainFrameCorner.CornerRadius = UDim.new(0, 10)
-	mainFrameCorner.Parent = centralControlFrame
+	mainFrameCorner.CornerRadius = UDim.new(0, 12)
+	mainFrameCorner.Parent = centeredControlFrame
 
-	-- Шапка меню
-	local titleTextLabel = Instance.new("TextLabel")
-	titleTextLabel.Name = "TitleTextLabel"
-	titleTextLabel.Size = UDim2.new(1, 0, 0, 40)
-	titleTextLabel.BackgroundColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.BACKGROUND_SUB_PANEL
-	titleTextLabel.Text = "   ХАБ УПРАВЛЕНИЯ: РОЛИ, МЕНЮ, ТЕЛЕПОРТАЦИЯ, ESP"
-	titleTextLabel.TextColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.TEXT_PRIMARY_COLOR
-	titleTextLabel.Font = Enum.Font.GothamBold
-	titleTextLabel.TextSize = 14
-	titleTextLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleTextLabel.Parent = centralControlFrame
+	-- Заголовок хаба
+	local headerTextLabel = Instance.new("TextLabel")
+	headerTextLabel.Name = "HeaderTextLabel"
+	headerTextLabel.Size = UDim2.new(1, 0, 0, 45)
+	headerTextLabel.BackgroundColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.BACKGROUND_SUB_PANEL
+	headerTextLabel.Text = "    ХАБ УПРАВЛЕНИЯ: ТЕТРАДЬ СМЕРТИ (КИРА / L / ШИНИГАМИ)"
+	headerTextLabel.TextColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.TEXT_PRIMARY_COLOR
+	headerTextLabel.Font = Enum.Font.GothamBold
+	headerTextLabel.TextSize = 13
+	headerTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+	headerTextLabel.Parent = centeredControlFrame
 
-	local titleCorner = Instance.new("UICorner")
-	titleCorner.CornerRadius = UDim.new(0, 10)
-	titleCorner.Parent = titleTextLabel
+	local headerCorner = Instance.new("UICorner")
+	headerCorner.CornerRadius = UDim.new(0, 12)
+	headerCorner.Parent = headerTextLabel
 
-	-- Контейнер выбора роли (Левая сторона)
-	local leftRoleContainer = Instance.new("Frame")
-	leftRoleContainer.Name = "LeftRoleContainer"
-	leftRoleContainer.Size = UDim2.new(0, 210, 1, -60)
-	leftRoleContainer.Position = UDim2.new(0, 15, 0, 50)
-	leftRoleContainer.BackgroundColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.BACKGROUND_SUB_PANEL
-	leftRoleContainer.Parent = centralControlFrame
+	-- Контейнер выбора роли (Левая сторона панели)
+	local roleSelectionContainer = Instance.new("Frame")
+	roleSelectionContainer.Name = "RoleSelectionContainer"
+	roleSelectionContainer.Size = UDim2.new(0, 220, 1, -65)
+	roleSelectionContainer.Position = UDim2.new(0, 15, 0, 55)
+	roleSelectionContainer.BackgroundColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.BACKGROUND_SUB_PANEL
+	roleSelectionContainer.Parent = centeredControlFrame
 
-	local leftCorner = Instance.new("UICorner")
-	leftCorner.CornerRadius = UDim.new(0, 8)
-	leftCorner.Parent = leftRoleContainer
+	local rolePanelCorner = Instance.new("UICorner")
+	rolePanelCorner.CornerRadius = UDim.new(0, 8)
+	rolePanelCorner.Parent = roleSelectionContainer
 
-	local leftLayout = Instance.new("UIListLayout")
-	leftLayout.Padding = UDim.new(0, 10)
-	leftLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	leftLayout.Parent = leftRoleContainer
+	local roleListLayout = Instance.new("UIListLayout")
+	roleListLayout.Padding = UDim.new(0, 12)
+	roleListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	roleListLayout.Parent = roleSelectionContainer
 
-	local leftPadding = Instance.new("UIPadding")
-	leftPadding.PaddingTop = UDim.new(0, 15)
-	leftPadding.Parent = leftRoleContainer
+	local rolePadding = Instance.new("UIPadding")
+	rolePadding.PaddingTop = UDim.new(0, 15)
+	rolePadding.Parent = roleSelectionContainer
 
-	-- Контейнер действий над игроками (Правая сторона)
-	local rightPlayersContainer = Instance.new("Frame")
-	rightPlayersContainer.Name = "RightPlayersContainer"
-	rightPlayersContainer.Size = UDim2.new(0, 305, 1, -60)
-	rightPlayersContainer.Position = UDim2.new(0, 240, 0, 50)
-	rightPlayersContainer.BackgroundColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.BACKGROUND_SUB_PANEL
-	rightPlayersContainer.Parent = centralControlFrame
+	-- Контейнер списка игроков и ID (Правая сторона панели)
+	local playersListContainer = Instance.new("Frame")
+	playersListContainer.Name = "PlayersListContainer"
+	playersListContainer.Size = UDim2.new(0, 315, 1, -65)
+	playersListContainer.Position = UDim2.new(0, 250, 0, 55)
+	playersListContainer.BackgroundColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.BACKGROUND_SUB_PANEL
+	playersListContainer.Parent = centeredControlFrame
 
-	local rightCorner = Instance.new("UICorner")
-	rightCorner.CornerRadius = UDim.new(0, 8)
-	rightCorner.Parent = rightPlayersContainer
+	local playersPanelCorner = Instance.new("UICorner")
+	playersPanelCorner.CornerRadius = UDim.new(0, 8)
+	playersPanelCorner.Parent = playersListContainer
 
-	local listScrollFrame = Instance.new("ScrollingFrame")
-	listScrollFrame.Size = UDim2.new(1, -10, 1, -20)
-	listScrollFrame.Position = UDim2.new(0, 5, 0, 10)
-	listScrollFrame.BackgroundTransparency = 1
-	listScrollFrame.ScrollBarThickness = 6
-	listScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-	listScrollFrame.Parent = rightPlayersContainer
+	local mainScrollingFrame = Instance.new("ScrollingFrame")
+	mainScrollingFrame.Size = UDim2.new(1, -10, 1, -20)
+	mainScrollingFrame.Position = UDim2.new(0, 5, 0, 10)
+	mainScrollingFrame.BackgroundTransparency = 1
+	mainScrollingFrame.ScrollBarThickness = 6
+	mainScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	mainScrollingFrame.Parent = playersListContainer
 
-	local scrollLayout = Instance.new("UIListLayout")
-	scrollLayout.Padding = UDim.new(0, 5)
-	scrollLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	scrollLayout.Parent = listScrollFrame
+	local scrollListLayout = Instance.new("UIListLayout")
+	scrollListLayout.Padding = UDim.new(0, 6)
+	scrollListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	scrollListLayout.Parent = mainScrollingFrame
 
-	-- Обработка клика по главной кнопке открытия
-	interfaceToggleButton.MouseButton1Click:Connect(function()
-		centralControlFrame.Visible = not centralControlFrame.Visible
-		if centralControlFrame.Visible then
-			interfaceToggleButton.Text = "ЗАКРЫТЬ МЕНЮ УПРАВЛЕНИЯ"
-		else
-			interfaceToggleButton.Text = "ОТКРЫТЬ МЕНЮ УПРАВЛЕНИЯ"
+	--=============================================================================
+	-- СИСТЕМА ДВИЖЕНИЯ (DRAG) ДЛЯ КНОПКИ ОТКРЫТИЯ МЕНЮ
+	-- =============================================================================
+	local isDragging = false
+	local dragInputReference = nil
+	local dragStartPosition = nil
+	local elementStartPosition = nil
+
+	movableToggleButton.InputBegan:Connect(function(inputObject)
+		if inputObject.UserInputType == Enum.UserInputType.MouseButton1 or inputObject.UserInputType == Enum.UserInputType.Touch then
+			isDragging = true
+			dragStartPosition = inputObject.Position
+			elementStartPosition = movableToggleButton.Position
+			
+			inputObject.Changed:Connect(function()
+				if inputObject.UserInputState == Enum.UserInputState.End then
+					isDragging = false
+				end
+			end)
 		end
 	end)
 
-	-- ГЕНЕРАЦИЯ КНОПОК РОЛЕЙ
-	local function createFunctionalRoleButton(roleKey, uiLabelText, colorTheme)
-		local roleButton = Instance.new("TextButton")
-		roleButton.Size = UDim2.new(0, 180, 0, 40)
-		roleButton.BackgroundColor3 = colorTheme
-		roleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-		roleButton.Font = Enum.Font.GothamBold
-		roleButton.TextSize = 12
-		roleButton.Text = uiLabelText
-		roleButton.Parent = leftRoleContainer
+	movableToggleButton.InputChanged:Connect(function(inputObject)
+		if inputObject.UserInputType == Enum.UserInputType.MouseMovement or inputObject.UserInputType == Enum.UserInputType.Touch then
+			dragInputReference = inputObject
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(inputObject)
+		if inputObject == dragInputReference and isDragging then
+			local mouseDeltaPosition = inputObject.Position - dragStartPosition
+			movableToggleButton.Position = UDim2.new(
+				elementStartPosition.X.Scale, 
+				elementStartPosition.X.Offset + mouseDeltaPosition.X, 
+				elementStartPosition.Y.Scale, 
+				elementStartPosition.Y.Offset + mouseDeltaPosition.Y
+			)
+		end
+	end)
+
+	-- Логика простого клика по кнопке (открытие / закрытие хаба)
+	movableToggleButton.MouseButton1Click:Connect(function()
+		if not isDragging then
+			centeredControlFrame.Visible = not centeredControlFrame.Visible
+		end
+	end)
+
+	--=============================================================================
+	-- ИНИЦИАЛИЗАЦИЯ ФУНКЦИОНАЛЬНЫХ КНОПОК РОЛЕЙ
+	--=============================================================================
+	local function buildRoleTriggerButton(roleStringKey, buttonDisplayLabel, colorTemplate)
+		local createdRoleButton = Instance.new("TextButton")
+		createdRoleButton.Size = UDim2.new(0, 190, 0, 42)
+		createdRoleButton.BackgroundColor3 = colorTemplate
+		createdRoleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		createdRoleButton.Font = Enum.Font.GothamBold
+		createdRoleButton.TextSize = 11
+		createdRoleButton.Text = buttonDisplayLabel
+		createdRoleButton.Parent = roleSelectionContainer
 		
-		local rCorner = Instance.new("UICorner")
-		rCorner.CornerRadius = UDim.new(0, 6)
-		rCorner.Parent = roleButton
+		local buttonCornerInstance = Instance.new("UICorner")
+		buttonCornerInstance.CornerRadius = UDim.new(0, 6)
+		buttonCornerInstance.Parent = createdRoleButton
 		
-		roleButton.MouseButton1Click:Connect(function()
-			roleUpdateEvent:FireServer(roleKey)
+		createdRoleButton.MouseButton1Click:Connect(function()
+			remoteEventRoleChange:FireServer(roleStringKey)
 		end)
 	end
 
-	createFunctionalRoleButton("Kira", "ВЫБРАТЬ: КИРА", GLOBAL_GAME_SETTINGS.VISUAL_THEME.COLOR_KIRA)
-	createFunctionalRoleButton("L", "ВЫБРАТЬ: ДЕТЕКТИВ L", GLOBAL_GAME_SETTINGS.VISUAL_THEME.COLOR_DETECTIVE_L)
-	createFunctionalRoleButton("Shinigami", "ВЫБРАТЬ: БОГ СМЕРТИ", GLOBAL_GAME_SETTINGS.VISUAL_THEME.COLOR_SHINIGAMI)
-	createFunctionalRoleButton("Spectator", "ОЧИСТИТЬ ВСЕ РОЛИ", GLOBAL_GAME_SETTINGS.VISUAL_THEME.COLOR_SPECTATOR)
+	buildRoleTriggerButton("Kira", "СТАТЬ: КИРА (KIRA)", SYSTEM_CONFIGURATION.VISUAL_THEME.COLOR_KIRA_TEAM)
+	buildRoleTriggerButton("L", "СТАТЬ: ДЕТЕКТИВ L", SYSTEM_CONFIGURATION.VISUAL_THEME.COLOR_DETECTIVE_L_TEAM)
+	buildRoleTriggerButton("Shinigami", "СТАТЬ: БОГ СМЕРТИ", SYSTEM_CONFIGURATION.VISUAL_THEME.COLOR_SHINIGAMI_TEAM)
+	buildRoleTriggerButton("Spectator", "БЕЗ РОЛИ (СБРОСИТЬ)", SYSTEM_CONFIGURATION.VISUAL_THEME.COLOR_SPECTATOR_TEAM)
 
-	-- ОБНОВЛЕНИЕ СПИСКА ИГРОКОВ В СПИСКЕ ДЕЙСТВИЙ
-	local function clearListScrollFrame()
-		local children = listScrollFrame:GetChildren()
-		for index = 1, #children do
-			local child = children[index]
-			if child:IsA("Frame") then
-				child:Destroy()
+	--=============================================================================
+	-- ДИНАМИЧЕСКИЙ ВЫВОД ИГРОКОВ В МЕНЮ ДЛЯ ТЕЛЕПОРТАЦИИ И КИЛЛА
+	--=============================================================================
+	local function clearScrollingInterfaceContainer()
+		local allChildren = mainScrollingFrame:GetChildren()
+		for index = 1, #allChildren do
+			local childObject = allChildren[index]
+			if childObject:IsA("Frame") then
+				childObject:Destroy()
 			end
 		end
 	end
 
-	local function rebuildPlayersInterfaceList()
-		clearListScrollFrame()
+	local function refreshTargetPlayerListUi()
+		clearScrollingInterfaceContainer()
 		
-		local allActivePlayers = PlayersService:GetPlayers()
-		local rowCounter = 0
+		local activePlayersInGame = PlayersService:GetPlayers()
+		local activeRowsRendered = 0
 		
-		for index = 1, #allActivePlayers do
-			local loopPlayer = allActivePlayers[index]
+		for index = 1, #activePlayersInGame do
+			local targetedPlayer = activePlayersInGame[index]
 			
-			if loopPlayer ~= localPlayer then
-				rowCounter = rowCounter + 1
+			-- Исключаем локального игрока из списка целей для действий
+			if targetedPlayer ~= localPlayerInstance then
+				activeRowsRendered = activeRowsRendered + 1
 				
-				local playerRowFrame = Instance.new("Frame")
-				playerRowFrame.Size = UDim2.new(0, 280, 0, 40)
-				playerRowFrame.BackgroundColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.BACKGROUND_MAIN_PANEL
-				playerRowFrame.Parent = listScrollFrame
+				local listElementFrame = Instance.new("Frame")
+				listElementFrame.Size = UDim2.new(0, 290, 0, 42)
+				listElementFrame.BackgroundColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.BACKGROUND_MAIN_PANEL
+				listElementFrame.Parent = mainScrollingFrame
 				
-				local elementCorner = Instance.new("UICorner")
-				elementCorner.CornerRadius = UDim.new(0, 4)
-				elementCorner.Parent = playerRowFrame
+				local frameCornerInstance = Instance.new("UICorner")
+				frameCornerInstance.CornerRadius = UDim.new(0, 5)
+				frameCornerInstance.Parent = listElementFrame
 				
-				local nameLabel = Instance.new("TextLabel")
-				nameLabel.Size = UDim2.new(0, 110, 1, 0)
-				nameLabel.Position = UDim2.new(0, 8, 0, 0)
-				nameLabel.BackgroundTransparency = 1
-				nameLabel.Text = loopPlayer.Name
-				nameLabel.TextColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.TEXT_PRIMARY_COLOR
-				nameLabel.Font = Enum.Font.Gotham
-				nameLabel.TextSize = 11
-				nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-				nameLabel.Parent = playerRowFrame
+				local labelPlayerName = Instance.new("TextLabel")
+				labelPlayerName.Size = UDim2.new(0, 115, 1, 0)
+				labelPlayerName.Position = UDim2.new(0, 10, 0, 0)
+				labelPlayerName.BackgroundTransparency = 1
+				labelPlayerName.Text = targetedPlayer.Name
+				labelPlayerName.TextColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.TEXT_PRIMARY_COLOR
+				labelPlayerName.Font = Enum.Font.Gotham
+				labelPlayerName.TextSize = 11
+				labelPlayerName.TextXAlignment = Enum.TextXAlignment.Left
+				labelPlayerName.Parent = listElementFrame
 				
-				-- ТЕЛЕПОРТ
-				local tpButton = Instance.new("TextButton")
-				tpButton.Size = UDim2.new(0, 70, 0, 26)
-				tpButton.Position = UDim2.new(0, 125, 0.5, -13)
-				tpButton.BackgroundColor3 = GLOBAL_GAME_SETTINGS.VISUAL_THEME.BUTTON_ACTION_COLOR
-				tpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-				tpButton.Font = Enum.Font.GothamBold
-				tpButton.TextSize = 9
-				tpButton.Text = "ТЕЛЕПОРТ"
-				tpButton.Parent = playerRowFrame
+				-- Кнопка совершения автоматической телепортации к игроку
+				local actionButtonTeleport = Instance.new("TextButton")
+				actionButtonTeleport.Size = UDim2.new(0, 70, 0, 26)
+				actionButtonTeleport.Position = UDim2.new(0, 130, 0.5, -13)
+				actionButtonTeleport.BackgroundColor3 = SYSTEM_CONFIGURATION.VISUAL_THEME.BUTTON_ACTION_COLOR
+				actionButtonTeleport.TextColor3 = Color3.fromRGB(255, 255, 255)
+				actionButtonTeleport.Font = Enum.Font.GothamBold
+				actionButtonTeleport.TextSize = 9
+				actionButtonTeleport.Text = "ТЕЛЕПОРТ"
+				actionButtonTeleport.Parent = listElementFrame
 				
-				local tpc = Instance.new("UICorner")
-				tpc.CornerRadius = UDim.new(0, 4)
-				tpc.Parent = tpButton
+				local tpCorner = Instance.new("UICorner")
+				tpCorner.CornerRadius = UDim.new(0, 4)
+				tpCorner.Parent = actionButtonTeleport
 				
-				tpButton.MouseButton1Click:Connect(function()
-					teleportRequestEvent:FireServer(loopPlayer.Name)
+				actionButtonTeleport.MouseButton1Click:Connect(function()
+					remoteEventTeleport:FireServer(targetedPlayer.Name)
 				end)
 				
-				-- ЗАПИСАТЬ ИМЯ (Убить)
-				local killButton = Instance.new("TextButton")
-				killButton.Size = UDim2.new(0, 70, 0, 26)
-				killButton.Position = UDim2.new(0, 202, 0.5, -13)
-				killButton.BackgroundColor3 = Color3.fromRGB(150, 25, 25)
-				killButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-				killButton.Font = Enum.Font.GothamBold
-				killButton.TextSize = 9
-				killButton.Text = "ЗАПИСАТЬ ID"
-				killButton.Parent = playerRowFrame
+				-- Кнопка записи ID (Ликвидация)
+				local actionButtonKill = Instance.new("TextButton")
+				actionButtonKill.Size = UDim2.new(0, 75, 0, 26)
+				actionButtonKill.Position = UDim2.new(0, 207, 0.5, -13)
+				actionButtonKill.BackgroundColor3 = Color3.fromRGB(165, 20, 20)
+				actionButtonKill.TextColor3 = Color3.fromRGB(255, 255, 255)
+				actionButtonKill.Font = Enum.Font.GothamBold
+				actionButtonKill.TextSize = 9
+				actionButtonKill.Text = "ЗАПИСАТЬ ID"
+				actionButtonKill.Parent = listElementFrame
 				
-				local kbc = Instance.new("UICorner")
-				kbc.CornerRadius = UDim.new(0, 4)
-				kbc.Parent = killButton
+				local killCorner = Instance.new("UICorner")
+				killCorner.CornerRadius = UDim.new(0, 4)
+				killCorner.Parent = actionButtonKill
 				
-				killButton.MouseButton1Click:Connect(function()
-					eliminationRequestEvent:FireServer(loopPlayer.Name)
+				actionButtonKill.MouseButton1Click:Connect(function()
+					remoteEventEliminate:FireServer(targetedPlayer.Name)
 				end)
 			end
 		end
 		
-		listScrollFrame.CanvasSize = UDim2.new(0, 0, 0, rowCounter * 45)
+		mainScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, activeRowsRendered * 48)
 	end
 
-	PlayersService.PlayerAdded:Connect(rebuildPlayersInterfaceList)
-	PlayersService.PlayerRemoving:Connect(rebuildPlayersInterfaceList)
-	rebuildPlayersInterfaceList()
+	PlayersService.PlayerAdded:Connect(refreshTargetPlayerListUi)
+	PlayersService.PlayerRemoving:Connect(refreshTargetPlayerListUi)
+	refreshTargetPlayerListUi()
 
 	--=============================================================================
-	-- ЦИКЛ РЕНДЕРИНГА ESP-ПОДСВЕТКИ ДЛЯ КИРЫ, L И БОГА СМЕРТИ
+	-- РАБОТАЮЩАЯ ПОДСВЕТКА СКВОЗЬ СТЕНЫ (DYNAMIC CLIENT ESP HIGHLIGHTS)
 	--=============================================================================
-	local function clearPlayerHighlightComponents(characterModel)
-		local elements = characterModel:GetChildren()
-		for index = 1, #elements do
-			local currentElement = elements[index]
-			if currentElement:IsA("Highlight") and currentElement.Name == "SharedEngineEspHighlight" then
-				currentElement:Destroy()
+	local function eraseAllExistingCharacterHighlights(characterModel)
+		local insideElements = characterModel:GetChildren()
+		for index = 1, #insideElements do
+			local element = insideElements[index]
+			if element:IsA("Highlight") and element.Name == "ClientEngineRenderEspHighlight" then
+				element:Destroy()
 			end
 		end
 	end
 
-	local function processRealtimeCharacterHighlighting(targetPlayer)
-		if targetPlayer == localPlayer then return end -- Себя подсвечивать не нужно
+	local function handlePlayerHighlightRendering(gamePlayerInstance)
+		-- Не применяем подсветку на свой собственный персонаж
+		if gamePlayerInstance == localPlayerInstance then return end
 
-		local character = targetPlayer.Character
-		if not character then return end
+		local currentCharacter = gamePlayerInstance.Character
+		if not currentCharacter then return end
 
-		local targetRole = targetPlayer:GetAttribute("CurrentGameRole") or "Spectator"
+		-- Чтение установленной роли игрока из атрибутов движка
+		local currentTargetRole = gamePlayerInstance:GetAttribute("CurrentGameRole") or "Spectator"
 
-		-- Если игрок без роли/наблюдатель — удаляем подсветку
-		if targetRole == "Spectator" then
-			clearPlayerHighlightComponents(character)
+		-- Если игрок не выбрал роль или сбросил её — убираем рентген-контур
+		if currentTargetRole == "Spectator" then
+			eraseAllExistingCharacterHighlights(currentCharacter)
 			return
 		end
 
-		-- Ищем или создаем элемент подсветки
-		local highlight = character:FindFirstChild("SharedEngineEspHighlight")
-		if not highlight then
-			clearPlayerHighlightComponents(character)
-			highlight = Instance.new("Highlight")
-			highlight.Name = "SharedEngineEspHighlight"
-			highlight.DepthMode = Enum.HighlightDepthMode.Always
-			highlight.FillTransparency = 0.5
-			highlight.OutlineTransparency = 0
-			highlight.Parent = character
+		-- Ищем существующий контур или создаем новый на стороне клиента
+		local targetHighlightInstance = currentCharacter:FindFirstChild("ClientEngineRenderEspHighlight")
+		if not targetHighlightInstance then
+			eraseAllExistingCharacterHighlights(currentCharacter)
+			
+			targetHighlightInstance = Instance.new("Highlight")
+			targetHighlightInstance.Name = "ClientEngineRenderEspHighlight"
+			
+			-- Главная настройка видимости сквозь текстуры и стены
+			targetHighlightInstance.DepthMode = Enum.HighlightDepthMode.Always
+			
+			targetHighlightInstance.FillTransparency = 0.45
+			targetHighlightInstance.OutlineTransparency = 0
+			targetHighlightInstance.Parent = currentCharacter
 		end
 
-		-- Применение цветовых схем в зависимости от роли игрока
-		if targetRole == "Kira" then
-			highlight.FillColor = GLOBAL_GAME_SETTINGS.VISUAL_THEME.COLOR_KIRA
-			highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-		elseif targetRole == "L" then
-			highlight.FillColor = GLOBAL_GAME_SETTINGS.VISUAL_THEME.COLOR_DETECTIVE_L
-			highlight.OutlineColor = Color3.fromRGB(200, 240, 255)
-		elseif targetRole == "Shinigami" then
-			highlight.FillColor = GLOBAL_GAME_SETTINGS.VISUAL_THEME.COLOR_SHINIGAMI
-			highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+		-- Изменение цвета подсветки в зависимости от текущей роли сущности
+		if currentTargetRole == "Kira" then
+			targetHighlightInstance.FillColor = SYSTEM_CONFIGURATION.VISUAL_THEME.COLOR_KIRA_TEAM
+			targetHighlightInstance.OutlineColor = Color3.fromRGB(255, 255, 255)
+		elseif currentTargetRole == "L" then
+			targetHighlightInstance.FillColor = SYSTEM_CONFIGURATION.VISUAL_THEME.COLOR_DETECTIVE_L_TEAM
+			targetHighlightInstance.OutlineColor = Color3.fromRGB(255, 255, 255)
+		elseif currentTargetRole == "Shinigami" then
+			targetHighlightInstance.FillColor = SYSTEM_CONFIGURATION.VISUAL_THEME.COLOR_SHINIGAMI_TEAM
+			targetHighlightInstance.OutlineColor = Color3.fromRGB(20, 20, 20)
 		else
-			highlight:Destroy()
+			targetHighlightInstance:Destroy()
 		end
 	end
 
-	-- Непрерывное обновление подсветки каждый кадр
+	-- Запуск непрерывного высокопроизводительного рендеринга рентген-подсветки
 	RunService.RenderStepped:Connect(function()
-		local internalPlayersList = PlayersService:GetPlayers()
-		for index = 1, #internalPlayersList do
-			local iteratedPlayer = internalPlayersList[index]
-			if iteratedPlayer and iteratedPlayer.Character then
-				processRealtimeCharacterHighlighting(iteratedPlayer)
+		local currentPlayersArray = PlayersService:GetPlayers()
+		for index = 1, #currentPlayersArray do
+			local loopPlayer = currentPlayersArray[index]
+			if loopPlayer and loopPlayer.Character then
+				handlePlayerHighlightRendering(loopPlayer)
 			end
 		end
 	end)
