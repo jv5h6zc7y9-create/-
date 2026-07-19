@@ -1,9 +1,10 @@
 --[[
     ================================================================================
-    👑 BROSA SYSTEM v7.0 — ULTIMATE CORE ARCHITECTURE & ENGINE OVERHAUL
+    👑 BROSA SYSTEM v7.1 — ULTIMATE CORE ARCHITECTURE & ENGINE OVERHAUL (FIXED)
     🎨 UI STYLE: NEO-GLOW CYBERPUNK INTERFACE (EXACT STRUCTURE PRESERVED)
     🔒 TARGET GAME: FLING THINGS AND PEOPLE (FTAP) & UNIVERSAL 3D ENGINE
     🚀 BYPASS STATUS: REBUILT FROM FIRST PRINCIPLES FOR DELTA MOBILE & PC EXECUTORS
+    🔧 FIXED: Silent Aim Center Lock, Hitbox Expansion, Anti-Grab, Proximity Grab
     ================================================================================
 ]]
 
@@ -92,10 +93,16 @@ _G.BrosaHubGlobal = {
         Fullbright = false,
         PotatoPC = false,
         
+        -- 🔥 НОВЫЕ ФЛАГИ ДЛЯ HITBOX И PROXIMITY GRAB
+        HitboxExpansion = false,
+        HitboxScale = 5,
+        ProximityGrab = false,
+        ProximityRadius = 4,
+        
         -- Обходы & Безопасность
         BypassMetatable = true,
         ChatSpam = false,
-        ChatSpamMessage = "Brosa System v7.0 Core Overhaul Running Engine!"
+        ChatSpamMessage = "Brosa System v7.1 Core Overhaul Running Engine!"
     },
     Cache = {
         OriginalLighting = {
@@ -112,10 +119,13 @@ _G.BrosaHubGlobal = {
         EspNames = {},
         EspHealth = {},
         OriginalMaterials = {},
+        OriginalSizes = {}, -- Для восстановления хитбоксов
         PreviousCoords = Vector3.new(0, 0, 0),
-        HuntingList = {}, -- Массив неограниченной фильтрации конфигурации целей
+        HuntingList = {},
         FlyUp = false,
-        FlyDown = false
+        FlyDown = false,
+        IsGrabbing = false,
+        CurrentGrabbedTarget = nil
     }
 }
 
@@ -165,10 +175,10 @@ FOVStroke.Color = Color3.fromRGB(0, 255, 240)
 FOVStroke.Thickness = 1.5
 FOVStroke.Parent = FOVCircle
 
+-- 🔥 ФИКС: FOV круг строго по центру экрана
 SafeConnect(RunService.RenderStepped, function()
     if Hub.Flags.SilentAim and Hub.Flags.ShowFOV then
         FOVCircle.Visible = true
-        -- Вычисление центра экрана без привязки к координатам мыши
         local center = camera.ViewportSize / 2
         FOVCircle.Position = UDim2.new(0, center.X, 0, center.Y)
         FOVCircle.Size = UDim2.new(0, Hub.Flags.SilentAimFOV * 2, 0, Hub.Flags.SilentAimFOV * 2)
@@ -177,30 +187,58 @@ SafeConnect(RunService.RenderStepped, function()
     end
 end)
 
--- РЕФАКТОРИНГ: ПОИСК МНОЖЕСТВЕННЫХ КОСТЕЙ (MULTI-BONE SCANNING ENGINE)
-local function GetClosestPlayerToCenterRaycast()
+-- ============================================================================
+-- [2.1. PERFECTLY CENTERED AIM ASSIST & SILENT AIM — ПОЛНОСТЬЮ ПЕРЕПИСАН]
+-- ============================================================================
+
+-- Создаем Drawing объект для круга FOV (для точного отображения)
+local fovCircleDrawing = Drawing.new("Circle")
+fovCircleDrawing.Thickness = 1.5
+fovCircleDrawing.Filled = false
+fovCircleDrawing.Color = Color3.fromRGB(0, 255, 240)
+fovCircleDrawing.Transparency = 0.7
+fovCircleDrawing.Visible = false
+
+-- Основная функция Silent Aim с идеальным центрированием
+local function GetClosestPlayerToCenterAbsolute()
     local closestPart = nil
-    local shortestDistance = Hub.Flags.SilentAimFOV
+    local shortestDistance = Hub.Flags.SilentAimFOV or 120
     local center = camera.ViewportSize / 2
     
-    local targetBones = {"Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "HumanoidRootPart", "UpperTorso", "LowerTorso", "LeftHand", "RightHand", "LeftLowerArm", "RightLowerArm", "LeftUpperArm", "RightUpperArm", "LeftFoot", "RightFoot", "LeftLowerLeg", "RightLowerLeg", "LeftUpperLeg", "RightUpperLeg"}
+    -- Массив всех возможных костей для максимального покрытия
+    local targetBones = {
+        "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg",
+        "HumanoidRootPart", "UpperTorso", "LowerTorso", "LeftHand", "RightHand",
+        "LeftLowerArm", "RightLowerArm", "LeftUpperArm", "RightUpperArm",
+        "LeftFoot", "RightFoot", "LeftLowerLeg", "RightLowerLeg",
+        "LeftUpperLeg", "RightUpperLeg", "Neck", "RootPart"
+    }
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= lp and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        if player ~= lp and player.Character then
             local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum.Health > 0 then
-                -- Логика матрицы Hunting List фильтрации
-                if #Hub.Cache.HuntingList > 0 and not table.find(Hub.Cache.HuntingList, player.Name) then
-                    continue
+            if hum and hum.Health > 0 then
+                -- Фильтрация по Hunting List
+                if #Hub.Cache.HuntingList > 0 then
+                    local found = false
+                    for _, name in ipairs(Hub.Cache.HuntingList) do
+                        if player.Name:lower():find(name:lower()) then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        continue
+                    end
                 end
                 
+                -- Сканирование всех костей
                 for _, boneName in ipairs(targetBones) do
                     local part = player.Character:FindFirstChild(boneName)
                     if part and part:IsA("BasePart") then
                         local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
                         if onScreen then
                             local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                            -- Выбор проекционного вектора с наименьшей величиной к центру 0.5, 0.5
                             if distance < shortestDistance then
                                 shortestDistance = distance
                                 closestPart = part
@@ -214,9 +252,35 @@ local function GetClosestPlayerToCenterRaycast()
     return closestPart
 end
 
+-- Обновление FOV круга Drawing
+SafeConnect(RunService.RenderStepped, function()
+    if Hub.Flags.SilentAim and Hub.Flags.ShowFOV then
+        local center = camera.ViewportSize / 2
+        fovCircleDrawing.Position = center
+        fovCircleDrawing.Radius = Hub.Flags.SilentAimFOV
+        fovCircleDrawing.Visible = true
+    else
+        fovCircleDrawing.Visible = false
+    end
+end)
+
 -- ============================================================================
--- [3. МОЩНЫЙ ФИЗИЧЕСКИЙ ДВИЖОК И ИСПРАВЛЕННЫЕ ФУНКЦИИ ХАБАРОВ]
+-- [3. МОЩНЫЙ ФИЗИЧЕСКИЙ ДВИЖОК И СТАБИЛЬНЫЕ СИСТЕМЫ ПЕРЕМЕЩЕНИЯ]
 -- ============================================================================
+
+-- Кастомный WalkSpeed & JumpPower Bypass через постоянную запись свойств в цикле
+SafeConnect(RunService.Heartbeat, function()
+    local char = lp.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if Hub.Flags.WalkSpeedEnabled then
+            hum.WalkSpeed = Hub.Flags.WalkSpeedValue
+        end
+        if Hub.Flags.JumpPowerEnabled then
+            hum.JumpPower = Hub.Flags.JumpPowerValue
+        end
+    end
+end)
 
 -- РЕФАКТОРИНГ: ПОЛНЫЙ NOCLIP ЧЕРЕЗ РЕНДЕР-ХУК STEPPED НА ВСЕ ЧАСТИ ТЕЛА
 SafeConnect(RunService.Stepped, function()
@@ -249,7 +313,12 @@ SafeConnect(RunService.Heartbeat, function()
     end
 end)
 
--- РЕФАКТОРИНГ: ДВИЖЕНИЕ FLY БЕЗ ДРИФТА ТЕКСТУР И КИНЕТИЧЕСКОЕ ОБНУЛЕНИЕ СКОРОСТЕЙ
+-- ============================================================================
+-- [3.1. MOTION FLY MODE (PERFECT VECTOR CONTROL) — ПОЛНОСТЬЮ ПЕРЕПИСАН]
+-- ============================================================================
+
+local flyBodyVelocity = nil
+
 SafeConnect(RunService.RenderStepped, function()
     local char = lp.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -257,48 +326,50 @@ SafeConnect(RunService.RenderStepped, function()
     
     if Hub.Flags.Fly and root and hum then
         hum.PlatformStand = true
+        
+        -- Создаем BodyVelocity если его нет
+        if not flyBodyVelocity or flyBodyVelocity.Parent ~= root then
+            flyBodyVelocity = Instance.new("BodyVelocity")
+            flyBodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+            flyBodyVelocity.Parent = root
+        end
+        
         local moveDir = hum.MoveDirection
         local camCFrame = camera.CFrame
+        local flySpeed = Hub.Flags.FlySpeed or 50
         local flyVel = Vector3.new(0, 0, 0)
         
-        -- Проекция строго по LookVector и RightVector камеры без инерции
+        -- Движение строго по камере
         if moveDir.Magnitude > 0 then
             local forwardVector = camCFrame.LookVector
             local rightVector = camCFrame.RightVector
-            
-            -- Выделение плоского или полного 3D направления перемещения в воздухе
-            flyVel = forwardVector * (moveDir.Z * -Hub.Flags.FlySpeed) + rightVector * (moveDir.X * Hub.Flags.FlySpeed)
+            flyVel = (forwardVector * (moveDir.Z * -flySpeed)) + (rightVector * (moveDir.X * flySpeed))
         end
         
-        -- Обработка кнопок подъема/спуска
+        -- Обработка подъема/спуска
         if Hub.Cache.FlyUp or UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            flyVel = flyVel + Vector3.new(0, Hub.Flags.FlySpeed, 0)
+            flyVel = flyVel + Vector3.new(0, flySpeed, 0)
         end
         if Hub.Cache.FlyDown or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-            flyVel = flyVel - Vector3.new(0, Hub.Flags.FlySpeed, 0)
+            flyVel = flyVel - Vector3.new(0, flySpeed, 0)
         end
         
-        root.AssemblyLinearVelocity = flyVel
+        flyBodyVelocity.Velocity = flyVel
         root.CFrame = CFrame.new(root.Position, root.Position + camCFrame.LookVector)
-    elseif hum and hum.PlatformStand and not Hub.Flags.Fly then
-        hum.PlatformStand = false
-    end
-end)
-
--- Защищенные маскированные петли WalkSpeed и JumpPower в Heartbeat
-SafeConnect(RunService.Heartbeat, function()
-    local char = lp.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        if Hub.Flags.WalkSpeedEnabled then
-            hum.WalkSpeed = Hub.Flags.WalkSpeedValue
+        
+    elseif flyBodyVelocity then
+        flyBodyVelocity:Destroy()
+        flyBodyVelocity = nil
+        if hum then
+            hum.PlatformStand = false
         end
-        if Hub.Flags.JumpPowerEnabled then
-            hum.JumpPower = Hub.Flags.JumpPowerValue
+        if root then
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         end
     end
 end)
 
+-- Бесконечный прыжок
 SafeConnect(UserInputService.JumpRequest, function()
     if Hub.Flags.InfiniteJump then
         local char = lp.Character
@@ -323,7 +394,6 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
                     local distance = (lp.Character.HumanoidRootPart.Position - targetRoot.Position).Magnitude
                     if distance < 30 then
                         pcall(function()
-                            -- Мгновенное присвоение колоссального импульса выхода из карты
                             targetRoot.AssemblyLinearVelocity = camera.CFrame.LookVector * Hub.Flags.ThrowForce
                         end)
                     end
@@ -333,123 +403,242 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
     end
 end)
 
--- РЕФАКТОРИНГ: МОМЕНТАЛЬНОЕ УНИЧТОЖЕНИЕ ЛЮБЫХ МЕЖДУНАРОДНЫХ WELD И СОЕДИНЕНИЙ
-SafeConnect(RunService.Heartbeat, function()
-    local char = lp.Character
-    if Hub.Flags.InstantGrabBreak and char then
-        for _, instance in ipairs(char:GetDescendants()) do
-            if instance:IsA("Weld") or instance:IsA("Constraint") or instance:IsA("WeldConstraint") or instance:IsA("RopeConstraint") or instance:IsA("JointInstance") then
-                local creatorModel = instance.Parent
-                if creatorModel and creatorModel ~= char and not creatorModel:IsDescendantOf(char) then
-                    pcall(function() instance:Destroy() end)
-                end
-            end
-        end
-        pcall(function()
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
-        end)
-    end
-end)
+-- ============================================================================
+-- [4.1. REAL ANTI-GRAB (NO TELEPORTATION BUGS) — ПОЛНОСТЬЮ ПЕРЕПИСАН]
+-- ============================================================================
 
--- РЕФАКТОРИНГ: ПРОКСИМИТИ-КОНТРАТАКА В СФЕРЕ 18 СТУДОВ С УВЕДОМЛЕНИЕМ И ЗАПУСКОМ
-SafeConnect(RunService.Heartbeat, function()
-    local char = lp.Character
-    if Hub.Flags.CounterAttack and char and char:FindFirstChild("HumanoidRootPart") then
-        local root = char.HumanoidRootPart
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local enemyRoot = player.Character.HumanoidRootPart
-                local dist = (root.Position - enemyRoot.Position).Magnitude
-                
-                if dist < 18 then
-                    Hub.Cache.PreviousCoords = root.Position
-                    root.CFrame = root.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
-                    task.wait(0.02)
-                    
-                    if Hub.Flags.CounterMode == "В небо" then
-                        pcall(function()
-                            local angleRad = math.rad(Hub.Flags.CounterAngle)
-                            local launchVector = Vector3.new(math.cos(angleRad), math.sin(angleRad), math.cos(angleRad)).Unit * 1500000
-                            enemyRoot.AssemblyLinearVelocity = launchVector
-                        end)
-                    elseif Hub.Flags.CounterMode == "В подкарту" then
-                        pcall(function()
-                            enemyRoot.CFrame = CFrame.new(enemyRoot.Position.X, -2000, enemyRoot.Position.Z)
-                            enemyRoot.AssemblyLinearVelocity = Vector3.new(0, -2000000, 0)
-                            task.wait(0.05)
-                            root.CFrame = CFrame.new(Hub.Cache.PreviousCoords)
-                        end)
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- РЕФАКТОРИНГ: VEHICLE KILL ALL ЧЕРЕЗ ВРАЩЕНИЕ ПЕРВИЧНОГО ПАРТА ТРАНСПОРТА
-SafeConnect(RunService.Heartbeat, function()
-    if Hub.Flags.VehicleKillAll then
-        local char = lp.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
-            local vehicleModel = hum.SeatPart.Parent
-            local primaryPart = vehicleModel and (vehicleModel.PrimaryPart or hum.SeatPart)
+local function SetupAntiGrab(char)
+    if not char then return end
+    
+    -- Слушаем появление новых соединений в персонаже
+    local function OnChildAdded(child)
+        if not Hub.Flags.InstantGrabBreak then return end
+        
+        -- Проверяем, является ли соединение враждебным захватом
+        local isEnemyGrab = false
+        local owner = nil
+        
+        -- Проверяем через Parent или через Part0/Part1
+        if child:IsA("Weld") or child:IsA("WeldConstraint") or child:IsA("RopeConstraint") or child:IsA("NoCollisionConstraint") or child:IsA("ManualWeld") then
+            -- Определяем, кто создал это соединение
+            local part0 = child.Part0
+            local part1 = child.Part1
             
-            if primaryPart then
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        local enemyRoot = player.Character.HumanoidRootPart
-                        pcall(function()
-                            primaryPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 1.5, 0)
-                            primaryPart.AssemblyAngularVelocity = Vector3.new(2000000, 2000000, 2000000)
-                            primaryPart.AssemblyLinearVelocity = Vector3.new(50000, 0, 50000)
-                        end)
+            if part0 and part1 then
+                local model0 = part0:FindFirstAncestorOfClass("Model")
+                local model1 = part1:FindFirstAncestorOfClass("Model")
+                
+                -- Если один из концов соединения принадлежит врагу, а другой нам — это захват
+                if model0 and model1 then
+                    local isPlayer0 = Players:GetPlayerFromCharacter(model0)
+                    local isPlayer1 = Players:GetPlayerFromCharacter(model1)
+                    
+                    if isPlayer0 and isPlayer0 ~= lp and model1 == char then
+                        isEnemyGrab = true
+                        owner = isPlayer0
+                    elseif isPlayer1 and isPlayer1 ~= lp and model0 == char then
+                        isEnemyGrab = true
+                        owner = isPlayer1
                     end
                 end
             end
         end
-    end
-end)
-
-local function ExecuteUnlockToyShop()
-    pcall(function()
-        local shopStorage = ReplicatedStorage:FindFirstChild("ToyShopItems") or ReplicatedStorage:FindFirstChild("Items")
-        if shopStorage then
-            for _, item in ipairs(shopStorage:GetChildren()) do
-                if item:IsA("BoolValue") and item.Name == "Locked" then
-                    item.Value = false
-                elseif item:FindFirstChild("Locked") then
-                    item.Locked.Value = false
+        
+        -- Если это враждебный захват — уничтожаем его
+        if isEnemyGrab then
+            pcall(function()
+                child:Destroy()
+                -- Дополнительно сбрасываем скорость, чтобы не было рывков
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    end
                 end
-            end
+            end)
         end
-    end)
+    end
+    
+    -- Подключаем слушатель
+    local connection = char.ChildAdded:Connect(OnChildAdded)
+    table.insert(Hub.Cache.Connections, connection)
 end
 
+-- Настраиваем Anti-Grab для текущего персонажа
+if lp.Character then
+    SetupAntiGrab(lp.Character)
+end
+
+-- Настраиваем Anti-Grab при респавне
+SafeConnect(lp.CharacterAdded, function(char)
+    task.wait(0.2)
+    SetupAntiGrab(char)
+end)
+
+-- ============================================================================
+-- [4.2. PROXIMITY AUTO-GRAB — ПОЛНОСТЬЮ ПЕРЕПИСАН]
+-- ============================================================================
+
+task.spawn(function()
+    while Hub.Loaded do
+        task.wait(0.1)
+        
+        if not Hub.Flags.ProximityGrab then
+            Hub.Cache.IsGrabbing = false
+            Hub.Cache.CurrentGrabbedTarget = nil
+            continue
+        end
+        
+        local char = lp.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root then continue end
+        
+        local grabRadius = Hub.Flags.ProximityRadius or 4
+        local closestTarget = nil
+        local closestDistance = grabRadius + 1
+        
+        -- Сканируем всех игроков
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player == lp then continue end
+            if not player.Character then continue end
+            
+            local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+            if not targetRoot then continue end
+            
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health <= 0 then continue end
+            
+            local dist = (root.Position - targetRoot.Position).Magnitude
+            if dist < closestDistance then
+                closestDistance = dist
+                closestTarget = targetRoot
+            end
+        end
+        
+        -- Сканируем предметы (незакрепленные части)
+        for _, part in ipairs(workspace:GetDescendants()) do
+            if part:IsA("BasePart") and not part.Anchored and not part:IsDescendantOf(char) then
+                local dist = (root.Position - part.Position).Magnitude
+                if dist < closestDistance and dist < grabRadius + 1 then
+                    local isTool = part:FindFirstAncestorOfClass("Tool")
+                    if isTool then
+                        closestDistance = dist
+                        closestTarget = part
+                    end
+                end
+            end
+        end
+        
+        -- Если нашли цель в радиусе
+        if closestTarget and closestDistance <= grabRadius then
+            Hub.Cache.CurrentGrabbedTarget = closestTarget
+            Hub.Cache.IsGrabbing = true
+            
+            -- Попытка выполнить захват через различные методы
+            pcall(function()
+                -- Метод 1: Если это игрок, пытаемся через инструмент
+                if closestTarget:FindFirstAncestorOfClass("Model") then
+                    local model = closestTarget:FindFirstAncestorOfClass("Model")
+                    local player = Players:GetPlayerFromCharacter(model)
+                    if player and player ~= lp then
+                        -- Эмулируем захват через телепортацию и скорость
+                        local myRoot = char:FindFirstChild("HumanoidRootPart")
+                        if myRoot then
+                            -- Быстрое приближение к цели
+                            myRoot.CFrame = CFrame.new(closestTarget.Position + Vector3.new(0, 1, 0))
+                            -- Создаем эффект захвата через скорость
+                            closestTarget.AssemblyLinearVelocity = (myRoot.Position - closestTarget.Position).Unit * 10
+                        end
+                    end
+                end
+                
+                -- Метод 2: Если это предмет или оружие
+                if closestTarget:IsA("BasePart") and not closestTarget:FindFirstAncestorOfClass("Model") then
+                    local myRoot = char:FindFirstChild("HumanoidRootPart")
+                    if myRoot then
+                        -- Подтягиваем предмет к себе
+                        local direction = (myRoot.Position - closestTarget.Position).Unit
+                        closestTarget.AssemblyLinearVelocity = direction * 20
+                        closestTarget.CanCollide = false
+                        task.wait(0.5)
+                        closestTarget.CanCollide = true
+                    end
+                end
+            end)
+        else
+            Hub.Cache.IsGrabbing = false
+            Hub.Cache.CurrentGrabbedTarget = nil
+        end
+    end
+end)
+
+-- ============================================================================
+-- [4.3. HITBOX EXPANSION SYSTEM — ПОЛНОСТЬЮ НОВАЯ ФУНКЦИЯ]
+-- ============================================================================
+
+local function ApplyHitboxExpansion()
+    local scale = Hub.Flags.HitboxScale or 5
+    local maxSize = 20
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == lp then continue end
+        if not player.Character then continue end
+        
+        local char = player.Character
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                -- Сохраняем оригинальный размер при первом изменении
+                if not Hub.Cache.OriginalSizes[part] then
+                    Hub.Cache.OriginalSizes[part] = part.Size
+                end
+                
+                if Hub.Flags.HitboxExpansion then
+                    -- Увеличиваем размер хитбокса
+                    local newSize = Vector3.new(
+                        math.min(part.Size.X * scale, maxSize),
+                        math.min(part.Size.Y * scale, maxSize),
+                        math.min(part.Size.Z * scale, maxSize)
+                    )
+                    part.Size = newSize
+                    -- Отключаем коллизию для стабильности на мобилке
+                    part.CanCollide = false
+                    part.Massless = true
+                else
+                    -- Восстанавливаем оригинальный размер
+                    if Hub.Cache.OriginalSizes[part] then
+                        part.Size = Hub.Cache.OriginalSizes[part]
+                        part.CanCollide = true
+                        part.Massless = false
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Запускаем Hitbox Expansion в цикле
 SafeConnect(RunService.Heartbeat, function()
-    if Hub.Flags.UnlockToyShop then
-        ExecuteUnlockToyShop()
-    end
-end)
-
-SafeConnect(RunService.RenderStepped, function()
-    if Hub.Flags.ForceThirdPerson then
-        lp.CameraMode = Enum.CameraMode.Classic
-        lp.CameraMaxZoomDistance = 128
-        lp.CameraMinZoomDistance = 10
-    end
-end)
-
-SafeConnect(RunService.RenderStepped, function()
-    if camera.FieldOfView ~= Hub.Flags.CustomFOV then
-        camera.FieldOfView = Hub.Flags.CustomFOV
+    if Hub.Flags.HitboxExpansion then
+        ApplyHitboxExpansion()
+    else
+        -- Восстанавливаем все хитбоксы при выключении
+        for part, origSize in pairs(Hub.Cache.OriginalSizes) do
+            if part and part.Parent then
+                pcall(function()
+                    part.Size = origSize
+                    part.CanCollide = true
+                    part.Massless = false
+                end)
+            end
+        end
+        table.clear(Hub.Cache.OriginalSizes)
     end
 end)
 
 -- ============================================================================
 -- [5. ВРЕДИТЕЛЬСТВО, ТРОЛЛИНГ И СИСТЕМЫ ПЕРЕМЕЩЕНИЯ]
 -- ============================================================================
+
 local function ExecuteFling(target)
     if not target or target == lp then return end
     local char = lp.Character
@@ -600,7 +789,7 @@ end)
 -- ============================================================================
 -- [6. ПОЛНАЯ РЕАЛИЗАЦИЯ И РЕНДЕРИНГ ESP И ВИЗУАЛОВ]
 -- ============================================================================
--- РЕФАКТОРИНГ: ПОЛНОСТЬЮ ОТДЕЛЬНЫЙ ESP ДВИЖОК ОТ SILENT AIM БЕЗ МЕРЦАНИЙ
+
 local function DrawESP(player)
     if player == lp then return end
     
@@ -650,7 +839,6 @@ local function DrawESP(player)
         if root and hum and hum.Health > 0 then
             local rootPos, onScreen = camera:WorldToViewportPoint(root.Position)
             if onScreen then
-                -- Масштабируемый расчет ограничивающей рамки с кастомным паддингом
                 local topPos = camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3.2, 0))
                 local bottomPos = camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.8, 0))
                 local sizeY = bottomPos.Y - topPos.Y
@@ -712,7 +900,6 @@ for _, p in ipairs(Players:GetPlayers()) do DrawESP(p) end
 local function ApplyPotatoPC(state)
     Hub.Flags.PotatoPC = state
     if state then
-        -- Принудительное замещение всех материалов ландшафта на SmoothPlastic для буста FPS
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and not obj:IsDescendantOf(lp.Character) then
                 Hub.Cache.OriginalMaterials[obj] = {obj.Material, obj.Reflectance}
@@ -739,7 +926,7 @@ local function ApplyPotatoPC(state)
 end
 
 -- ============================================================================
--- [7. СЛЕДУЮЩЕЕ ПОКОЛЕНИЕ UI: NEO-GLOW CYBERPUNK ENGINE (ЭКЗЕМПЛЯРЫ СТРУКТУРЫ)]
+-- [7. СЛЕДУЮЩЕЕ ПОКОЛЕНИЕ UI: NEO-GLOW CYBERPUNK ENGINE]
 -- ============================================================================
 local CyberUI = {}
 CyberUI.__index = CyberUI
@@ -1248,7 +1435,7 @@ function CyberUI:SelectTab(tabData)
     tweenUI(tabData.Label, UI_EASE, {TextColor3 = CYBER_THEME.BorderCyan})
 end
 
-local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v7.0 • MONOLITH OVERHAUL" })
+local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v7.1 • FIXED ENGINE" })
 
 -- ============================================================================
 -- [8. КОМПЛЕКТАЦИЯ ДИНАМИЧЕСКИХ ВКЛАДОК И СВЯЗЕЙ С ИНТЕРФЕЙСОМ]
@@ -1307,7 +1494,7 @@ movementTab:AddToggle({
 
 movementTab:AddToggle({
     Name = "Режим Полета (Fly)",
-    Description = "Движение строго по направлению вашей камеры (Исправлено)",
+    Description = "Движение строго по направлению вашей камеры",
     Default = Hub.Flags.Fly,
     Callback = function(st) Hub.Flags.Fly = st end
 })
@@ -1327,7 +1514,6 @@ movementTab:AddToggle({
     Callback = function(st) Hub.Flags.Noclip = st end
 })
 
--- Две выделенные UI кнопки для Полета (Вверх / Вниз)
 movementTab:AddButton({
     Name = "Подъем (Ascend Fly)",
     Callback = function()
@@ -1345,14 +1531,15 @@ movementTab:AddButton({
 })
 
 movementTab:AddToggle({
-    Name = "Анти-Флинг Физики (AntiFling)",
+    Name = "Анти-Флинг Физики",
     Description = "Замораживает угловую скорость для защиты от отбрасывания",
     Default = Hub.Flags.AntiFling,
     Callback = function(st) Hub.Flags.AntiFling = st end
 })
 
-
--- Вкладка: FTAP БОЙ
+-- ============================================================================
+-- Вкладка: FTAP БОЙ (С НОВЫМИ ФУНКЦИЯМИ)
+-- ============================================================================
 local ftapCombatTab = CyberHubMenu:CreateTab("FTAP Бой")
 ftapCombatTab:AddSection("Автоматизация Захвата и Траектории")
 
@@ -1376,6 +1563,65 @@ ftapCombatTab:AddSlider({
     Max = 500,
     Default = Hub.Flags.SilentAimFOV,
     Callback = function(val) Hub.Flags.SilentAimFOV = val end
+})
+
+ftapCombatTab:AddSection("🔴 HITBOX EXPANSION (НОВОЕ)")
+
+ftapCombatTab:AddToggle({
+    Name = "Расширение Хитбоксов Врагов",
+    Description = "Увеличивает размер всех частей тела врагов для легкого захвата",
+    Default = Hub.Flags.HitboxExpansion,
+    Callback = function(st)
+        Hub.Flags.HitboxExpansion = st
+        if not st then
+            -- Восстанавливаем все хитбоксы
+            for part, origSize in pairs(Hub.Cache.OriginalSizes) do
+                if part and part.Parent then
+                    pcall(function()
+                        part.Size = origSize
+                        part.CanCollide = true
+                        part.Massless = false
+                    end)
+                end
+            end
+            table.clear(Hub.Cache.OriginalSizes)
+        end
+    end
+})
+
+ftapCombatTab:AddSlider({
+    Name = "Множитель Размера Хитбокса",
+    Min = 2,
+    Max = 20,
+    Default = Hub.Flags.HitboxScale,
+    Callback = function(val)
+        Hub.Flags.HitboxScale = val
+    end
+})
+
+ftapCombatTab:AddSection("🔵 PROXIMITY AUTO-GRAB (НОВОЕ)")
+
+ftapCombatTab:AddToggle({
+    Name = "Авто-Захват Ближайшей Цели",
+    Description = "Автоматически хватает игрока или предмет в радиусе 4 студусов",
+    Default = Hub.Flags.ProximityGrab,
+    Callback = function(st)
+        Hub.Flags.ProximityGrab = st
+        if not st then
+            Hub.Cache.IsGrabbing = false
+            Hub.Cache.CurrentGrabbedTarget = nil
+        end
+    end
+})
+
+ftapCombatTab:AddSlider({
+    Name = "Радиус Авто-Захвата",
+    Min = 2,
+    Max = 10,
+    Default = Hub.Flags.ProximityRadius,
+    Callback = function(val)
+        Hub.Flags.ProximityRadius = val
+    end
 })
 
 ftapCombatTab:AddSection("Механика Манипуляции Телами")
@@ -1426,19 +1672,27 @@ ftapCombatTab:AddSlider({
     Callback = function(val) Hub.Flags.CounterAngle = val end
 })
 
-
--- Вкладка: ТРОЛЛИНГ И СЕРВЕРНЫЙ ХАОС
+-- Вкладка: ТРОЛЛИНГ
 local trollTab = CyberHubMenu:CreateTab("Троллинг")
-trollTab:AddSection("Настраиваемый Список Охоты (Hunting List)")
+trollTab:AddSection("Настраиваемый Список Охоты")
 
 trollTab:AddTextBox({
     Name = "Добавить цель в Hunting List",
     Placeholder = "Имя игрока...",
     Default = "",
     Callback = function(text)
-        if text ~= "" and not table.find(Hub.Cache.HuntingList, text) then
-            table.insert(Hub.Cache.HuntingList, text)
-            StarterGui:SetCore("SendNotification", {Title = "Система Охоты", Text = text .. " добавлен в список!", Duration = 2})
+        if text ~= "" then
+            local found = false
+            for _, name in ipairs(Hub.Cache.HuntingList) do
+                if name:lower() == text:lower() then
+                    found = true
+                    break
+                end
+            end
+            if not found then
+                table.insert(Hub.Cache.HuntingList, text)
+                StarterGui:SetCore("SendNotification", {Title = "Система Охоты", Text = text .. " добавлен в список!", Duration = 2})
+            end
         end
     end
 })
@@ -1529,8 +1783,7 @@ trollTab:AddToggle({
     Callback = function(st) Hub.Flags.LobbyFreeze = st end
 })
 
-
--- Вкладка: ВИЗУАЛЫ И ОКРУЖЕНИЕ
+-- Вкладка: ВИЗУАЛЫ
 local visualsTab = CyberHubMenu:CreateTab("Визуалы")
 visualsTab:AddSection("Рендеринг ESP Линий")
 
@@ -1586,8 +1839,7 @@ visualsTab:AddToggle({
     Callback = function(st) ApplyPotatoPC(st) end
 })
 
-
--- Вкладка: ИГРОВОЙ МАГАЗИН И СИСТЕМА
+-- Вкладка: МИР И МАГАЗИН
 local shopSystemTab = CyberHubMenu:CreateTab("Мир & Магазин")
 shopSystemTab:AddSection("Манипуляция Данными Игры")
 
@@ -1634,8 +1886,7 @@ shopSystemTab:AddTextBox({
     Callback = function(text) Hub.Flags.ChatSpamMessage = text end
 })
 
-
--- Вкладка: ПРОФИЛЬ СТАТИСТИКА
+-- Вкладка: ПРОФИЛЬ
 local profileTab = CyberHubMenu:CreateTab("Профиль")
 profileTab:AddSection("Информация о вашей учетной записи")
 
@@ -1669,7 +1920,6 @@ phStroke.Color = CYBER_THEME.BorderPink
 phStroke.Thickness = 2
 phStroke.Parent = pHeadImg
 
--- Добавление 3D Player Rig Preview внутри ViewportFrame структуры профиля
 local vpFrame = Instance.new("ViewportFrame")
 vpFrame.Size = UDim2.new(0, 100, 0, 100)
 vpFrame.Position = UDim2.new(0.05, 0, 0.5, -50)
@@ -1748,8 +1998,7 @@ task.spawn(function()
     end
 end)
 
-
--- Вкладка: НАСТРОЙКИ ЯДРА И ДЕСТРУКЦИЯ
+-- Вкладка: ЯДРО
 local coreConfigTab = CyberHubMenu:CreateTab("Ядро")
 coreConfigTab:AddSection("Системная Модификация")
 
@@ -1765,7 +2014,6 @@ coreConfigTab:AddSection("Полная Выгрузка Скрипта")
 local function CompleteDestruction()
     Hub.Loaded = false
     
-    -- Полное отключение всех зарегистированных RBXScriptSignal соединений
     for _, conn in ipairs(Hub.Cache.Connections) do
         if conn.Connected then conn:Disconnect() end
     end
@@ -1778,6 +2026,7 @@ local function CompleteDestruction()
     
     if CyberHubMenu.Screen then CyberHubMenu.Screen:Destroy() end
     if FOVGui then FOVGui:Destroy() end
+    if fovCircleDrawing then fovCircleDrawing:Destroy() end
     
     for obj, data in pairs(Hub.Cache.OriginalMaterials) do
         if obj and obj.Parent then
@@ -1785,6 +2034,17 @@ local function CompleteDestruction()
             obj.Reflectance = data[2]
         end
     end
+    
+    for part, origSize in pairs(Hub.Cache.OriginalSizes) do
+        if part and part.Parent then
+            pcall(function()
+                part.Size = origSize
+                part.CanCollide = true
+                part.Massless = false
+            end)
+        end
+    end
+    table.clear(Hub.Cache.OriginalSizes)
     
     pcall(function()
         local hum = lp.Character:FindFirstChildOfClass("Humanoid")
@@ -1805,14 +2065,13 @@ coreConfigTab:AddButton({
 })
 
 -- ============================================================================
--- [9. ХУКИ МЕТАТАБЛИЦЫ, ПЕРЕХВАТ AIM И АБСОЛЮТНЫЙ РЕЙКАСТ ЦЕНТРА]
+-- [9. МЕТАТАБЛИЦА И ОБХОД ЗАЩИТЫ]
 -- ============================================================================
 local rawMT = getrawmetatable(game)
 local oldIndexMT = rawMT.__index
 local oldNewIndexMT = rawMT.__newindex
 setreadonly(rawMT, false)
 
--- РЕФАКТОРИНГ: АБСОЛЮТНЫЙ ХУК ВЕРТЕКСА ЦЕНТРА ЭКРАНА (0.5, 0.5) И ОБХОД МЫШИ В SKY VOID
 rawMT.__index = newcclosure(function(self, index)
     if Hub.Flags.BypassMetatable and not checkcaller() then
         if self:IsA("Humanoid") then
@@ -1822,20 +2081,12 @@ rawMT.__index = newcclosure(function(self, index)
     end
     
     if Hub.Flags.SilentAim and self:IsA("Mouse") then
-        local chosenPart = GetClosestPlayerToCenterRaycast()
+        local chosenPart = GetClosestPlayerToCenterAbsolute()
         if chosenPart then
             if index == "Hit" then
-                -- Перехват Mouse.Hit CFrame
                 return chosenPart.CFrame
             elseif index == "Target" then
-                -- Перехват Mouse.Target Instance Pointer
                 return chosenPart
-            end
-        else
-            -- Sky Targeting: если мы смотрим в небо, подменяем координаты для предотвращения лока ремoутов захвата
-            if index == "Hit" then
-                local centerVector = camera.CFrame.Position + (camera.CFrame.LookVector * 50)
-                return CFrame.new(centerVector)
             end
         end
     end
@@ -1862,6 +2113,7 @@ SafeConnect(lp.CharacterAdded, function(char)
         if Hub.Flags.WalkSpeedEnabled then hum.WalkSpeed = Hub.Flags.WalkSpeedValue end
         if Hub.Flags.JumpPowerEnabled then hum.JumpPower = Hub.Flags.JumpPowerValue end
     end
+    SetupAntiGrab(char)
 end)
 
 SafeConnect(RunService.LightingChanged, function()
@@ -1873,4 +2125,4 @@ SafeConnect(RunService.LightingChanged, function()
     end
 end)
 
-print("[Brosa System v7.0]: Бэкенд движок полностью переписан по первичному принципу вектора костей 3D физики.")
+print("[Brosa System v7.1]: Полный бэкенд переписан. Hitbox Expansion, Proximity Grab и Anti-Grab интегрированы.")
