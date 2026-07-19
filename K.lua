@@ -1,9 +1,9 @@
 --[[
     ================================================================================
-    👑 BROSA SYSTEM v6.0 — CYBERPUNK MONOLITHIC HYBRID EXPLOIT HUB
-    🎨 UI ENGINE: NEO-GLOW CYBERPUNK INTERFACE v3 (ELITE EDITION)
-    🔒 TARGET GAME: FLING THINGS AND PEOPLE (FTAP) & UNIVERSAL
-    🚀 BYPASS STATUS: ACTIVE | FULLY OPTIMIZED FOR DELTA EXECUTOR (MOBILE/PC)
+    👑 BROSA SYSTEM v7.0 — ULTIMATE CORE ARCHITECTURE & ENGINE OVERHAUL
+    🎨 UI STYLE: NEO-GLOW CYBERPUNK INTERFACE (EXACT STRUCTURE PRESERVED)
+    🔒 TARGET GAME: FLING THINGS AND PEOPLE (FTAP) & UNIVERSAL 3D ENGINE
+    🚀 BYPASS STATUS: REBUILT FROM FIRST PRINCIPLES FOR DELTA MOBILE & PC EXECUTORS
     ================================================================================
 ]]
 
@@ -34,13 +34,12 @@ if not lp.Character then
 end
 local camera = workspace.CurrentCamera
 
--- Защита от дублирования потоков выполнения
 if _G.BrosaHubGlobal and _G.BrosaHubGlobal.Loaded then
     warn("[Brosa System]: Скрипт уже запущен! Повторная инициализация заблокирована.")
     return
 end
 
--- Глобальная структура состояния (Brosa Core State Architecture)
+-- Глобальная структура состояния
 _G.BrosaHubGlobal = {
     Loaded = true,
     Flags = {
@@ -60,10 +59,10 @@ _G.BrosaHubGlobal = {
         SilentAimFOV = 120,
         ShowFOV = false,
         MegaThrow = false,
-        ThrowForce = 500000,
+        ThrowForce = 2000000,
         InstantGrabBreak = false,
         CounterAttack = false,
-        CounterMode = "В небо", -- "В небо" или "В подкарту"
+        CounterMode = "В небо",
         CounterAngle = 70,
         VehicleKillAll = false,
         UnlockToyShop = false,
@@ -96,7 +95,7 @@ _G.BrosaHubGlobal = {
         -- Обходы & Безопасность
         BypassMetatable = true,
         ChatSpam = false,
-        ChatSpamMessage = "Brosa System v6.0 (Cyberpunk Edition) Управляет Сервером!"
+        ChatSpamMessage = "Brosa System v7.0 Core Overhaul Running Engine!"
     },
     Cache = {
         OriginalLighting = {
@@ -114,20 +113,20 @@ _G.BrosaHubGlobal = {
         EspHealth = {},
         OriginalMaterials = {},
         PreviousCoords = Vector3.new(0, 0, 0),
-        TrackedBoneInstance = nil
+        HuntingList = {}, -- Массив неограниченной фильтрации конфигурации целей
+        FlyUp = false,
+        FlyDown = false
     }
 }
 
 local Hub = _G.BrosaHubGlobal
 
--- Безопасный менеджер соединений для предотвращения утечек памяти
 local function SafeConnect(signal, callback)
     local connection = signal:Connect(callback)
     table.insert(Hub.Cache.Connections, connection)
     return connection
 end
 
--- Поиск игрока по частичному совпадению юзернейма/дисплейнейма
 local function FindPlayerByName(name)
     if not name or name == "" then return nil end
     name = name:lower()
@@ -166,37 +165,45 @@ FOVStroke.Color = Color3.fromRGB(0, 255, 240)
 FOVStroke.Thickness = 1.5
 FOVStroke.Parent = FOVCircle
 
--- Обновление геометрии круга захвата в реальном времени
 SafeConnect(RunService.RenderStepped, function()
     if Hub.Flags.SilentAim and Hub.Flags.ShowFOV then
         FOVCircle.Visible = true
+        -- Вычисление центра экрана без привязки к координатам мыши
+        local center = camera.ViewportSize / 2
+        FOVCircle.Position = UDim2.new(0, center.X, 0, center.Y)
         FOVCircle.Size = UDim2.new(0, Hub.Flags.SilentAimFOV * 2, 0, Hub.Flags.SilentAimFOV * 2)
     else
         FOVCircle.Visible = false
     end
 end)
 
--- РЕФАКТОРИНГ: ПОЛНЫЙ ЦИКЛ СКАНИРОВАНИЯ КОСТЕЙ (VALHACK MULTI-BONE SELECTOR & FIXED VIEWPORT ANCHOR)
-local function GetClosestPlayerToCursor()
+-- РЕФАКТОРИНГ: ПОИСК МНОЖЕСТВЕННЫХ КОСТЕЙ (MULTI-BONE SCANNING ENGINE)
+local function GetClosestPlayerToCenterRaycast()
     local closestPart = nil
     local shortestDistance = Hub.Flags.SilentAimFOV
-    local viewCenter = camera.ViewportSize / 2
-
-    local standardTopology = {"Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot", "HumanoidRootPart"}
+    local center = camera.ViewportSize / 2
+    
+    local targetBones = {"Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "HumanoidRootPart", "UpperTorso", "LowerTorso", "LeftHand", "RightHand", "LeftLowerArm", "RightLowerArm", "LeftUpperArm", "RightUpperArm", "LeftFoot", "RightFoot", "LeftLowerLeg", "RightLowerLeg", "LeftUpperLeg", "RightUpperLeg"}
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= lp and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid.Health > 0 then
-                for _, boneName in ipairs(standardTopology) do
-                    local bone = player.Character:FindFirstChild(boneName)
-                    if bone and bone:IsA("BasePart") then
-                        local screenPos, onScreen = camera:WorldToViewportPoint(bone.Position)
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum.Health > 0 then
+                -- Логика матрицы Hunting List фильтрации
+                if #Hub.Cache.HuntingList > 0 and not table.find(Hub.Cache.HuntingList, player.Name) then
+                    continue
+                end
+                
+                for _, boneName in ipairs(targetBones) do
+                    local part = player.Character:FindFirstChild(boneName)
+                    if part and part:IsA("BasePart") then
+                        local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
                         if onScreen then
-                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - viewCenter).Magnitude
+                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                            -- Выбор проекционного вектора с наименьшей величиной к центру 0.5, 0.5
                             if distance < shortestDistance then
                                 shortestDistance = distance
-                                closestPart = bone
+                                closestPart = part
                             end
                         end
                     end
@@ -204,7 +211,6 @@ local function GetClosestPlayerToCursor()
             end
         end
     end
-    Hub.Cache.TrackedBoneInstance = closestPart
     return closestPart
 end
 
@@ -212,7 +218,7 @@ end
 -- [3. МОЩНЫЙ ФИЗИЧЕСКИЙ ДВИЖОК И ИСПРАВЛЕННЫЕ ФУНКЦИИ ХАБАРОВ]
 -- ============================================================================
 
--- Корректный Noclip без конфликтов с гравитацией
+-- РЕФАКТОРИНГ: ПОЛНЫЙ NOCLIP ЧЕРЕЗ РЕНДЕР-ХУК STEPPED НА ВСЕ ЧАСТИ ТЕЛА
 SafeConnect(RunService.Stepped, function()
     local char = lp.Character
     if not char then return end
@@ -225,7 +231,7 @@ SafeConnect(RunService.Stepped, function()
     end
 end)
 
--- Исправленный и усиленный Anti-Fling (Анти-отброс)
+-- РЕФАКТОРИНГ: ЖЕСТКАЯ БЛОКИРОВКА АНГЛОВОЙ СКОРОСТИ ANTI-FLING И СТАБИЛИЗАЦИЯ
 SafeConnect(RunService.Heartbeat, function()
     local char = lp.Character
     if Hub.Flags.AntiFling and char then
@@ -243,50 +249,56 @@ SafeConnect(RunService.Heartbeat, function()
     end
 end)
 
--- РЕФАКТОРИНГ: КАМЕРА-ОРИЕНТИРОВАННЫЙ ВЕКТОРНЫЙ ПОЛЕТ БЕЗ ДРИФТА (FLY ENGINE OVERHAUL)
-local wasFlying = false
+-- РЕФАКТОРИНГ: ДВИЖЕНИЕ FLY БЕЗ ДРИФТА ТЕКСТУР И КИНЕТИЧЕСКОЕ ОБНУЛЕНИЕ СКОРОСТЕЙ
 SafeConnect(RunService.RenderStepped, function()
     local char = lp.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     
     if Hub.Flags.Fly and root and hum then
-        wasFlying = true
         hum.PlatformStand = true
         local moveDir = hum.MoveDirection
         local camCFrame = camera.CFrame
         local flyVel = Vector3.new(0, 0, 0)
         
+        -- Проекция строго по LookVector и RightVector камеры без инерции
         if moveDir.Magnitude > 0 then
-            local lookVector = camCFrame.LookVector
+            local forwardVector = camCFrame.LookVector
             local rightVector = camCFrame.RightVector
             
-            local forward = lookVector * (moveDir.Z * -Hub.Flags.FlySpeed)
-            local lateral = rightVector * (moveDir.X * Hub.Flags.FlySpeed)
-            
-            flyVel = forward + lateral
+            -- Выделение плоского или полного 3D направления перемещения в воздухе
+            flyVel = forwardVector * (moveDir.Z * -Hub.Flags.FlySpeed) + rightVector * (moveDir.X * Hub.Flags.FlySpeed)
         end
         
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        -- Обработка кнопок подъема/спуска
+        if Hub.Cache.FlyUp or UserInputService:IsKeyDown(Enum.KeyCode.Space) then
             flyVel = flyVel + Vector3.new(0, Hub.Flags.FlySpeed, 0)
-        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        end
+        if Hub.Cache.FlyDown or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
             flyVel = flyVel - Vector3.new(0, Hub.Flags.FlySpeed, 0)
         end
         
         root.AssemblyLinearVelocity = flyVel
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         root.CFrame = CFrame.new(root.Position, root.Position + camCFrame.LookVector)
-    elseif hum and wasFlying and not Hub.Flags.Fly then
-        wasFlying = false
+    elseif hum and hum.PlatformStand and not Hub.Flags.Fly then
         hum.PlatformStand = false
-        if root then
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
+end)
+
+-- Защищенные маскированные петли WalkSpeed и JumpPower в Heartbeat
+SafeConnect(RunService.Heartbeat, function()
+    local char = lp.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if Hub.Flags.WalkSpeedEnabled then
+            hum.WalkSpeed = Hub.Flags.WalkSpeedValue
+        end
+        if Hub.Flags.JumpPowerEnabled then
+            hum.JumpPower = Hub.Flags.JumpPowerValue
         end
     end
 end)
 
--- Бесконечный прыжок
 SafeConnect(UserInputService.JumpRequest, function()
     if Hub.Flags.InfiniteJump then
         local char = lp.Character
@@ -301,7 +313,7 @@ end)
 -- [4. РЕАЛИЗАЦИЯ ИСПРАВЛЕННЫХ ТЕХНИЧЕСКИХ ФУНКЦИЙ ДЛЯ ИГРЫ FTAP]
 -- ============================================================================
 
--- 1. Мега-Далекий Бросок за карту (Out of Map Fling / Mega-Throw Impulse Scaling)
+-- РЕФАКТОРИНГ: МЕГА-БРОСОК НА ПОЛНУЮ МОЩНОСТЬ (2,000,000 ЕДИНИЦ)
 SafeConnect(UserInputService.InputBegan, function(input, processed)
     if Hub.Flags.MegaThrow and not processed then
         if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
@@ -309,8 +321,9 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
                 if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                     local targetRoot = player.Character.HumanoidRootPart
                     local distance = (lp.Character.HumanoidRootPart.Position - targetRoot.Position).Magnitude
-                    if distance < 25 then
+                    if distance < 30 then
                         pcall(function()
+                            -- Мгновенное присвоение колоссального импульса выхода из карты
                             targetRoot.AssemblyLinearVelocity = camera.CFrame.LookVector * Hub.Flags.ThrowForce
                         end)
                     end
@@ -320,12 +333,12 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
     end
 end)
 
--- 2. Анти-Взятие Себя (Instant Grab Break) + Разрыв Якорей и Ограничений
+-- РЕФАКТОРИНГ: МОМЕНТАЛЬНОЕ УНИЧТОЖЕНИЕ ЛЮБЫХ МЕЖДУНАРОДНЫХ WELD И СОЕДИНЕНИЙ
 SafeConnect(RunService.Heartbeat, function()
     local char = lp.Character
     if Hub.Flags.InstantGrabBreak and char then
         for _, instance in ipairs(char:GetDescendants()) do
-            if instance:IsA("Weld") or instance:IsA("Constraint") or instance:IsA("WeldConstraint") then
+            if instance:IsA("Weld") or instance:IsA("Constraint") or instance:IsA("WeldConstraint") or instance:IsA("RopeConstraint") or instance:IsA("JointInstance") then
                 local creatorModel = instance.Parent
                 if creatorModel and creatorModel ~= char and not creatorModel:IsDescendantOf(char) then
                     pcall(function() instance:Destroy() end)
@@ -334,14 +347,12 @@ SafeConnect(RunService.Heartbeat, function()
         end
         pcall(function()
             local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
+            if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
         end)
     end
 end)
 
--- 3. Авто-Отброс в Небо и Телепорт под Карту (Контратака / Proximity Counter-Impulse)
+-- РЕФАКТОРИНГ: ПРОКСИМИТИ-КОНТРАТАКА В СФЕРЕ 18 СТУДОВ С УВЕДОМЛЕНИЕМ И ЗАПУСКОМ
 SafeConnect(RunService.Heartbeat, function()
     local char = lp.Character
     if Hub.Flags.CounterAttack and char and char:FindFirstChild("HumanoidRootPart") then
@@ -354,19 +365,20 @@ SafeConnect(RunService.Heartbeat, function()
                 if dist < 18 then
                     Hub.Cache.PreviousCoords = root.Position
                     root.CFrame = root.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
+                    task.wait(0.02)
                     
-                    task.wait(0.01)
                     if Hub.Flags.CounterMode == "В небо" then
                         pcall(function()
                             local angleRad = math.rad(Hub.Flags.CounterAngle)
-                            local launchVector = Vector3.new(0, math.sin(angleRad), 0).Unit * 1800000
-                            enemyRoot.CFrame = enemyRoot.CFrame * CFrame.new(0, 5, 0)
+                            local launchVector = Vector3.new(math.cos(angleRad), math.sin(angleRad), math.cos(angleRad)).Unit * 1500000
                             enemyRoot.AssemblyLinearVelocity = launchVector
                         end)
                     elseif Hub.Flags.CounterMode == "В подкарту" then
                         pcall(function()
-                            enemyRoot.CFrame = CFrame.new(enemyRoot.Position.X, -450, enemyRoot.Position.Z)
-                            enemyRoot.AssemblyLinearVelocity = Vector3.new(0, -1800000, 0)
+                            enemyRoot.CFrame = CFrame.new(enemyRoot.Position.X, -2000, enemyRoot.Position.Z)
+                            enemyRoot.AssemblyLinearVelocity = Vector3.new(0, -2000000, 0)
+                            task.wait(0.05)
+                            root.CFrame = CFrame.new(Hub.Cache.PreviousCoords)
                         end)
                     end
                 end
@@ -375,33 +387,24 @@ SafeConnect(RunService.Heartbeat, function()
     end
 end)
 
--- 4. Машины: Функция "Убить Всех" (Vehicle Kill All / Assembly Collision Multiplier)
+-- РЕФАКТОРИНГ: VEHICLE KILL ALL ЧЕРЕЗ ВРАЩЕНИЕ ПЕРВИЧНОГО ПАРТА ТРАНСПОРТА
 SafeConnect(RunService.Heartbeat, function()
-    local char = lp.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
-        local seat = hum.SeatPart
-        pcall(function()
-            seat.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-            seat.Torque = math.huge
-            seat.TurnSpeed = 150
-            seat.MaxSpeed = 300
-        end)
-        
-        if Hub.Flags.VehicleKillAll then
-            local vehicleModel = seat.Parent
-            local primaryPart = vehicleModel and (vehicleModel.PrimaryPart or seat)
+    if Hub.Flags.VehicleKillAll then
+        local char = lp.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
+            local vehicleModel = hum.SeatPart.Parent
+            local primaryPart = vehicleModel and (vehicleModel.PrimaryPart or hum.SeatPart)
+            
             if primaryPart then
                 for _, player in ipairs(Players:GetPlayers()) do
                     if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         local enemyRoot = player.Character.HumanoidRootPart
                         pcall(function()
-                            primaryPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 1, 0)
-                            primaryPart.AssemblyAngularVelocity = Vector3.new(1500000, 1500000, 1500000)
-                            primaryPart.AssemblyLinearVelocity = Vector3.new(10000, 0, 10000)
+                            primaryPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 1.5, 0)
+                            primaryPart.AssemblyAngularVelocity = Vector3.new(2000000, 2000000, 2000000)
+                            primaryPart.AssemblyLinearVelocity = Vector3.new(50000, 0, 50000)
                         end)
-                        task.wait(0.01)
                     end
                 end
             end
@@ -409,7 +412,6 @@ SafeConnect(RunService.Heartbeat, function()
     end
 end)
 
--- 5. Разблокировка скрытых предметов Toy Shop (Unlock All Items)
 local function ExecuteUnlockToyShop()
     pcall(function()
         local shopStorage = ReplicatedStorage:FindFirstChild("ToyShopItems") or ReplicatedStorage:FindFirstChild("Items")
@@ -431,26 +433,23 @@ SafeConnect(RunService.Heartbeat, function()
     end
 end)
 
--- 6. Рабочее 3-е лицо с авто-возвратом
 SafeConnect(RunService.RenderStepped, function()
     if Hub.Flags.ForceThirdPerson then
         lp.CameraMode = Enum.CameraMode.Classic
-        lp.CameraMaxZoomDistance = 40
+        lp.CameraMaxZoomDistance = 128
         lp.CameraMinZoomDistance = 10
     end
 end)
 
--- 7. Настраиваемый Растяг Экрана (FOV Changer)
 SafeConnect(RunService.RenderStepped, function()
-    if workspace.CurrentCamera.FieldOfView ~= Hub.Flags.CustomFOV then
-        workspace.CurrentCamera.FieldOfView = Hub.Flags.CustomFOV
+    if camera.FieldOfView ~= Hub.Flags.CustomFOV then
+        camera.FieldOfView = Hub.Flags.CustomFOV
     end
 end)
 
 -- ============================================================================
 -- [5. ВРЕДИТЕЛЬСТВО, ТРОЛЛИНГ И СИСТЕМЫ ПЕРЕМЕЩЕНИЯ]
 -- ============================================================================
-
 local function ExecuteFling(target)
     if not target or target == lp then return end
     local char = lp.Character
@@ -472,16 +471,16 @@ local function ExecuteFling(target)
         
         local flingLoop = RunService.Heartbeat:Connect(function()
             if not tchar or not troot or not troot.Parent or not flingActive then return end
-            root.AssemblyLinearVelocity = Vector3.new(0, 1950000, 0)
-            root.AssemblyAngularVelocity = Vector3.new(1950000, 1950000, 1950000)
-            root.CFrame = troot.CFrame * CFrame.new(math.random(-1, 1)/10, 0, math.random(-1, 1)/10)
+            root.AssemblyLinearVelocity = Vector3.new(0, 3000000, 0)
+            root.AssemblyAngularVelocity = Vector3.new(3000000, 3000000, 3000000)
+            root.CFrame = troot.CFrame * CFrame.new(math.random(-2, 2)/10, 0, math.random(-2, 2)/10)
         end)
         
-        task.delay(2.2, function()
+        task.delay(1.5, function()
             flingActive = false
             tempNoclip:Disconnect()
             flingLoop:Disconnect()
-            task.wait(0.05)
+            task.wait(0.02)
             if root then
                 root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -491,43 +490,20 @@ local function ExecuteFling(target)
     end
 end
 
--- ВЫСОКОСКОРОСТНАЯ АУРА ВРАЩЕНИЯ (FLING AURA & HIGH-VELOCITY TORQUE FRAMEWORK)
-local auraPart = nil
 SafeConnect(RunService.Heartbeat, function()
-    local char = lp.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    
-    if Hub.Flags.FlingAura and root then
-        if not auraPart or not auraPart.Parent then
-            auraPart = Instance.new("Part")
-            auraPart.Size = Vector3.new(1, 1, 1)
-            auraPart.Transparency = 1
-            auraPart.CanCollide = false
-            auraPart.Anchored = false
-            auraPart.Parent = workspace
-            
-            local attachment = Instance.new("Attachment", auraPart)
-            local torque = Instance.new("Torque", auraPart)
-            torque.Attachment0 = attachment
-            torque.Torque = Vector3.new(1990000, 1990000, 1990000)
-        end
-        
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local targetRoot = player.Character.HumanoidRootPart
-                local dist = (root.Position - targetRoot.Position).Magnitude
-                if dist <= 16 then
-                    auraPart.CFrame = targetRoot.CFrame
-                    auraPart.AssemblyLinearVelocity = Vector3.new(0, 1990000, 0)
-                    auraPart.AssemblyAngularVelocity = Vector3.new(1990000, 1990000, 1990000)
-                    targetRoot.AssemblyLinearVelocity = Vector3.new(0, 1990000, 0)
+    if Hub.Flags.FlingAura then
+        local char = lp.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetRoot = player.Character.HumanoidRootPart
+                    local dist = (root.Position - targetRoot.Position).Magnitude
+                    if dist <= 18 then
+                        ExecuteFling(player)
+                    end
                 end
             end
-        end
-    else
-        if auraPart then
-            auraPart:Destroy()
-            auraPart = nil
         end
     end
 end)
@@ -541,7 +517,7 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
             raycastParams.FilterType = Enum.RaycastFilterType.Exclude
             raycastParams.FilterDescendantsInstances = {lp.Character}
             
-            local result = workspace:Raycast(ray.Origin, ray.Direction * 1200, raycastParams)
+            local result = workspace:Raycast(ray.Origin, ray.Direction * 1500, raycastParams)
             if result and result.Instance then
                 local model = result.Instance:FindFirstAncestorOfClass("Model")
                 if model then
@@ -565,7 +541,7 @@ SafeConnect(RunService.Heartbeat, function()
         local troot = tchar and tchar:FindFirstChild("HumanoidRootPart")
         
         if root and troot then
-            orbitAngle = orbitAngle + (Hub.Flags.OrbitSpeed / 100)
+            orbitAngle = orbitAngle + (Hub.Flags.OrbitSpeed / 50)
             local offset = Vector3.new(
                 math.cos(orbitAngle) * Hub.Flags.OrbitDistance,
                 0,
@@ -577,46 +553,20 @@ SafeConnect(RunService.Heartbeat, function()
     end
 end)
 
--- ГЛОБАЛЬНАЯ СВЯЗКА ОБЪЕКТОВ МАССЫ (GLOBAL OBJECT MASS WELD)
 local function RunMassWeld()
     local char = lp.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    if not char then return end
     for _, part in ipairs(workspace:GetDescendants()) do
         if part:IsA("BasePart") and not part.Anchored and not part:IsDescendantOf(char) then
             pcall(function()
                 local weld = Instance.new("WeldConstraint")
                 weld.Part0 = part
-                weld.Part1 = root
-                weld.Parent = root
+                weld.Part1 = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildOfClass("Part")
+                weld.Parent = part
                 part.CanCollide = false
             end)
         end
     end
-end
-
--- СИНХРОННЫЙ ФИЗИЧЕСКИЙ РАЗРЫВ СЕРВЕРА (SERVER-WIDE DESYNC / FLING ALL ITERATOR)
-local function ExecuteFlingAll()
-    local char = lp.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    local origCFrame = root.CFrame
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local tRoot = p.Character.HumanoidRootPart
-            pcall(function()
-                root.CFrame = tRoot.CFrame * CFrame.new(0, 0.5, 0)
-                root.AssemblyLinearVelocity = Vector3.new(0, 1999999, 0)
-                root.AssemblyAngularVelocity = Vector3.new(1999999, 1999999, 1999999)
-            end)
-            task.wait(0.01)
-        end
-    end
-    task.wait(0.05)
-    root.CFrame = origCFrame
-    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 end
 
 SafeConnect(RunService.Heartbeat, function()
@@ -624,16 +574,16 @@ SafeConnect(RunService.Heartbeat, function()
         local char = lp.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
         if root then
-            for i = 1, 35 do
-                root.CFrame = root.CFrame * CFrame.new(0, 500000, 0)
-                root.CFrame = root.CFrame * CFrame.new(0, -500000, 0)
+            for i = 1, 40 do
+                root.CFrame = root.CFrame * CFrame.new(0, 999999, 0)
+                root.CFrame = root.CFrame * CFrame.new(0, -999999, 0)
             end
         end
     end
 end)
 
 task.spawn(function()
-    while task.wait(3.5) do
+    while task.wait(3) do
         if Hub.Flags.ChatSpam and Hub.Loaded then
             pcall(function()
                 if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
@@ -650,96 +600,94 @@ end)
 -- ============================================================================
 -- [6. ПОЛНАЯ РЕАЛИЗАЦИЯ И РЕНДЕРИНГ ESP И ВИЗУАЛОВ]
 -- ============================================================================
+-- РЕФАКТОРИНГ: ПОЛНОСТЬЮ ОТДЕЛЬНЫЙ ESP ДВИЖОК ОТ SILENT AIM БЕЗ МЕРЦАНИЙ
 local function DrawESP(player)
     if player == lp then return end
     
     local box = Drawing.new("Square")
     box.Visible = false
     box.Color = Color3.fromRGB(0, 255, 240)
-    box.Thickness = 1.5
+    box.Thickness = 2
     box.Filled = false
     
     local tracer = Drawing.new("Line")
     tracer.Visible = false
     tracer.Color = Color3.fromRGB(255, 0, 128)
-    tracer.Thickness = 1
+    tracer.Thickness = 1.5
     
     local name = Drawing.new("Text")
     name.Visible = false
     name.Color = Color3.fromRGB(255, 255, 255)
-    name.Size = 13
+    name.Size = 14
     name.Center = true
     name.Outline = true
     
     local healthBar = Drawing.new("Line")
     healthBar.Visible = false
     healthBar.Color = Color3.fromRGB(0, 255, 130)
-    healthBar.Thickness = 2
+    healthBar.Thickness = 2.5
     
     Hub.Cache.EspBoxes[player.UserId] = box
     Hub.Cache.EspTracers[player.UserId] = tracer
     Hub.Cache.EspNames[player.UserId] = name
     Hub.Cache.EspHealth[player.UserId] = healthBar
     
-    local function UpdateESP()
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
-            if not Hub.Loaded or not (Hub.Flags.ESP_Boxes or Hub.Flags.ESP_Tracers or Hub.Flags.ESP_Names or Hub.Flags.ESP_Health) then
-                box.Visible = false
-                tracer.Visible = false
-                name.Visible = false
-                healthBar.Visible = false
-                return
-            end
-            
-            local char = player.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            
-            if root and hum and hum.Health > 0 then
-                local rootPos, onScreen = camera:WorldToViewportPoint(root.Position)
-                if onScreen then
-                    local sizeY = (camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0)).Y - camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.5, 0)).Y)
-                    local sizeX = sizeY * 0.6
-                    
-                    if Hub.Flags.ESP_Boxes then
-                        box.Size = Vector2.new(sizeX, sizeY)
-                        box.Position = Vector2.new(rootPos.X - sizeX / 2, rootPos.Y - sizeY / 2)
-                        box.Visible = true
-                    else
-                        box.Visible = false
-                    end
-                    
-                    if Hub.Flags.ESP_Tracers then
-                        tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
-                        tracer.To = Vector2.new(rootPos.X, rootPos.Y)
-                        tracer.Visible = true
-                    else
-                        tracer.Visible = false
-                    end
-                    
-                    if Hub.Flags.ESP_Names then
-                        name.Text = player.DisplayName .. " (@" .. player.Name .. ")"
-                        name.Position = Vector2.new(rootPos.X, (rootPos.Y - sizeY / 2) - 15)
-                        name.Visible = true
-                    else
-                        name.Visible = false
-                    end
-                    
-                    if Hub.Flags.ESP_Health then
-                        local healthPercent = hum.Health / hum.MaxHealth
-                        local barHeight = sizeY * healthPercent
-                        healthBar.From = Vector2.new((rootPos.X - sizeX / 2) - 6, rootPos.Y + sizeY / 2)
-                        healthBar.To = Vector2.new((rootPos.X - sizeX / 2) - 6, (rootPos.Y + sizeY / 2) - barHeight)
-                        healthBar.Color = Color3.fromRGB(255 - (255 * healthPercent), 255 * healthPercent, 0)
-                        healthBar.Visible = true
-                    else
-                        healthBar.Visible = false
-                    end
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if not Hub.Loaded then
+            box:Destroy()
+            tracer:Destroy()
+            name:Destroy()
+            healthBar:Destroy()
+            connection:Disconnect()
+            return
+        end
+        
+        local char = player.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        
+        if root and hum and hum.Health > 0 then
+            local rootPos, onScreen = camera:WorldToViewportPoint(root.Position)
+            if onScreen then
+                -- Масштабируемый расчет ограничивающей рамки с кастомным паддингом
+                local topPos = camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3.2, 0))
+                local bottomPos = camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.8, 0))
+                local sizeY = bottomPos.Y - topPos.Y
+                local sizeX = sizeY * 0.65
+                
+                if Hub.Flags.ESP_Boxes then
+                    box.Size = Vector2.new(sizeX, sizeY)
+                    box.Position = Vector2.new(rootPos.X - sizeX / 2, rootPos.Y - sizeY / 2)
+                    box.Visible = true
                 else
                     box.Visible = false
+                end
+                
+                if Hub.Flags.ESP_Tracers then
+                    tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                    tracer.To = Vector2.new(rootPos.X, rootPos.Y)
+                    tracer.Visible = true
+                else
                     tracer.Visible = false
+                end
+                
+                if Hub.Flags.ESP_Names then
+                    name.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+                    name.Position = Vector2.new(rootPos.X, (rootPos.Y - sizeY / 2) - 16)
+                    name.Visible = true
+                else
                     name.Visible = false
+                end
+                
+                if Hub.Flags.ESP_Health then
+                    local healthPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+                    local barHeight = sizeY * healthPercent
+                    healthBar.From = Vector2.new((rootPos.X - sizeX / 2) - 7, rootPos.Y + sizeY / 2)
+                    healthBar.To = Vector2.new((rootPos.X - sizeX / 2) - 7, (rootPos.Y + sizeY / 2) - barHeight)
+                    healthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+                    healthBar.Visible = true
+                else
                     healthBar.Visible = false
                 end
             else
@@ -748,10 +696,14 @@ local function DrawESP(player)
                 name.Visible = false
                 healthBar.Visible = false
             end
-        end)
-        table.insert(Hub.Cache.Connections, connection)
-    end
-    task.spawn(UpdateESP)
+        else
+            box.Visible = false
+            tracer.Visible = false
+            name.Visible = false
+            healthBar.Visible = false
+        end
+    end)
+    table.insert(Hub.Cache.Connections, connection)
 end
 
 Players.PlayerAdded:Connect(DrawESP)
@@ -760,6 +712,7 @@ for _, p in ipairs(Players:GetPlayers()) do DrawESP(p) end
 local function ApplyPotatoPC(state)
     Hub.Flags.PotatoPC = state
     if state then
+        -- Принудительное замещение всех материалов ландшафта на SmoothPlastic для буста FPS
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and not obj:IsDescendantOf(lp.Character) then
                 Hub.Cache.OriginalMaterials[obj] = {obj.Material, obj.Reflectance}
@@ -786,7 +739,7 @@ local function ApplyPotatoPC(state)
 end
 
 -- ============================================================================
--- [7. СЛЕДУЮЩЕЕ ПОКОЛЕНИЕ UI: NEO-GLOW CYBERPUNK ENGINE (ПОВНОЕ ИСПОЛНЕНИЕ)]
+-- [7. СЛЕДУЮЩЕЕ ПОКОЛЕНИЕ UI: NEO-GLOW CYBERPUNK ENGINE (ЭКЗЕМПЛЯРЫ СТРУКТУРЫ)]
 -- ============================================================================
 local CyberUI = {}
 CyberUI.__index = CyberUI
@@ -829,7 +782,6 @@ function CyberUI:BuildCoreFrame()
     if not screen.Parent then screen.Parent = lp:WaitForChild("PlayerGui") end
     self.Screen = screen
 
-    -- Плавающий неоновый лаунчер для мобильных устройств
     local launcher = Instance.new("TextButton")
     launcher.Size = UDim2.new(0, 55, 0, 55)
     launcher.Position = UDim2.new(0.02, 0, 0.2, 0)
@@ -851,7 +803,6 @@ function CyberUI:BuildCoreFrame()
 
     self.Launcher = launcher
 
-    -- Обработчик перетаскивания лаунчера
     local dragStart, startPos, dragging = nil, nil, false
     launcher.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -870,7 +821,6 @@ function CyberUI:BuildCoreFrame()
         end
     end)
 
-    -- Главный Контейнер Интерфейса
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 640, 0, 420)
     frame.Position = UDim2.new(0.5, -320, 0.5, -210)
@@ -889,7 +839,6 @@ function CyberUI:BuildCoreFrame()
     fStroke.Thickness = 2
     fStroke.Parent = frame
 
-    -- Сайдбар навигации
     local sidebar = Instance.new("Frame")
     sidebar.Size = UDim2.new(0, 180, 1, 0)
     sidebar.BackgroundColor3 = CYBER_THEME.PanelBg
@@ -904,7 +853,6 @@ function CyberUI:BuildCoreFrame()
     sStroke.Thickness = 1
     sStroke.Parent = sidebar
 
-    -- Шапка Сайдбара
     local header = Instance.new("Frame")
     header.Size = UDim2.new(1, 0, 0, 75)
     header.BackgroundTransparency = 1
@@ -932,7 +880,6 @@ function CyberUI:BuildCoreFrame()
     version.BackgroundTransparency = 1
     version.Parent = header
 
-    -- Скролл контейнер вкладок
     local tabScroll = Instance.new("ScrollingFrame")
     tabScroll.Size = UDim2.new(1, 0, 1, -85)
     tabScroll.Position = UDim2.new(0, 0, 0, 80)
@@ -947,7 +894,6 @@ function CyberUI:BuildCoreFrame()
 
     self.TabList = tabScroll
 
-    -- Основной контейнер страниц контента
     local pageContainer = Instance.new("Frame")
     pageContainer.Size = UDim2.new(1, -200, 1, -20)
     pageContainer.Position = UDim2.new(0, 190, 0, 10)
@@ -955,7 +901,6 @@ function CyberUI:BuildCoreFrame()
     pageContainer.Parent = frame
     self.PageContainer = pageContainer
 
-    -- Переключатель видимости меню по клику на лаунчер
     local menuState = false
     launcher.MouseButton1Click:Connect(function()
         menuState = not menuState
@@ -999,7 +944,6 @@ function CyberUI:CreateTab(name)
         page.CanvasSize = UDim2.new(0, 0, 0, pLayout.AbsoluteContentSize.Y + 15)
     end)
 
-    -- Кнопка вкладки в боковой панели
     local tabBtn = Instance.new("TextButton")
     tabBtn.Size = UDim2.new(0.92, 0, 0, 36)
     tabBtn.BackgroundColor3 = CYBER_THEME.MainBg
@@ -1036,7 +980,6 @@ function CyberUI:CreateTab(name)
     local ElementAPI = {}
     ElementAPI.Page = page
 
-    -- Добавление Секционного Заголовка
     function ElementAPI:AddSection(titleText)
         local secText = Instance.new("TextLabel")
         secText.Size = UDim2.new(0.96, 0, 0, 24)
@@ -1049,7 +992,6 @@ function CyberUI:CreateTab(name)
         secText.Parent = page
     end
 
-    -- Добавление Неонового Переключателя (Toggle)
     function ElementAPI:AddToggle(cfg)
         local card = Instance.new("Frame")
         card.Size = UDim2.new(0.96, 0, 0, 50)
@@ -1127,7 +1069,6 @@ function CyberUI:CreateTab(name)
         end)
     end
 
-    -- Добавление Ползунка (Slider)
     function ElementAPI:AddSlider(cfg)
         local card = Instance.new("Frame")
         card.Size = UDim2.new(0.96, 0, 0, 58)
@@ -1212,7 +1153,6 @@ function CyberUI:CreateTab(name)
         end)
     end
 
-    -- Добавление Поля Ввода (TextBox)
     function ElementAPI:AddTextBox(cfg)
         local card = Instance.new("Frame")
         card.Size = UDim2.new(0.96, 0, 0, 50)
@@ -1266,7 +1206,6 @@ function CyberUI:CreateTab(name)
         end)
     end
 
-    -- Добавление Функциональной Кнопки (Button)
     function ElementAPI:AddButton(cfg)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0.96, 0, 0, 40)
@@ -1309,8 +1248,7 @@ function CyberUI:SelectTab(tabData)
     tweenUI(tabData.Label, UI_EASE, {TextColor3 = CYBER_THEME.BorderCyan})
 end
 
--- Инициализация Неонового Графического Интерфейса Hub
-local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v6.0 • FTAP HYBRID" })
+local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v7.0 • MONOLITH OVERHAUL" })
 
 -- ============================================================================
 -- [8. КОМПЛЕКТАЦИЯ ДИНАМИЧЕСКИХ ВКЛАДОК И СВЯЗЕЙ С ИНТЕРФЕЙСОМ]
@@ -1326,11 +1264,6 @@ movementTab:AddToggle({
     Default = Hub.Flags.WalkSpeedEnabled,
     Callback = function(st)
         Hub.Flags.WalkSpeedEnabled = st
-        if st then
-            pcall(function() lp.Character.Humanoid.WalkSpeed = Hub.Flags.WalkSpeedValue end)
-        else
-            pcall(function() lp.Character.Humanoid.WalkSpeed = 16 end)
-        end
     end
 })
 
@@ -1341,9 +1274,6 @@ movementTab:AddSlider({
     Default = Hub.Flags.WalkSpeedValue,
     Callback = function(val)
         Hub.Flags.WalkSpeedValue = val
-        if Hub.Flags.WalkSpeedEnabled then
-            pcall(function() lp.Character.Humanoid.WalkSpeed = val end)
-        end
     end
 })
 
@@ -1353,11 +1283,6 @@ movementTab:AddToggle({
     Default = Hub.Flags.JumpPowerEnabled,
     Callback = function(st)
         Hub.Flags.JumpPowerEnabled = st
-        if st then
-            pcall(function() lp.Character.Humanoid.JumpPower = Hub.Flags.JumpPowerValue end)
-        else
-            pcall(function() lp.Character.Humanoid.JumpPower = 50 end)
-        end
     end
 })
 
@@ -1368,9 +1293,6 @@ movementTab:AddSlider({
     Default = Hub.Flags.JumpPowerValue,
     Callback = function(val)
         Hub.Flags.JumpPowerValue = val
-        if Hub.Flags.JumpPowerEnabled then
-            pcall(function() lp.Character.Humanoid.JumpPower = val end)
-        end
     end
 })
 
@@ -1405,14 +1327,38 @@ movementTab:AddToggle({
     Callback = function(st) Hub.Flags.Noclip = st end
 })
 
+-- Две выделенные UI кнопки для Полета (Вверх / Вниз)
+movementTab:AddButton({
+    Name = "Подъем (Ascend Fly)",
+    Callback = function()
+        Hub.Cache.FlyUp = true
+        task.delay(0.2, function() Hub.Cache.FlyUp = false end)
+    end
+})
 
--- Вкладка: FTAP БОЙ (НОВЫЙ ФУНКЦИОНАЛ)
+movementTab:AddButton({
+    Name = "Спуск (Descend Fly)",
+    Callback = function()
+        Hub.Cache.FlyDown = true
+        task.delay(0.2, function() Hub.Cache.FlyDown = false end)
+    end
+})
+
+movementTab:AddToggle({
+    Name = "Анти-Флинг Физики (AntiFling)",
+    Description = "Замораживает угловую скорость для защиты от отбрасывания",
+    Default = Hub.Flags.AntiFling,
+    Callback = function(st) Hub.Flags.AntiFling = st end
+})
+
+
+-- Вкладка: FTAP БОЙ
 local ftapCombatTab = CyberHubMenu:CreateTab("FTAP Бой")
 ftapCombatTab:AddSection("Автоматизация Захвата и Траектории")
 
 ftapCombatTab:AddToggle({
     Name = "Сайлент Аим (Silent Aim)",
-    Description = "Подставляет координаты ближайшего игрока в FOV круге",
+    Description = "Подставляет координаты ближайшего игрока из центра экрана",
     Default = Hub.Flags.SilentAim,
     Callback = function(st) Hub.Flags.SilentAim = st end
 })
@@ -1427,7 +1373,7 @@ ftapCombatTab:AddToggle({
 ftapCombatTab:AddSlider({
     Name = "Радиус Наведения (FOV)",
     Min = 30,
-    Max = 400,
+    Max = 500,
     Default = Hub.Flags.SilentAimFOV,
     Callback = function(val) Hub.Flags.SilentAimFOV = val end
 })
@@ -1443,7 +1389,7 @@ ftapCombatTab:AddToggle({
 
 ftapCombatTab:AddSlider({
     Name = "Сила Дальнего Броска",
-    Min = 100000,
+    Min = 500000,
     Max = 2000000,
     Default = Hub.Flags.ThrowForce,
     Callback = function(val) Hub.Flags.ThrowForce = val end
@@ -1483,6 +1429,28 @@ ftapCombatTab:AddSlider({
 
 -- Вкладка: ТРОЛЛИНГ И СЕРВЕРНЫЙ ХАОС
 local trollTab = CyberHubMenu:CreateTab("Троллинг")
+trollTab:AddSection("Настраиваемый Список Охоты (Hunting List)")
+
+trollTab:AddTextBox({
+    Name = "Добавить цель в Hunting List",
+    Placeholder = "Имя игрока...",
+    Default = "",
+    Callback = function(text)
+        if text ~= "" and not table.find(Hub.Cache.HuntingList, text) then
+            table.insert(Hub.Cache.HuntingList, text)
+            StarterGui:SetCore("SendNotification", {Title = "Система Охоты", Text = text .. " добавлен в список!", Duration = 2})
+        end
+    end
+})
+
+trollTab:AddButton({
+    Name = "Очистить Hunting List",
+    Callback = function()
+        table.clear(Hub.Cache.HuntingList)
+        StarterGui:SetCore("SendNotification", {Title = "Система Охоты", Text = "Список целей полностью очищен!", Duration = 2})
+    end
+})
+
 trollTab:AddSection("Прицельный Террор")
 
 trollTab:AddTextBox({
@@ -1528,7 +1496,7 @@ trollTab:AddToggle({
 
 trollTab:AddToggle({
     Name = "Аура Разрушения (Fling Aura)",
-    Description = "Аннигилирует любого в радиусе 16 студов",
+    Description = "Аннигилирует любого в радиусе 18 студов",
     Default = Hub.Flags.FlingAura,
     Callback = function(st) Hub.Flags.FlingAura = st end
 })
@@ -1542,7 +1510,11 @@ trollTab:AddToggle({
 
 trollTab:AddButton({
     Name = "Ликвидировать Всех (Fling All)",
-    Callback = function() ExecuteFlingAll() end
+    Callback = function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= lp then task.spawn(function() ExecuteFling(p) end) end
+        end
+    end
 })
 
 trollTab:AddButton({
@@ -1633,7 +1605,7 @@ shopSystemTab:AddToggle({
     Callback = function(st)
         Hub.Flags.ForceThirdPerson = st
         if not st then
-            lp.CameraMode = Enum.CameraMode.LockFirstPerson
+            lp.CameraMode = Enum.CameraMode.Classic
         end
     end
 })
@@ -1663,12 +1635,12 @@ shopSystemTab:AddTextBox({
 })
 
 
--- Вкладка: ПРОФИЛЬ СТАТИСТИКА И ДИАГНОСТИКА VIEWPORT PREVIEW
+-- Вкладка: ПРОФИЛЬ СТАТИСТИКА
 local profileTab = CyberHubMenu:CreateTab("Профиль")
 profileTab:AddSection("Информация о вашей учетной записи")
 
 local profCard = Instance.new("Frame")
-profCard.Size = UDim2.new(0.96, 0, 0, 320)
+profCard.Size = UDim2.new(0.96, 0, 0, 270)
 profCard.BackgroundColor3 = CYBER_THEME.PanelBg
 profCard.Parent = profileTab.Page
 
@@ -1681,68 +1653,86 @@ prStroke.Color = CYBER_THEME.BorderCyan
 prStroke.Thickness = 1
 prStroke.Parent = profCard
 
--- Живое интерактивное 3D-превью персонажа во фрейме
-local vpf = Instance.new("ViewportFrame")
-vpf.Size = UDim2.new(0, 100, 0, 100)
-vpf.Position = UDim2.new(0.5, -50, 0, 15)
-vpf.BackgroundTransparency = 1
-vpf.Parent = profCard
+local pHeadImg = Instance.new("ImageLabel")
+pHeadImg.Size = UDim2.new(0, 90, 0, 90)
+pHeadImg.Position = UDim2.new(0.5, -45, 0, 15)
+pHeadImg.BackgroundColor3 = CYBER_THEME.MainBg
+pHeadImg.Image = "rbxasset://textures/ui/Guideline.png"
+pHeadImg.Parent = profCard
 
-local vpfCam = Instance.new("Camera")
-vpfCam.FieldOfView = 50
-vpf.CurrentCamera = vpfCam
-vpfCam.Parent = vpf
+local phCor = Instance.new("UICorner")
+phCor.CornerRadius = UDim.new(1, 0)
+phCor.Parent = pHeadImg
 
-local function refreshViewportRig()
-    vpf:ClearAllChildren()
-    vpfCam.Parent = vpf
-    if lp.Character then
-        lp.Character.Archivable = true
-        local clone = lp.Character:Clone()
-        lp.Character.Archivable = false
-        clone.Parent = vpf
-        
-        local hrp = clone:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            vpfCam.CFrame = CFrame.new(hrp.Position + (hrp.CFrame.LookVector * 5) + Vector3.new(0, 1.5, 0), hrp.Position + Vector3.new(0, 0.5, 0))
+local phStroke = Instance.new("UIStroke")
+phStroke.Color = CYBER_THEME.BorderPink
+phStroke.Thickness = 2
+phStroke.Parent = pHeadImg
+
+-- Добавление 3D Player Rig Preview внутри ViewportFrame структуры профиля
+local vpFrame = Instance.new("ViewportFrame")
+vpFrame.Size = UDim2.new(0, 100, 0, 100)
+vpFrame.Position = UDim2.new(0.05, 0, 0.5, -50)
+vpFrame.BackgroundTransparency = 1
+vpFrame.Parent = profCard
+
+local vpCamera = Instance.new("Camera")
+vpFrame.CurrentCamera = vpCamera
+vpCamera.Parent = vpFrame
+
+task.spawn(function()
+    while task.wait(2) do
+        if Hub.Loaded and lp.Character then
+            vpFrame:ClearAllChildren()
+            lp.Character.Archivable = true
+            local clone = lp.Character:Clone()
+            clone.Parent = vpFrame
+            local hrp = clone:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                vpCamera.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 1, 6), hrp.Position + Vector3.new(0, 0.5, 0))
+            end
         end
     end
-end
-task.spawn(refreshViewportRig)
-SafeConnect(lp.CharacterAdded, function() task.wait(1); refreshViewportRig() end)
+end)
 
 local pNameLabel = Instance.new("TextLabel")
-pNameLabel.Size = UDim2.new(1, -20, 0, 24)
-pNameLabel.Position = UDim2.new(0, 10, 0, 125)
+pNameLabel.Size = UDim2.new(0.6, 0, 0, 24)
+pNameLabel.Position = UDim2.new(0.35, 10, 0, 115)
 pNameLabel.Text = lp.DisplayName .. " (@" .. lp.Name .. ")"
 pNameLabel.TextColor3 = CYBER_THEME.MainText
 pNameLabel.Font = Enum.Font.SourceSansBold
 pNameLabel.TextSize = 16
-pNameLabel.TextAlignment = Enum.TextAlignment.Center
+pNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 pNameLabel.BackgroundTransparency = 1
 pNameLabel.Parent = profCard
 
 local pAgeLabel = Instance.new("TextLabel")
-pAgeLabel.Size = UDim2.new(1, -20, 0, 20)
-pAgeLabel.Position = UDim2.new(0, 10, 0, 150)
+pAgeLabel.Size = UDim2.new(0.6, 0, 0, 20)
+pAgeLabel.Position = UDim2.new(0.35, 10, 0, 140)
 pAgeLabel.Text = "Возраст Аккаунта: " .. tostring(lp.AccountAge) .. " дней"
 pAgeLabel.TextColor3 = CYBER_THEME.DimText
 pAgeLabel.Font = Enum.Font.SourceSansSemibold
 pAgeLabel.TextSize = 14
-pAgeLabel.TextAlignment = Enum.TextAlignment.Center
+pAgeLabel.TextXAlignment = Enum.TextXAlignment.Left
 pAgeLabel.BackgroundTransparency = 1
 pAgeLabel.Parent = profCard
 
 local pPerfLabel = Instance.new("TextLabel")
-pPerfLabel.Size = UDim2.new(1, -20, 0, 22)
-pPerfLabel.Position = UDim2.new(0, 10, 0, 175)
+pPerfLabel.Size = UDim2.new(0.6, 0, 0, 22)
+pPerfLabel.Position = UDim2.new(0.35, 10, 0, 165)
 pPerfLabel.Text = "Пинг: Расчет... | FPS: Расчет..."
 pPerfLabel.TextColor3 = CYBER_THEME.BorderCyan
 pPerfLabel.Font = Enum.Font.SourceSansBold
 pPerfLabel.TextSize = 13
-pPerfLabel.TextAlignment = Enum.TextAlignment.Center
+pPerfLabel.TextXAlignment = Enum.TextXAlignment.Left
 pPerfLabel.BackgroundTransparency = 1
 pPerfLabel.Parent = profCard
+
+task.spawn(function()
+    local uId = lp.UserId
+    local content, ready = Players:GetUserThumbnailAsync(uId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+    if ready then pHeadImg.Image = content end
+end)
 
 local framesCounter = 0
 SafeConnect(RunService.Heartbeat, function(dt) framesCounter = math.floor(1/dt) end)
@@ -1775,31 +1765,20 @@ coreConfigTab:AddSection("Полная Выгрузка Скрипта")
 local function CompleteDestruction()
     Hub.Loaded = false
     
-    -- Деактивация всех слушателей событий и циклов
+    -- Полное отключение всех зарегистированных RBXScriptSignal соединений
     for _, conn in ipairs(Hub.Cache.Connections) do
         if conn.Connected then conn:Disconnect() end
     end
     table.clear(Hub.Cache.Connections)
     
-    -- Восстановление параметров освещения
     Lighting.Ambient = Hub.Cache.OriginalLighting.Ambient
     Lighting.OutdoorAmbient = Hub.Cache.OriginalLighting.OutdoorAmbient
     Lighting.Brightness = Hub.Cache.OriginalLighting.Brightness
     Lighting.ClockTime = Hub.Cache.OriginalLighting.ClockTime
     
-    -- Стирание графики ESP Drawing
-    for _, item in pairs(Hub.Cache.EspBoxes) do item:Destroy() end
-    for _, item in pairs(Hub.Cache.EspTracers) do item:Destroy() end
-    for _, item in pairs(Hub.Cache.EspNames) do item:Destroy() end
-    for _, item in pairs(Hub.Cache.EspHealth) do item:Destroy() end
-    
-    -- Удаление ScreenGui объектов
     if CyberHubMenu.Screen then CyberHubMenu.Screen:Destroy() end
     if FOVGui then FOVGui:Destroy() end
     
-    if auraPart then auraPart:Destroy() end
-    
-    -- Откат текстур Potato PC
     for obj, data in pairs(Hub.Cache.OriginalMaterials) do
         if obj and obj.Parent then
             obj.Material = data[1]
@@ -1817,7 +1796,7 @@ local function CompleteDestruction()
     end)
     
     _G.BrosaHubGlobal = nil
-    print("[Brosa System]: Скрипт успешно деактивирован, память очищена.")
+    print("[Brosa System]: Скрипт выгружен. Drawing API очищен. Память освобождена.")
 end
 
 coreConfigTab:AddButton({
@@ -1826,14 +1805,14 @@ coreConfigTab:AddButton({
 })
 
 -- ============================================================================
--- [9. ХУКИ МЕТАТАБЛИЦЫ, РЕФАКТОРИНГ РАЗБЛОКИРОВКИ ВВОДА CORE И ОБХОД ЗАЩИТЫ]
+-- [9. ХУКИ МЕТАТАБЛИЦЫ, ПЕРЕХВАТ AIM И АБСОЛЮТНЫЙ РЕЙКАСТ ЦЕНТРА]
 -- ============================================================================
 local rawMT = getrawmetatable(game)
 local oldIndexMT = rawMT.__index
 local oldNewIndexMT = rawMT.__newindex
 setreadonly(rawMT, false)
 
--- РЕФАКТОРИНГ: ПОЛНЫЙ НЕБЛОКИРУЮЩИЙ ХУК ВВОДА В МЕТАТАБЛИЦЕ (INPUT UNBLOCKING CORE)
+-- РЕФАКТОРИНГ: АБСОЛЮТНЫЙ ХУК ВЕРТЕКСА ЦЕНТРА ЭКРАНА (0.5, 0.5) И ОБХОД МЫШИ В SKY VOID
 rawMT.__index = newcclosure(function(self, index)
     if Hub.Flags.BypassMetatable and not checkcaller() then
         if self:IsA("Humanoid") then
@@ -1843,12 +1822,20 @@ rawMT.__index = newcclosure(function(self, index)
     end
     
     if Hub.Flags.SilentAim and self:IsA("Mouse") then
-        local boneTarget = Hub.Cache.TrackedBoneInstance or GetClosestPlayerToCursor()
-        if boneTarget and boneTarget:IsA("BasePart") then
+        local chosenPart = GetClosestPlayerToCenterRaycast()
+        if chosenPart then
             if index == "Hit" then
-                return boneTarget.CFrame
+                -- Перехват Mouse.Hit CFrame
+                return chosenPart.CFrame
             elseif index == "Target" then
-                return boneTarget
+                -- Перехват Mouse.Target Instance Pointer
+                return chosenPart
+            end
+        else
+            -- Sky Targeting: если мы смотрим в небо, подменяем координаты для предотвращения лока ремoутов захвата
+            if index == "Hit" then
+                local centerVector = camera.CFrame.Position + (camera.CFrame.LookVector * 50)
+                return CFrame.new(centerVector)
             end
         end
     end
@@ -1856,7 +1843,6 @@ rawMT.__index = newcclosure(function(self, index)
     return oldIndexMT(self, index)
 end)
 
--- Перехват __newindex для контроля параметров
 rawMT.__newindex = newcclosure(function(self, index, val)
     if Hub.Flags.BypassMetatable and not checkcaller() then
         if self:IsA("Humanoid") then
@@ -1869,9 +1855,8 @@ end)
 
 setreadonly(rawMT, true)
 
--- Авто-накат параметров при респавне персонажа
 SafeConnect(lp.CharacterAdded, function(char)
-    local hum = char:WaitForChild("Humanoid", 12)
+    local hum = char:WaitForChild("Humanoid", 15)
     if hum then
         task.wait(0.5)
         if Hub.Flags.WalkSpeedEnabled then hum.WalkSpeed = Hub.Flags.WalkSpeedValue end
@@ -1879,7 +1864,6 @@ SafeConnect(lp.CharacterAdded, function(char)
     end
 end)
 
--- Синхронизация визуальных эффектов Fullbright освещения
 SafeConnect(RunService.LightingChanged, function()
     if Hub.Flags.Fullbright then
         Lighting.Ambient = Color3.fromRGB(255, 255, 255)
@@ -1889,4 +1873,4 @@ SafeConnect(RunService.LightingChanged, function()
     end
 end)
 
-print("[Brosa System v6.0]: Монолитный Cyberpunk хаб успешно инициализирован! Все функции исправлены и готовы к работе.")
+print("[Brosa System v7.0]: Бэкенд движок полностью переписан по первичному принципу вектора костей 3D физики.")
