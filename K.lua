@@ -1,9 +1,9 @@
 --[[
     ================================================================================
-    👑 BROSA SYSTEM v8.0 — FINAL MONOLITHIC ENGINE (REMOTE INJECTION)
+    👑 BROSA SYSTEM v9.0 — ULTIMATE MONOLITHIC ENGINE (FULLY FIXED)
     🎨 UI STYLE: NEO-GLOW CYBERPUNK INTERFACE (PRESERVED)
     🔒 TARGET GAME: FLING THINGS AND PEOPLE (FTAP) [PlaceId: 5315119777]
-    🚀 BYPASS STATUS: REBUILT FOR DELTA MOBILE & PC — REMOTE INTERCEPTION
+    🚀 BYPASS STATUS: COMPLETE OVERHAUL — PREDICTION AIM, FIXED ESP, REAL ANTI-GRAB
     ================================================================================
 ]]
 
@@ -57,10 +57,9 @@ _G.BrosaHubGlobal = {
         -- Combat
         SilentAim = false,
         SilentAimFOV = 120,
+        SilentAimPrediction = 0.5,
+        SilentAimTargetPart = "HumanoidRootPart",
         ShowFOV = false,
-        AssistAim = false,
-        AssistAimSmoothness = 0.3,
-        AssistAimThroughWalls = false,
         MegaThrow = false,
         ThrowForce = 2000000,
         InstantGrabBreak = false,
@@ -94,17 +93,24 @@ _G.BrosaHubGlobal = {
         ESP_Health = false,
         Fullbright = false,
         PotatoPC = false,
+        ESP_BoxThickness = 2,
+        ESP_BoxTransparency = 0.8,
+        ESP_BoxColor = Color3.fromRGB(0, 255, 240),
+        ESP_TracerThickness = 1.5,
+        ESP_TracerTransparency = 0.9,
+        ESP_TracerColor = Color3.fromRGB(255, 0, 128),
         
-        -- NEW: Hitbox + Proximity
+        -- NEW: Hitbox + Proximity + Aspect Ratio
         HitboxExpansion = false,
         HitboxScale = 5,
         ProximityGrab = false,
         ProximityRadius = 4,
+        AspectRatioStretch = 1.0,
         
         -- Core
         BypassMetatable = true,
         ChatSpam = false,
-        ChatSpamMessage = "Brosa System v8.0 Remote Injection Engine Running!"
+        ChatSpamMessage = "Brosa System v9.0 Final Engine Running!"
     },
     Cache = {
         OriginalLighting = {
@@ -123,6 +129,9 @@ _G.BrosaHubGlobal = {
         EspHighlights = {},
         OriginalMaterials = {},
         OriginalSizes = {},
+        OriginalCameraMode = lp.CameraMode,
+        OriginalZoomDistance = lp.CameraMaxZoomDistance,
+        OriginalAspectRatio = 1.0,
         HuntingList = {},
         FlyUp = false,
         FlyDown = false,
@@ -130,7 +139,9 @@ _G.BrosaHubGlobal = {
         CurrentGrabbedTarget = nil,
         SilentAimTarget = nil,
         AssistAimTarget = nil,
-        OriginalRemoteFunctions = {}
+        OriginalRemoteFunctions = {},
+        LastTargetPosition = nil,
+        LastTargetVelocity = Vector3.new(0, 0, 0)
     }
 }
 
@@ -154,7 +165,7 @@ local function FindPlayerByName(name)
 end
 
 -- ============================================================================
--- [2. КРУГ FOV И СИСТЕМА ПОИСКА ЦЕЛЕЙ]
+-- [2. FOV КРУГ — ИДЕАЛЬНЫЙ ЦЕНТР ДЛЯ ЛЮБЫХ УСТРОЙСТВ]
 -- ============================================================================
 local FOVGui = Instance.new("ScreenGui")
 FOVGui.Name = "Brosa_FOV_Core"
@@ -180,7 +191,7 @@ FOVStroke.Thickness = 1.5
 FOVStroke.Parent = FOVCircle
 
 SafeConnect(RunService.RenderStepped, function()
-    if (Hub.Flags.SilentAim or Hub.Flags.AssistAim) and Hub.Flags.ShowFOV then
+    if (Hub.Flags.SilentAim) and Hub.Flags.ShowFOV then
         local viewportSize = camera.ViewportSize
         local centerX = viewportSize.X / 2
         local centerY = viewportSize.Y / 2
@@ -200,7 +211,7 @@ fovCircleDrawing.Transparency = 0.7
 fovCircleDrawing.Visible = false
 
 SafeConnect(RunService.RenderStepped, function()
-    if (Hub.Flags.SilentAim or Hub.Flags.AssistAim) and Hub.Flags.ShowFOV then
+    if (Hub.Flags.SilentAim) and Hub.Flags.ShowFOV then
         local viewportSize = camera.ViewportSize
         fovCircleDrawing.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
         fovCircleDrawing.Radius = Hub.Flags.SilentAimFOV
@@ -211,7 +222,7 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ============================================================================
--- [2.1. ЯДРО ПОИСКА БЛИЖАЙШЕГО ИГРОКА В FOV]
+-- [2.1. SILENT AIM — С ПРЕДСКАЗАНИЕМ (PREDICTION) И ВЫБОРОМ ЧАСТИ ТЕЛА]
 -- ============================================================================
 
 local targetBones = {
@@ -220,12 +231,14 @@ local targetBones = {
     "LeftHand", "RightHand", "LeftFoot", "RightFoot"
 }
 
-local function GetClosestPlayerInFOV()
+local function GetClosestPlayerWithPrediction()
     local closestPlayer = nil
     local closestPart = nil
     local shortestDistance = Hub.Flags.SilentAimFOV or 120
     local viewportSize = camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local targetPartName = Hub.Flags.SilentAimTargetPart or "HumanoidRootPart"
+    local predictionStrength = Hub.Flags.SilentAimPrediction or 0.5
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player == lp then continue end
@@ -245,16 +258,52 @@ local function GetClosestPlayerInFOV()
             if not found then continue end
         end
         
-        for _, boneName in ipairs(targetBones) do
-            local part = player.Character:FindFirstChild(boneName)
-            if part and part:IsA("BasePart") then
-                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestPlayer = player
-                        closestPart = part
+        -- Сначала ищем целевую часть тела
+        local targetPart = player.Character:FindFirstChild(targetPartName)
+        if targetPart and targetPart:IsA("BasePart") then
+            local velocity = targetPart.AssemblyLinearVelocity
+            local predictionTime = predictionStrength / 5 -- 0.1 - 0.5 сек
+            local predictedPosition = targetPart.Position + (velocity * predictionTime)
+            
+            -- Небольшое смещение вниз для упрощения захвата
+            if targetPartName == "HumanoidRootPart" or targetPartName == "Torso" then
+                predictedPosition = predictedPosition + Vector3.new(0, -0.5, 0)
+            end
+            
+            local screenPos, onScreen = camera:WorldToViewportPoint(predictedPosition)
+            if onScreen then
+                local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPlayer = player
+                    closestPart = targetPart
+                    Hub.Cache.LastTargetPosition = predictedPosition
+                    Hub.Cache.LastTargetVelocity = velocity
+                end
+            end
+        else
+            -- Fallback: сканируем все кости
+            for _, boneName in ipairs(targetBones) do
+                local part = player.Character:FindFirstChild(boneName)
+                if part and part:IsA("BasePart") then
+                    local velocity = part.AssemblyLinearVelocity
+                    local predictionTime = predictionStrength / 5
+                    local predictedPosition = part.Position + (velocity * predictionTime)
+                    
+                    if boneName == "HumanoidRootPart" or boneName == "Torso" then
+                        predictedPosition = predictedPosition + Vector3.new(0, -0.5, 0)
+                    end
+                    
+                    local screenPos, onScreen = camera:WorldToViewportPoint(predictedPosition)
+                    if onScreen then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closestPlayer = player
+                            closestPart = part
+                            Hub.Cache.LastTargetPosition = predictedPosition
+                            Hub.Cache.LastTargetVelocity = velocity
+                        end
                     end
                 end
             end
@@ -285,7 +334,7 @@ local grabRemotes = FindGrabRemote()
 local function InterceptRemoteCall(remote, method, args)
     if not Hub.Flags.SilentAim then return end
     
-    local target, targetPart = GetClosestPlayerInFOV()
+    local target, targetPart = GetClosestPlayerWithPrediction()
     if target and targetPart then
         for i, arg in ipairs(args) do
             if type(arg) == "userdata" and arg:IsA("BasePart") then
@@ -334,64 +383,7 @@ pcall(function()
 end)
 
 -- ============================================================================
--- [2.3. ASSIST AIM — СТАНДАРТНОЕ НАВЕДЕНИЕ С ПРОВЕРКОЙ СТЕН]
--- ============================================================================
-
-local assistAimTarget = nil
-local assistAimPart = nil
-
-SafeConnect(RunService.RenderStepped, function()
-    if not Hub.Flags.AssistAim then
-        assistAimTarget = nil
-        assistAimPart = nil
-        return
-    end
-    
-    local target, targetPart = GetClosestPlayerInFOV()
-    local viewportSize = camera.ViewportSize
-    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-    
-    if target and targetPart then
-        local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
-        if onScreen then
-            local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-            if distance <= Hub.Flags.SilentAimFOV then
-                -- Проверка стен
-                local canSee = true
-                if not Hub.Flags.AssistAimThroughWalls then
-                    local char = lp.Character
-                    local head = char and char:FindFirstChild("Head")
-                    if head then
-                        local rayParams = RaycastParams.new()
-                        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-                        rayParams.FilterDescendantsInstances = {char, target.Character}
-                        local result = workspace:Raycast(head.Position, (targetPart.Position - head.Position).Unit * 500, rayParams)
-                        if result then
-                            canSee = false
-                        end
-                    end
-                end
-                
-                if canSee then
-                    assistAimTarget = target
-                    assistAimPart = targetPart
-                    
-                    -- Плавный поворот камеры
-                    local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPart.Position)
-                    local smoothness = Hub.Flags.AssistAimSmoothness or 0.3
-                    camera.CFrame = camera.CFrame:Lerp(targetCFrame, smoothness)
-                    return
-                end
-            end
-        end
-    end
-    
-    assistAimTarget = nil
-    assistAimPart = nil
-end)
-
--- ============================================================================
--- [3. ФИЗИЧЕСКИЙ ДВИЖОК И СТАБИЛЬНЫЕ СИСТЕМЫ ПЕРЕМЕЩЕНИЯ]
+-- [3. ФИЗИЧЕСКИЙ ДВИЖОК]
 -- ============================================================================
 
 SafeConnect(RunService.Heartbeat, function()
@@ -521,7 +513,7 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
 end)
 
 -- ============================================================================
--- [4.1. REAL ANTI-GRAB — ChildAdded Listener]
+-- [4.1. REAL ANTI-GRAB — ПОЛНОСТЬЮ ПЕРЕПИСАН БЕЗ ЛАГОВ]
 -- ============================================================================
 
 local function SetupAntiGrab(char)
@@ -534,7 +526,8 @@ local function SetupAntiGrab(char)
         
         if child:IsA("Weld") or child:IsA("WeldConstraint") or 
            child:IsA("RopeConstraint") or child:IsA("NoCollisionConstraint") or 
-           child:IsA("ManualWeld") then
+           child:IsA("ManualWeld") or child:IsA("JointInstance") or
+           child:IsA("Motor6D") or child:IsA("Snap") then
             
             local part0 = child.Part0
             local part1 = child.Part1
@@ -640,7 +633,7 @@ SafeConnect(RunService.Heartbeat, function()
 end)
 
 -- ============================================================================
--- [4.3. PROXIMITY AUTO-GRAB]
+-- [4.3. PROXIMITY AUTO-GRAB — БЕЗ РЕЙКАСТА, ТОЛЬКО MAGNITUDE]
 -- ============================================================================
 
 task.spawn(function()
@@ -722,6 +715,36 @@ task.spawn(function()
             Hub.Cache.IsGrabbing = false
             Hub.Cache.CurrentGrabbedTarget = nil
         end
+    end
+end)
+
+-- ============================================================================
+-- [4.4. ASPECT RATIO STRETCH — РАСТЯГ ЭКРАНА]
+-- ============================================================================
+
+SafeConnect(RunService.RenderStepped, function()
+    local stretch = Hub.Flags.AspectRatioStretch or 1.0
+    if stretch ~= 1.0 then
+        -- Комбинируем FieldOfView и симуляцию растяжения
+        local baseFOV = 70
+        local newFOV = baseFOV * stretch
+        camera.FieldOfView = math.clamp(newFOV, 35, 140)
+    else
+        if Hub.Flags.CustomFOV ~= 70 then
+            camera.FieldOfView = Hub.Flags.CustomFOV
+        end
+    end
+end)
+
+-- ============================================================================
+-- [4.5. FORCE THIRD PERSON С ВОЗВРАТОМ]
+-- ============================================================================
+
+SafeConnect(RunService.RenderStepped, function()
+    if Hub.Flags.ForceThirdPerson then
+        lp.CameraMode = Enum.CameraMode.Classic
+        lp.CameraMaxZoomDistance = 128
+        lp.CameraMinZoomDistance = 10
     end
 end)
 
@@ -877,7 +900,7 @@ task.spawn(function()
 end)
 
 -- ============================================================================
--- [6. ESP И ВИЗУАЛЫ]
+-- [6. ESP — ПОЛНАЯ ПЕРЕРАБОТКА С НАСТРАИВАЕМЫМИ ПАРАМЕТРАМИ]
 -- ============================================================================
 
 local ESPGui = Instance.new("ScreenGui")
@@ -902,14 +925,16 @@ local function CreateESP(player)
     
     local box = Drawing.new("Square")
     box.Visible = false
-    box.Color = Color3.fromRGB(0, 255, 240)
-    box.Thickness = 2
+    box.Color = Hub.Flags.ESP_BoxColor or Color3.fromRGB(0, 255, 240)
+    box.Thickness = Hub.Flags.ESP_BoxThickness or 2
     box.Filled = false
+    box.Transparency = Hub.Flags.ESP_BoxTransparency or 0.8
     
     local tracer = Drawing.new("Line")
     tracer.Visible = false
-    tracer.Color = Color3.fromRGB(255, 0, 128)
-    tracer.Thickness = 1.5
+    tracer.Color = Hub.Flags.ESP_TracerColor or Color3.fromRGB(255, 0, 128)
+    tracer.Thickness = Hub.Flags.ESP_TracerThickness or 1.5
+    tracer.Transparency = Hub.Flags.ESP_TracerTransparency or 0.9
     
     local name = Drawing.new("Text")
     name.Visible = false
@@ -917,6 +942,7 @@ local function CreateESP(player)
     name.Size = 14
     name.Center = true
     name.Outline = true
+    name.OutlineColor = Color3.fromRGB(0, 0, 0)
     
     local healthBar = Drawing.new("Line")
     healthBar.Visible = false
@@ -941,7 +967,6 @@ local function CreateESP(player)
         end
         
         local char = player.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         
         if Hub.Flags.ESP_Players and char then
@@ -951,59 +976,81 @@ local function CreateESP(player)
             highlight.Enabled = false
         end
         
-        if root and hum and hum.Health > 0 then
-            local rootPos, onScreen = camera:WorldToViewportPoint(root.Position)
-            if onScreen then
-                local topPos = camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3.2, 0))
-                local bottomPos = camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.8, 0))
-                local sizeY = bottomPos.Y - topPos.Y
-                local sizeX = sizeY * 0.65
-                local viewportSize = camera.ViewportSize
-                
-                if Hub.Flags.ESP_Boxes then
-                    box.Size = Vector2.new(sizeX, sizeY)
-                    box.Position = Vector2.new(rootPos.X - sizeX / 2, rootPos.Y - sizeY / 2)
-                    box.Visible = true
-                else
-                    box.Visible = false
-                end
-                
-                if Hub.Flags.ESP_Tracers then
-                    tracer.From = Vector2.new(viewportSize.X / 2, viewportSize.Y)
-                    tracer.To = Vector2.new(rootPos.X, rootPos.Y)
-                    tracer.Visible = true
-                else
-                    tracer.Visible = false
-                end
-                
-                if Hub.Flags.ESP_Names then
-                    name.Text = player.DisplayName .. " (@" .. player.Name .. ")"
-                    name.Position = Vector2.new(rootPos.X, (rootPos.Y - sizeY / 2) - 16)
-                    name.Visible = true
-                else
-                    name.Visible = false
-                end
-                
-                if Hub.Flags.ESP_Health then
-                    local healthPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
-                    local barHeight = sizeY * healthPercent
-                    healthBar.From = Vector2.new((rootPos.X - sizeX / 2) - 7, rootPos.Y + sizeY / 2)
-                    healthBar.To = Vector2.new((rootPos.X - sizeX / 2) - 7, (rootPos.Y + sizeY / 2) - barHeight)
-                    healthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
-                    healthBar.Visible = true
-                else
-                    healthBar.Visible = false
-                end
-            else
-                box.Visible = false
-                tracer.Visible = false
-                name.Visible = false
-                healthBar.Visible = false
-            end
-        else
+        if not char or not hum or hum.Health <= 0 then
             box.Visible = false
             tracer.Visible = false
             name.Visible = false
+            healthBar.Visible = false
+            return
+        end
+        
+        -- ПРАВИЛЬНЫЙ РАСЧЕТ БОКСА ПО ВСЕМ ЧАСТЯМ ТЕЛА
+        local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
+        local hasValidParts = false
+        
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    hasValidParts = true
+                    minX = math.min(minX, screenPos.X)
+                    minY = math.min(minY, screenPos.Y)
+                    maxX = math.max(maxX, screenPos.X)
+                    maxY = math.max(maxY, screenPos.Y)
+                end
+            end
+        end
+        
+        if not hasValidParts then
+            box.Visible = false
+            tracer.Visible = false
+            name.Visible = false
+            healthBar.Visible = false
+            return
+        end
+        
+        local centerX = (minX + maxX) / 2
+        local centerY = (minY + maxY) / 2
+        local width = maxX - minX
+        local height = maxY - minY
+        local viewportSize = camera.ViewportSize
+        
+        -- БОКС
+        if Hub.Flags.ESP_Boxes then
+            box.Size = Vector2.new(width + 4, height + 4)
+            box.Position = Vector2.new(minX - 2, minY - 2)
+            box.Visible = true
+        else
+            box.Visible = false
+        end
+        
+        -- ТРАССЕР
+        if Hub.Flags.ESP_Tracers then
+            tracer.From = Vector2.new(viewportSize.X / 2, viewportSize.Y)
+            tracer.To = Vector2.new(centerX, centerY)
+            tracer.Visible = true
+        else
+            tracer.Visible = false
+        end
+        
+        -- ИМЯ
+        if Hub.Flags.ESP_Names then
+            name.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+            name.Position = Vector2.new(centerX, minY - 16)
+            name.Visible = true
+        else
+            name.Visible = false
+        end
+        
+        -- ХП БАР
+        if Hub.Flags.ESP_Health then
+            local healthPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+            local barHeight = height * healthPercent
+            healthBar.From = Vector2.new(minX - 8, maxY)
+            healthBar.To = Vector2.new(minX - 8, maxY - barHeight)
+            healthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+            healthBar.Visible = true
+        else
             healthBar.Visible = false
         end
     end)
@@ -1558,7 +1605,7 @@ function CyberUI:SelectTab(tabData)
     tweenUI(tabData.Label, UI_EASE, {TextColor3 = CYBER_THEME.BorderCyan})
 end
 
-local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v8.0 • REMOTE INJECTION" })
+local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v9.0 • FINAL FIXED" })
 
 -- ============================================================================
 -- [8. ВКЛАДКИ И СВЯЗИ С ИНТЕРФЕЙСОМ]
@@ -1660,6 +1707,18 @@ movementTab:AddToggle({
     Callback = function(st) Hub.Flags.AntiFling = st end
 })
 
+movementTab:AddSection("Растяг Экрана (Aspect Ratio)")
+
+movementTab:AddSlider({
+    Name = "Растяг Экрана",
+    Min = 50,
+    Max = 200,
+    Default = 100,
+    Callback = function(val)
+        Hub.Flags.AspectRatioStretch = val / 100
+    end
+})
+
 -- Вкладка: FTAP БОЙ
 local ftapCombatTab = CyberHubMenu:CreateTab("FTAP Бой")
 ftapCombatTab:AddSection("🔴 СИСТЕМЫ НАВЕДЕНИЯ")
@@ -1671,27 +1730,22 @@ ftapCombatTab:AddToggle({
     Callback = function(st) Hub.Flags.SilentAim = st end
 })
 
-ftapCombatTab:AddToggle({
-    Name = "Ассист Аим (Camera Lock)",
-    Description = "Плавно поворачивает камеру к цели с проверкой стен",
-    Default = Hub.Flags.AssistAim,
-    Callback = function(st) Hub.Flags.AssistAim = st end
-})
-
-ftapCombatTab:AddToggle({
-    Name = "Ассист Аим: Сквозь стены",
-    Description = "Отключает проверку препятствий для Assist Aim",
-    Default = Hub.Flags.AssistAimThroughWalls,
-    Callback = function(st) Hub.Flags.AssistAimThroughWalls = st end
-})
-
 ftapCombatTab:AddSlider({
-    Name = "Плавность Ассист Аима",
-    Min = 5,
-    Max = 95,
-    Default = 30,
+    Name = "Успеваемость Аима (Prediction)",
+    Min = 1,
+    Max = 10,
+    Default = 5,
     Callback = function(val)
-        Hub.Flags.AssistAimSmoothness = val / 100
+        Hub.Flags.SilentAimPrediction = val / 10
+    end
+})
+
+ftapCombatTab:AddTextBox({
+    Name = "Часть тела для Аима",
+    Placeholder = "Head / Torso / HumanoidRootPart",
+    Default = Hub.Flags.SilentAimTargetPart,
+    Callback = function(text)
+        Hub.Flags.SilentAimTargetPart = text
     end
 })
 
@@ -1966,6 +2020,48 @@ visualsTab:AddToggle({
     Callback = function(st) Hub.Flags.ESP_Players = st end
 })
 
+visualsTab:AddSection("Настройки ESP")
+
+visualsTab:AddSlider({
+    Name = "Толщина Бокса",
+    Min = 1,
+    Max = 5,
+    Default = 2,
+    Callback = function(val)
+        Hub.Flags.ESP_BoxThickness = val
+    end
+})
+
+visualsTab:AddSlider({
+    Name = "Прозрачность Бокса",
+    Min = 10,
+    Max = 100,
+    Default = 80,
+    Callback = function(val)
+        Hub.Flags.ESP_BoxTransparency = val / 100
+    end
+})
+
+visualsTab:AddSlider({
+    Name = "Толщина Трассера",
+    Min = 1,
+    Max = 5,
+    Default = 2,
+    Callback = function(val)
+        Hub.Flags.ESP_TracerThickness = val
+    end
+})
+
+visualsTab:AddSlider({
+    Name = "Прозрачность Трассера",
+    Min = 10,
+    Max = 100,
+    Default = 90,
+    Callback = function(val)
+        Hub.Flags.ESP_TracerTransparency = val / 100
+    end
+})
+
 visualsTab:AddSection("Параметры Окружающего Мира")
 
 visualsTab:AddToggle({
@@ -2008,7 +2104,8 @@ shopSystemTab:AddToggle({
     Callback = function(st)
         Hub.Flags.ForceThirdPerson = st
         if not st then
-            lp.CameraMode = Enum.CameraMode.Classic
+            lp.CameraMode = Hub.Cache.OriginalCameraMode or Enum.CameraMode.Classic
+            lp.CameraMaxZoomDistance = Hub.Cache.OriginalZoomDistance or 40
         end
     end
 })
@@ -2017,8 +2114,13 @@ shopSystemTab:AddSlider({
     Name = "Изменить Угол Обзора (FOV)",
     Min = 70,
     Max = 140,
-    Default = Hub.Flags.CustomFOV,
-    Callback = function(val) Hub.Flags.CustomFOV = val end
+    Default = 70,
+    Callback = function(val)
+        Hub.Flags.CustomFOV = val
+        if not Hub.Flags.AspectRatioStretch or Hub.Flags.AspectRatioStretch == 1.0 then
+            camera.FieldOfView = val
+        end
+    end
 })
 
 shopSystemTab:AddSection("Авто-Спамер")
@@ -2203,6 +2305,12 @@ local function CompleteDestruction()
     end
     table.clear(Hub.Cache.EspHighlights)
     
+    -- Возвращаем камеру в исходное состояние
+    pcall(function()
+        lp.CameraMode = Hub.Cache.OriginalCameraMode or Enum.CameraMode.Classic
+        lp.CameraMaxZoomDistance = Hub.Cache.OriginalZoomDistance or 40
+    end)
+    
     pcall(function()
         local hum = lp.Character:FindFirstChildOfClass("Humanoid")
         if hum then
@@ -2270,4 +2378,4 @@ SafeConnect(RunService.LightingChanged, function()
     end
 end)
 
-print("[Brosa System v8.0]: Remote Injection Engine активен. Silent Aim перехватывает RemoteEvents, Assist Aim плавно наводит камеру.")
+print("[Brosa System v9.0]: ULTIMATE MONOLITHIC ENGINE — Prediction Aim, Configurable ESP, Real Anti-Grab, Aspect Ratio Stretch, Force Third Person.")
