@@ -1,173 +1,432 @@
---===================================================================================--
--- APPLE / IOS MINIMALIST ADMINISTRATIVE SUITE v3                                    --
--- TARGET ARCHITECTURE: ROBLOX "FLING THINGS AND PEOPLE" (FTAP)                      --
--- PLATFORM OPTIMIZATION: MOBILE / DELTA EXECUTOR                                    --
---===================================================================================--
-
--- [1. GLOBAL SERVICES & FRAMEWORK SETUP]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Stats = game:GetService("Stats")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
--- [2. GLOBAL MUTABLE ENGINE STATES]
-local SystemConfig = {
-    Movement = {
-        WalkSpeedToggle = false, WalkSpeed = 16,
-        JumpPowerToggle = false, JumpPower = 50,
-        InfiniteJump = false,
-        FlyMode = false, FlySpeed = 50,
-        Noclip = false, AntiFling = false
-    },
-    Combat = {
-        ClickToGrab = false,
-        AntiGrab = false,
-        MegaThrow = false, ThrowForce = 50000
-    },
-    Visuals = {
-        EspEnabled = false, EspNames = false, EspHealth = false, EspBoxes = false,
-        AspectRatio = 1.0, Fullbright = false, PotatoMode = false
-    },
-    World = {
-        GravityToggle = false, GravityValue = 196.2
-    },
-    Chaos = {
-        CrownVortex = false, ThrowForceSlider = 100000
-    }
-}
-
-local EngineCache = {
-    OriginalLighting = {
-        Ambient = Lighting.Ambient,
-        OutdoorAmbient = Lighting.OutdoorAmbient,
-        ClockTime = Lighting.ClockTime,
-        FogEnd = Lighting.FogEnd,
-        GlobalShadows = Lighting.GlobalShadows
-    },
-    OriginalMaterials = {},
+-- [ STATE MANAGEMENT ] --
+local State = {
+    Movement = { WalkSpeed = 16, JumpPower = 50, InfJump = false, Fly = false, FlySpeed = 50, Noclip = false, Stabilizer = false, Ascend = false, Descend = false },
+    Interaction = { AutoInteract = false, ClickGrab = false, TargetPart = "HumanoidRootPart", Momentum = false, MomentumForce = 50000, AntiGrab = false, CachedCFrame = nil },
+    Environment = { ESP = false, ESPThickness = 1, ESPTransparency = 0, Stretch = 1, Fullbright = false, Optimization = false },
+    Chaos = { Halo = false, FlingTarget = "", MassWeld = false, ChatSpam = false, ChatMessage = "GitHub Admin Toolbox Active" },
     Connections = {},
-    SafeCFrame = CFrame.new(),
-    FlyAscend = false,
-    FlyDescend = false,
-    EspObjects = {},
-    CapturedVortexTargets = {}
+    ESPObjects = {},
+    OriginalLighting = { Ambient = Lighting.Ambient, OutdoorAmbient = Lighting.OutdoorAmbient, ClockTime = Lighting.ClockTime, FogEnd = Lighting.FogEnd, GlobalShadows = Lighting.GlobalShadows }
 }
 
--- [3. SECURE PHANTOM METATABLE HOOKS]
-local function InitializeBypass()
-    local MetaTable = getrawmetatable(game)
-    if not MetaTable then return end
-    
-    setreadonly(MetaTable, false)
-    local OriginalIndex = MetaTable.__index
-    local OriginalNewIndex = MetaTable.__newindex
-    
-    MetaTable.__index = newcclosure(function(Self, Key)
-        if not checkcaller() and typeof(Self) == "Instance" and Self:IsA("Humanoid") then
-            if Key == "WalkSpeed" and SystemConfig.Movement.WalkSpeedToggle then return 16 end
-            if Key == "JumpPower" and SystemConfig.Movement.JumpPowerToggle then return 50 end
-        end
-        return OriginalIndex(Self, Key)
-    end)
-    
-    MetaTable.__newindex = newcclosure(function(Self, Key, Value)
-        if not checkcaller() and typeof(Self) == "Instance" and Self:IsA("Humanoid") then
-            if Key == "WalkSpeed" and SystemConfig.Movement.WalkSpeedToggle then return end
-            if Key == "JumpPower" and SystemConfig.Movement.JumpPowerToggle then return end
-        end
-        return OriginalNewIndex(Self, Key, Value)
-    end)
-    
-    setreadonly(MetaTable, true)
+-- [ UI FRAMEWORK (GitHub Dark) ] --
+local Colors = { Background = Color3.fromRGB(13, 17, 23), Panel = Color3.fromRGB(22, 27, 34), Accent = Color3.fromRGB(31, 111, 235), Text = Color3.fromRGB(201, 209, 217), Border = Color3.fromRGB(48, 54, 61) }
+
+local UI = Instance.new("ScreenGui")
+UI.Name = "GitHubAdminToolbox"
+UI.ResetOnSpawn = false
+UI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+pcall(function() UI.Parent = CoreGui end)
+if UI.Parent == nil then UI.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+local function Create(className, properties, children)
+    local inst = Instance.new(className)
+    for k, v in pairs(properties) do inst[k] = v end
+    if children then for _, child in ipairs(children) do child.Parent = inst end end
+    return inst
 end
-pcall(InitializeBypass)
 
--- [4. STABLE NATIVE EXPLOIT SYSTEMS LOGIC]
+local function Corner(radius) return Create("UICorner", { CornerRadius = UDim.new(0, radius) }) end
+local function Stroke(color) return Create("UIStroke", { Color = color, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }) end
 
--- Continuous Physics & Character Loop
-table.insert(EngineCache.Connections, RunService.Stepped:Connect(function()
-    local Character = LocalPlayer.Character
-    if not Character then return end
+-- Launcher
+local Launcher = Create("TextButton", {
+    Name = "Launcher", Parent = UI, Size = UDim2.new(0, 50, 0, 50), Position = UDim2.new(0.5, -25, 0, 20),
+    BackgroundColor3 = Colors.Panel, Text = "⚡", TextSize = 24, TextColor3 = Colors.Accent, Font = Enum.Font.GothamBold,
+    AutoButtonColor = false, Active = true, Draggable = true
+}, { Corner(25), Stroke(Colors.Border) })
+
+-- Main Panel
+local MainPanel = Create("Frame", {
+    Name = "MainPanel", Parent = UI, Size = UDim2.new(0, 600, 0, 400), Position = UDim2.new(0.5, -300, 0.5, -200),
+    BackgroundColor3 = Colors.Background, Visible = false, ClipsDescendants = true
+}, { Corner(8), Stroke(Colors.Border) })
+
+-- Sidebar
+local Sidebar = Create("Frame", {
+    Name = "Sidebar", Parent = MainPanel, Size = UDim2.new(0, 150, 1, 0), Position = UDim2.new(0, 0, 0, 0),
+    BackgroundColor3 = Colors.Panel, BorderSizePixel = 0
+}, {
+    Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5) }),
+    Create("UIPadding", { PaddingTop = UDim.new(0, 10), PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) })
+})
+
+local ContentContainer = Create("Frame", {
+    Name = "Content", Parent = MainPanel, Size = UDim2.new(1, -150, 1, 0), Position = UDim2.new(0, 150, 0, 0),
+    BackgroundTransparency = 1
+})
+
+-- UI Components Builder
+local Tabs = {}
+local function CreateTab(name, icon, order)
+    local btn = Create("TextButton", {
+        Name = name.."Btn", Parent = Sidebar, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Colors.Background,
+        Text = icon .. " " .. name, TextColor3 = Colors.Text, Font = Enum.Font.GothamSemibold, TextSize = 14,
+        LayoutOrder = order, AutoButtonColor = false
+    }, { Corner(6), Stroke(Colors.Border) })
     
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+    local scroll = Create("ScrollingFrame", {
+        Name = name.."Tab", Parent = ContentContainer, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+        ScrollBarThickness = 4, ScrollBarImageColor3 = Colors.Accent, Visible = false, CanvasSize = UDim2.new(0, 0, 0, 0)
+    }, {
+        Create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10) }),
+        Create("UIPadding", { PaddingTop = UDim.new(0, 15), PaddingBottom = UDim.new(0, 15), PaddingLeft = UDim.new(0, 15), PaddingRight = UDim.new(0, 15) })
+    })
     
-    if Humanoid then
-        if SystemConfig.Movement.WalkSpeedToggle then Humanoid.WalkSpeed = SystemConfig.Movement.WalkSpeed end
-        if SystemConfig.Movement.JumpPowerToggle then Humanoid.JumpPower = SystemConfig.Movement.JumpPower end
-    end
+    btn.MouseButton1Click:Connect(function()
+        for _, tab in pairs(Tabs) do tab.Scroll.Visible = false; tab.Btn.BackgroundColor3 = Colors.Background end
+        scroll.Visible = true; btn.BackgroundColor3 = Colors.Accent
+    end)
     
-    if SystemConfig.Movement.Noclip then
-        for _, Part in pairs(Character:GetDescendants()) do
-            if Part:IsA("BasePart") then Part.CanCollide = false end
+    Tabs[name] = { Scroll = scroll, Btn = btn }
+    return scroll
+end
+
+local function CreateToggle(parent, text, stateCategory, stateKey, callback)
+    local container = Create("Frame", { Parent = parent, Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1 })
+    local label = Create("TextLabel", { Parent = container, Size = UDim2.new(1, -60, 1, 0), BackgroundTransparency = 1, Text = text, TextColor3 = Colors.Text, Font = Enum.Font.Gotham, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left })
+    local btn = Create("TextButton", { Parent = container, Size = UDim2.new(0, 50, 0, 24), Position = UDim2.new(1, -50, 0, 3), BackgroundColor3 = Colors.Background, Text = "", AutoButtonColor = false }, { Corner(12), Stroke(Colors.Border) })
+    local indicator = Create("Frame", { Parent = btn, Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(0, 2, 0, 2), BackgroundColor3 = Colors.Text }, { Corner(10) })
+    
+    btn.MouseButton1Click:Connect(function()
+        State[stateCategory][stateKey] = not State[stateCategory][stateKey]
+        local active = State[stateCategory][stateKey]
+        TweenService:Create(indicator, TweenInfo.new(0.2), { Position = active and UDim2.new(1, -22, 0, 2) or UDim2.new(0, 2, 0, 2), BackgroundColor3 = active and Colors.Accent or Colors.Text }):Play()
+        TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = active and Colors.Panel or Colors.Background }):Play()
+        if callback then callback(active) end
+    end)
+end
+
+local function CreateSlider(parent, text, min, max, stateCategory, stateKey)
+    local container = Create("Frame", { Parent = parent, Size = UDim2.new(1, 0, 0, 45), BackgroundTransparency = 1 })
+    local label = Create("TextLabel", { Parent = container, Size = UDim2.new(1, -50, 0, 20), BackgroundTransparency = 1, Text = text, TextColor3 = Colors.Text, Font = Enum.Font.Gotham, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left })
+    local valLabel = Create("TextLabel", { Parent = container, Size = UDim2.new(0, 50, 0, 20), Position = UDim2.new(1, -50, 0, 0), BackgroundTransparency = 1, Text = tostring(State[stateCategory][stateKey]), TextColor3 = Colors.Accent, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right })
+    local track = Create("Frame", { Parent = container, Size = UDim2.new(1, 0, 0, 6), Position = UDim2.new(0, 0, 0, 25), BackgroundColor3 = Colors.Panel }, { Corner(3) })
+    local fill = Create("Frame", { Parent = track, Size = UDim2.new((State[stateCategory][stateKey] - min)/(max - min), 0, 1, 0), BackgroundColor3 = Colors.Accent }, { Corner(3) })
+    local knob = Create("TextButton", { Parent = fill, Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(1, -7, 0.5, -7), BackgroundColor3 = Colors.Text, Text = "" }, { Corner(7) })
+    
+    local dragging = false
+    knob.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end end)
+    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+    RunService.RenderStepped:Connect(function()
+        if dragging then
+            local pos = math.clamp((UserInputService:GetMouseLocation().X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+            fill.Size = UDim2.new(pos, 0, 1, 0)
+            local val = math.floor(min + (max - min) * pos)
+            valLabel.Text = tostring(val)
+            State[stateCategory][stateKey] = val
         end
+    end)
+end
+
+local function CreateButton(parent, text, callback)
+    local btn = Create("TextButton", { Parent = parent, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Colors.Panel, Text = text, TextColor3 = Colors.Text, Font = Enum.Font.GothamSemibold, TextSize = 14, AutoButtonColor = false }, { Corner(6), Stroke(Colors.Border) })
+    btn.MouseButton1Click:Connect(callback)
+    btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = Colors.Background }):Play() end)
+    btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = Colors.Panel }):Play() end)
+end
+
+local function CreateTextBox(parent, placeholder, stateCategory, stateKey)
+    local box = Create("TextBox", { Parent = parent, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Colors.Panel, Text = State[stateCategory][stateKey], PlaceholderText = placeholder, TextColor3 = Colors.Text, Font = Enum.Font.Gotham, TextSize = 14 }, { Corner(6), Stroke(Colors.Border) })
+    box.FocusLost:Connect(function() State[stateCategory][stateKey] = box.Text end)
+end
+
+-- [ BUILD TABS ] --
+local MoveTab = CreateTab("Movement", "🏃‍♂️", 1)
+local InteractTab = CreateTab("Interaction", "⚔️", 2)
+local EnvTab = CreateTab("Environment", "👁️", 3)
+local ChaosTab = CreateTab("Chaos", "🤡", 4)
+local DiagTab = CreateTab("Diagnostics", "📊", 5)
+local SysTab = CreateTab("System", "🛡️", 6)
+
+-- Movement UI
+CreateSlider(MoveTab, "WalkSpeed", 16, 300, "Movement", "WalkSpeed")
+CreateSlider(MoveTab, "JumpPower", 50, 400, "Movement", "JumpPower")
+CreateToggle(MoveTab, "Infinite Jump", "Movement", "InfJump")
+CreateToggle(MoveTab, "Physics Fly Mode", "Movement", "Fly", function(active)
+    if not active and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     end
-    
-    if RootPart then
-        if SystemConfig.Movement.AntiFling then
-            RootPart.AssemblyAngularVelocity = Vector3.zero
-            if RootPart.AssemblyLinearVelocity.Magnitude > 120 then
-                RootPart.AssemblyLinearVelocity = RootPart.AssemblyLinearVelocity.Unit * 12
-            end
-        end
-        
-        if SystemConfig.Movement.FlyMode then
-            local FlyVelocity = Vector3.zero
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then FlyVelocity += Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then FlyVelocity -= Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then FlyVelocity -= Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then FlyVelocity += Camera.CFrame.RightVector end
-            if EngineCache.FlyAscend then FlyVelocity += Vector3.new(0, 1, 0) end
-            if EngineCache.FlyDescend then FlyVelocity -= Vector3.new(0, 1, 0) end
-            
-            if FlyVelocity.Magnitude > 0 then
-                RootPart.AssemblyLinearVelocity = FlyVelocity.Unit * SystemConfig.Movement.FlySpeed
+end)
+CreateSlider(MoveTab, "Fly Speed", 20, 300, "Movement", "FlySpeed")
+CreateToggle(MoveTab, "Noclip", "Movement", "Noclip")
+CreateToggle(MoveTab, "Motion Stabilizer", "Movement", "Stabilizer")
+
+-- Mobile Fly Controls
+local AscendBtn = Create("TextButton", { Parent = UI, Size = UDim2.new(0, 60, 0, 60), Position = UDim2.new(1, -80, 0.5, 20), BackgroundColor3 = Colors.Panel, Text = "▲", TextColor3 = Colors.Accent, Font = Enum.Font.GothamBold, TextSize = 24, Visible = false, BackgroundTransparency = 0.5 }, { Corner(30), Stroke(Colors.Border) })
+local DescendBtn = Create("TextButton", { Parent = UI, Size = UDim2.new(0, 60, 0, 60), Position = UDim2.new(1, -80, 0.5, 90), BackgroundColor3 = Colors.Panel, Text = "▼", TextColor3 = Colors.Accent, Font = Enum.Font.GothamBold, TextSize = 24, Visible = false, BackgroundTransparency = 0.5 }, { Corner(30), Stroke(Colors.Border) })
+AscendBtn.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then State.Movement.Ascend = true end end)
+AscendBtn.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then State.Movement.Ascend = false end end)
+DescendBtn.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then State.Movement.Descend = true end end)
+DescendBtn.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then State.Movement.Descend = false end end)
+
+-- Interaction UI
+CreateToggle(InteractTab, "Proximity Auto-Interact", "Interaction", "AutoInteract")
+CreateToggle(InteractTab, "Enhanced Selection (Click-To-Grab)", "Interaction", "ClickGrab")
+local BodyPartSelector = Create("TextButton", { Parent = InteractTab, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Colors.Panel, Text = "Target: HumanoidRootPart", TextColor3 = Colors.Text, Font = Enum.Font.GothamSemibold, TextSize = 14 }, { Corner(6), Stroke(Colors.Border) })
+local parts = {"Head", "Torso", "HumanoidRootPart"}
+local partIdx = 3
+BodyPartSelector.MouseButton1Click:Connect(function()
+    partIdx = (partIdx % 3) + 1
+    State.Interaction.TargetPart = parts[partIdx]
+    BodyPartSelector.Text = "Target: " .. parts[partIdx]
+end)
+CreateToggle(InteractTab, "Momentum Multiplier", "Interaction", "Momentum")
+CreateSlider(InteractTab, "Multiplier Force", 5000, 2000000, "Interaction", "MomentumForce")
+CreateToggle(InteractTab, "Recovery Anchor (Anti-Grab/Ragdoll)", "Interaction", "AntiGrab")
+
+-- Environment UI
+CreateToggle(EnvTab, "ESP (Boxes, Tracers, Names, Health)", "Environment", "ESP", function(active)
+    if not active then
+        for _, obj in pairs(State.ESPObjects) do obj:Destroy() end
+        State.ESPObjects = {}
+    end
+end)
+CreateSlider(EnvTab, "Tracking Line Thickness", 1, 5, "Environment", "ESPThickness")
+CreateSlider(EnvTab, "Tracking Line Transparency", 0, 100, "Environment", "ESPTransparency")
+CreateSlider(EnvTab, "Camera Stretch", 50, 250, "Environment", "Stretch") -- FOV based since AspectRatio is read-only on default camera
+CreateToggle(EnvTab, "Fullbright", "Environment", "Fullbright", function(active)
+    if not active then
+        Lighting.Ambient = State.OriginalLighting.Ambient
+        Lighting.OutdoorAmbient = State.OriginalLighting.OutdoorAmbient
+        Lighting.ClockTime = State.OriginalLighting.ClockTime
+        Lighting.FogEnd = State.OriginalLighting.FogEnd
+        Lighting.GlobalShadows = State.OriginalLighting.GlobalShadows
+    end
+end)
+CreateToggle(EnvTab, "Optimization (SmoothPlastic)", "Environment", "Optimization", function(active)
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            if active then
+                v:SetAttribute("OriginalMaterial", v.Material)
+                v.Material = Enum.Material.SmoothPlastic
             else
-                RootPart.AssemblyLinearVelocity = Vector3.zero
+                local orig = v:GetAttribute("OriginalMaterial")
+                if orig then v.Material = orig end
             end
         end
     end
-end))
+end)
 
--- Post-Physics Interception & Memory Caching Loop
-table.insert(EngineCache.Connections, RunService.Heartbeat:Connect(function()
-    local Character = LocalPlayer.Character
-    if not Character then return end
-    
-    local RootPart = Character:FindFirstChild("HumanoidRootPart")
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    
-    if SystemConfig.Combat.AntiGrab and RootPart and Humanoid then
-        for _, Object in pairs(Character:GetDescendants()) do
-            if Object:IsA("Weld") or Object:IsA("WeldConstraint") or Object:IsA("Motor6D") or Object:IsA("RopeConstraint") then
-                local IsNative = false
-                for _, NativePart in pairs(Character:GetChildren()) do
-                    if Object:IsDescendantOf(NativePart) or Object.Parent == NativePart then
-                        if not Object.Parent:IsA("Tool") then IsNative = true end
-                    end
-                end
-                if not IsNative then pcall(function() Object:Destroy() end) end
-            end
+-- Chaos UI
+CreateToggle(ChaosTab, "Trigonometric Halo Formation", "Chaos", "Halo")
+CreateTextBox(ChaosTab, "Target Username", "Chaos", "FlingTarget")
+CreateButton(ChaosTab, "Desync Fling Target", function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and string.find(string.lower(p.Name), string.lower(State.Chaos.FlingTarget)) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            hrp.CFrame = p.Character.HumanoidRootPart.CFrame
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 999999, 0)
+            break
         end
+    end
+end)
+CreateButton(ChaosTab, "Mass Weld Unanchored Items", function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(char) then
+            v.CFrame = hrp.CFrame
+            local wc = Instance.new("WeldConstraint")
+            wc.Part0 = hrp
+            wc.Part1 = v
+            wc.Parent = hrp
+        end
+    end
+end)
+CreateToggle(ChaosTab, "Automated Chat Tester", "Chaos", "ChatSpam")
+CreateTextBox(ChaosTab, "Chat Message", "Chaos", "ChatMessage")
+
+-- Diagnostics UI
+local HUDContainer = Create("Frame", { Parent = DiagTab, Size = UDim2.new(1, 0, 0, 150), BackgroundColor3 = Colors.Panel }, { Corner(6), Stroke(Colors.Border) })
+local VPF = Create("ViewportFrame", { Parent = HUDContainer, Size = UDim2.new(0, 100, 0, 100), Position = UDim2.new(0, 20, 0, 25), BackgroundTransparency = 1 })
+local VPFCamera = Create("Camera", { Parent = VPF })
+VPF.CurrentCamera = VPFCamera
+local StatLabels = {
+    Name = Create("TextLabel", { Parent = HUDContainer, Size = UDim2.new(0, 200, 0, 20), Position = UDim2.new(0, 140, 0, 25), BackgroundTransparency = 1, TextColor3 = Colors.Text, Font = Enum.Font.GothamBold, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left }),
+    Age = Create("TextLabel", { Parent = HUDContainer, Size = UDim2.new(0, 200, 0, 20), Position = UDim2.new(0, 140, 0, 50), BackgroundTransparency = 1, TextColor3 = Colors.Text, Font = Enum.Font.Gotham, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left }),
+    FPS = Create("TextLabel", { Parent = HUDContainer, Size = UDim2.new(0, 200, 0, 20), Position = UDim2.new(0, 140, 0, 75), BackgroundTransparency = 1, TextColor3 = Colors.Accent, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left }),
+    Ping = Create("TextLabel", { Parent = HUDContainer, Size = UDim2.new(0, 200, 0, 20), Position = UDim2.new(0, 140, 0, 100), BackgroundTransparency = 1, TextColor3 = Colors.Accent, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left })
+}
+StatLabels.Name.Text = "User: " .. LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
+StatLabels.Age.Text = "Account Age: " .. LocalPlayer.AccountAge .. " Days"
+
+-- System UI
+CreateButton(SysTab, "Force Unload (Reset)", function()
+    for _, c in pairs(State.Connections) do c:Disconnect() end
+    for _, obj in pairs(State.ESPObjects) do obj:Destroy() end
+    Lighting.Ambient = State.OriginalLighting.Ambient
+    Lighting.OutdoorAmbient = State.OriginalLighting.OutdoorAmbient
+    Lighting.ClockTime = State.OriginalLighting.ClockTime
+    Lighting.FogEnd = State.OriginalLighting.FogEnd
+    Lighting.GlobalShadows = State.OriginalLighting.GlobalShadows
+    Camera.FieldOfView = 70
+    UI:Destroy()
+end)
+
+-- [ CORE LOGIC IMPLEMENTATION ] --
+
+-- Launcher Toggle Logic
+Launcher.MouseButton1Click:Connect(function()
+    local targetVisible = not MainPanel.Visible
+    if targetVisible then
+        MainPanel.Visible = true
+        MainPanel.Size = UDim2.new(0, 0, 0, 0)
+        TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Size = UDim2.new(0, 600, 0, 400) }):Play()
+    else
+        local tw = TweenService:Create(MainPanel, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Size = UDim2.new(0, 0, 0, 0) })
+        tw:Play()
+        tw.Completed:Connect(function() MainPanel.Visible = false end)
+    end
+end)
+
+-- VPF Update Logic
+task.spawn(function()
+    if LocalPlayer.Character then
+        local clone = LocalPlayer.Character:Clone()
+        if clone then clone.Parent = VPF end
+        if clone:FindFirstChild("HumanoidRootPart") then
+            VPFCamera.CFrame = CFrame.new(clone.HumanoidRootPart.Position + clone.HumanoidRootPart.CFrame.LookVector * 4 + Vector3.new(0, 1.5, 0), clone.HumanoidRootPart.Position)
+        end
+    end
+end)
+
+-- Main RunService Loop
+table.insert(State.Connections, RunService.Heartbeat:Connect(function(dt)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    -- Movement Loops
+    if hum then
+        hum.WalkSpeed = State.Movement.WalkSpeed
+        hum.JumpPower = State.Movement.JumpPower
+    end
+    
+    if State.Movement.Fly and hrp then
+        AscendBtn.Visible = true
+        DescendBtn.Visible = true
+        local vel = Vector3.new(0, 0, 0)
+        local moveDir = hum and hum.MoveDirection or Vector3.new(0,0,0)
         
-        Humanoid.PlatformStanding = false
-        Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        if moveDir.Magnitude > 0 then
+            vel = vel + (Camera.CFrame.LookVector * (moveDir:Dot(Camera.CFrame.LookVector)) + Camera.CFrame.RightVector * (moveDir:Dot(Camera.CFrame.RightVector))).Unit * State.Movement.FlySpeed
+        end
+        if State.Movement.Ascend or UserInputService:IsKeyDown(Enum.KeyCode.Space) then vel = vel + Vector3.new(0, State.Movement.FlySpeed, 0) end
+        if State.Movement.Descend or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then vel = vel + Vector3.new(0, -State.Movement.FlySpeed, 0) end
         
-        if RootPart.AssemblyLinearVelocity.Magnitude > 75 then
-            RootPart.CFrame = EngineCache.SafeCFrame
-            RootPart.AssemblyLinearVelocity = Vector3.zero
-        else
-            EngineCache.SafeCFrame = RootPart.CFrame
+        hrp.AssemblyLinearVelocity = vel
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, 0, 0)
+    else
+        AscendBtn.Visible = false
+        DescendBtn.Visible = false
+    end
+    
+    if State.Movement.Stabilizer and hrp then
+        if hrp.AssemblyAngularVelocity.Magnitude > 50 then hrp.AssemblyAngularVelocity = Vector3.new(0,0,0) end
+        if hrp.AssemblyLinearVelocity.Magnitude > 250 and not State.Movement.Fly then hrp.AssemblyLinearVelocity = Vector3.new(0,0,0) end
+    end
+    
+    -- Interaction Loops
+    if State.Interaction.AutoInteract and hrp then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude <= 5 then
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool then tool:Activate() end
+                end
+            end
         end
     end
     
-    if SystemConfig.Visuals.Fullbright then
+    if State.Interaction.AntiGrab and hrp and hum then
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("Weld") or v:IsA("WeldConstraint") or v:IsA("RopeConstraint") or v:IsA("Motor6D") then
+                local p0 = v:IsA("Motor6D") and v.Part0 or (v.Part0)
+                local p1 = v:IsA("Motor6D") and v.Part1 or (v.Part1)
+                if (p0 and not p0:IsDescendantOf(char)) or (p1 and not p1:IsDescendantOf(char)) then
+                    v:Destroy()
+                end
+            end
+        end
+        hum.PlatformStanding = false
+        if hum:GetState() == Enum.HumanoidStateType.Ragdoll or hum:GetState() == Enum.HumanoidStateType.FallingDown then
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+        if hrp.AssemblyLinearVelocity.Magnitude > 75 and State.Interaction.CachedCFrame then
+            hrp.CFrame = State.Interaction.CachedCFrame
+            hrp.AssemblyLinearVelocity = Vector3.new(0,0,0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0,0,0)
+        else
+            State.Interaction.CachedCFrame = hrp.CFrame
+        end
+    end
+    
+    -- Environment Loops
+    if State.Environment.ESP then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChildOfClass("Humanoid") then
+                local e_hrp = p.Character.HumanoidRootPart
+                local e_hum = p.Character:FindFirstChildOfClass("Humanoid")
+                local pos, onScreen = Camera:WorldToViewportPoint(e_hrp.Position)
+                
+                if not State.ESPObjects[p.Name.."_Tracer"] then
+                    local tracer = Drawing.new("Line")
+                    State.ESPObjects[p.Name.."_Tracer"] = tracer
+                end
+                
+                local tracer = State.ESPObjects[p.Name.."_Tracer"]
+                if onScreen then
+                    tracer.Visible = true
+                    tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    tracer.To = Vector2.new(pos.X, pos.Y)
+                    tracer.Color = Colors.Accent
+                    tracer.Thickness = State.Environment.ESPThickness
+                    tracer.Transparency = 1 - (State.Environment.ESPTransparency / 100)
+                else
+                    tracer.Visible = false
+                end
+                
+                if not e_hrp:FindFirstChild("AdminESP") then
+                    local bbg = Create("BillboardGui", { Name = "AdminESP", Parent = e_hrp, Size = UDim2.new(4, 0, 5.5, 0), AlwaysOnTop = true })
+                    Create("Frame", { Name = "Box", Parent = bbg, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1 }, { Stroke(Colors.Accent) })
+                    Create("TextLabel", { Name = "Name", Parent = bbg, Size = UDim2.new(1, 0, 0, 15), Position = UDim2.new(0, 0, 0, -15), BackgroundTransparency = 1, Text = p.Name, TextColor3 = Colors.Text, Font = Enum.Font.GothamBold, TextSize = 12 })
+                    Create("TextLabel", { Name = "Health", Parent = bbg, Size = UDim2.new(1, 0, 0, 15), Position = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, Text = tostring(math.floor(e_hum.Health)), TextColor3 = Color3.fromRGB(50, 255, 50), Font = Enum.Font.Gotham, TextSize = 10 })
+                    State.ESPObjects[p.Name.."_BBG"] = bbg
+                else
+                    e_hrp.AdminESP.Health.Text = tostring(math.floor(e_hum.Health))
+                    e_hrp.AdminESP.Box.UIStroke.Thickness = State.Environment.ESPThickness
+                    e_hrp.AdminESP.Box.UIStroke.Transparency = State.Environment.ESPTransparency / 100
+                end
+            end
+        end
+    end
+    
+    if State.Environment.Stretch ~= 100 then
+        Camera.FieldOfView = State.Environment.Stretch / 100 * 70
+    else
+        Camera.FieldOfView = 70
+    end
+    
+    if State.Environment.Fullbright then
         Lighting.Ambient = Color3.fromRGB(255, 255, 255)
         Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
         Lighting.ClockTime = 14
@@ -175,586 +434,109 @@ table.insert(EngineCache.Connections, RunService.Heartbeat:Connect(function()
         Lighting.GlobalShadows = false
     end
     
-    if SystemConfig.Visuals.AspectRatio ~= 1.0 then
-        Camera.AspectRatio = SystemConfig.Visuals.AspectRatio
+    -- Chaos Loops
+    if State.Chaos.Halo and hrp then
+        hrp.Anchored = true
+        local radius = 10
+        local height = 10
+        local others = {}
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(others, p.Character.HumanoidRootPart)
+            end
+        end
+        local count = #others
+        for i, targetHrp in ipairs(others) do
+            local angle = (tick() * 2) + (math.pi * 2 / count * i)
+            local offset = Vector3.new(math.cos(angle) * radius, height, math.sin(angle) * radius)
+            targetHrp.CFrame = hrp.CFrame + offset
+            targetHrp.AssemblyLinearVelocity = Vector3.new(0,0,0)
+        end
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then tool:Activate() end
+    elseif not State.Chaos.Halo and hrp and hrp.Anchored then
+        hrp.Anchored = false
+        local others = {}
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                p.Character.HumanoidRootPart.AssemblyLinearVelocity = Camera.CFrame.LookVector * State.Interaction.MomentumForce
+            end
+        end
     end
     
-    if SystemConfig.World.GravityToggle then
-        Workspace.Gravity = SystemConfig.World.GravityValue
+    -- Diagnostics Loop
+    StatLabels.FPS.Text = "FPS: " .. tostring(math.floor(1 / dt))
+    pcall(function() StatLabels.Ping.Text = "Ping: " .. tostring(math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())) .. " ms" end)
+end))
+
+-- Noclip Stepped Loop
+table.insert(State.Connections, RunService.Stepped:Connect(function()
+    if State.Movement.Noclip and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
     end
 end))
 
--- Stable Bulletproof Click-To-Grab Logic
-local Mouse = LocalPlayer:GetMouse()
-table.insert(EngineCache.Connections, Mouse.Button1Down:Connect(function()
-    if not SystemConfig.Combat.ClickToGrab then return end
-    local Target = Mouse.Target
-    if Target and Target.Parent and Target.Parent:FindFirstChild("Humanoid") then
-        local EnemyRoot = Target.Parent:FindFirstChild("HumanoidRootPart")
-        if EnemyRoot and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local Tool = LocalPlayer.Character:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-            if Tool then
-                -- Temporarily snap the target to the player's immediate grab radius
-                local TargetOriginalCF = EnemyRoot.CFrame
-                EnemyRoot.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-                task.wait(0.01)
-                Tool:Activate()
+-- Infinite Jump
+table.insert(State.Connections, UserInputService.JumpRequest:Connect(function()
+    if State.Movement.InfJump and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end))
+
+-- Enhanced Selection Interaction (Click-To-Grab)
+table.insert(State.Connections, Mouse.Button1Down:Connect(function()
+    if State.Interaction.ClickGrab then
+        local target = Mouse.Target
+        if target and target.Parent:FindFirstChildOfClass("Humanoid") then
+            local targetPlayer = Players:GetPlayerFromCharacter(target.Parent)
+            if targetPlayer then
+                local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                if tool then
+                    local targetPart = target.Parent:FindFirstChild(State.Interaction.TargetPart)
+                    if targetPart then
+                        local predictedPos = targetPart.Position + (targetPart.AssemblyLinearVelocity * 0.1)
+                        if tool:FindFirstChild("Handle") then
+                            tool.Handle.CFrame = CFrame.new(predictedPos - Vector3.new(0, 0.5, 0))
+                        end
+                        tool:Activate()
+                    end
+                end
             end
         end
     end
 end))
 
--- Dynamic Halo Vortex Processing Loop
+-- Momentum Multiplier
+table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(function(char)
+    char.ChildAdded:Connect(function(child)
+        if State.Interaction.Momentum and child:IsA("Tool") then
+            child.Activated:Connect(function()
+                if child:FindFirstChild("Handle") then
+                    child.Handle.AssemblyLinearVelocity = child.Handle.AssemblyLinearVelocity * (State.Interaction.MomentumForce / 1000)
+                end
+            end)
+        end
+    end)
+end))
+
+-- Automated Chat Tester
 task.spawn(function()
-    while task.wait(0.01) do
-        if SystemConfig.Chaos.CrownVortex then
-            local Character = LocalPlayer.Character
-            if Character and Character:FindFirstChild("HumanoidRootPart") then
-                local RootPart = Character.HumanoidRootPart
-                RootPart.Anchored = true
-                
-                table.clear(EngineCache.CapturedVortexTargets)
-                for _, Player in pairs(Players:GetPlayers()) do
-                    if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-                        table.insert(EngineCache.CapturedVortexTargets, Player.Character.HumanoidRootPart)
-                    end
+    while task.wait(3) do
+        if State.Chaos.ChatSpam then
+            pcall(function()
+                if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+                    TextChatService.TextChannels.RBXGeneral:SendAsync(State.Chaos.ChatMessage)
+                else
+                    ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(State.Chaos.ChatMessage, "All")
                 end
-                
-                local TargetCount = #EngineCache.CapturedVortexTargets
-                if TargetCount > 0 then
-                    local RadialIndex = tick() * 3
-                    for PositionIndex, TargetRoot in ipairs(EngineCache.CapturedVortexTargets) do
-                        local Angle = ((PositionIndex / TargetCount) * math.pi * 2) + RadialIndex
-                        local PositionOffset = Vector3.new(math.cos(Angle) * 10, 25, math.sin(Angle) * 10)
-                        TargetRoot.CFrame = RootPart.CFrame * CFrame.new(PositionOffset)
-                        TargetRoot.AssemblyLinearVelocity = Vector3.zero
-                        
-                        local GrabTool = Character:FindFirstChildOfClass("Tool")
-                        if GrabTool then GrabTool:Activate() end
-                    end
-                end
-            end
+            end)
         end
     end
 end)
 
--- Infinite Jump Request Core Trigger
-table.insert(EngineCache.Connections, UserInputService.JumpRequest:Connect(function()
-    if SystemConfig.Movement.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end))
-
--- Native Throw Hooking Module (Mega Throw)
-local MetatableBackup = getrawmetatable(game)
-if MetatableBackup then
-    setreadonly(MetatableBackup, false)
-    local NamecallBackup = MetatableBackup.__namecall
-    MetatableBackup.__namecall = newcclosure(function(Self, ...)
-        local RemoteMethod = getnamecallmethod()
-        local Arguments = {...}
-        if RemoteMethod == "FireServer" and SystemConfig.Combat.MegaThrow and typeof(Self) == "Instance" and Self.Name:lower():match("throw") then
-            if typeof(Arguments[1]) == "Instance" and Arguments[1]:IsA("BasePart") then
-                Arguments[1].AssemblyLinearVelocity = Arguments[1].AssemblyLinearVelocity.Unit * SystemConfig.Combat.ThrowForce
-            end
-        end
-        return NamecallBackup(Self, unpack(Arguments))
-    end)
-    setreadonly(MetatableBackup, true)
-end
-
--- [5. HIGH-PERFORMANCE NATIVE ESP PIPELINE]
-local function ConstructPlayerEsp(TargetPlayer)
-    if TargetPlayer == LocalPlayer then return end
-    
-    local Billboard = Instance.new("BillboardGui")
-    Billboard.Name = "iOS_Core_Esp"
-    Billboard.Size = UDim2.new(4, 0, 5.5, 0)
-    Billboard.AlwaysOnTop = true
-    Billboard.ResetOnSpawn = false
-    
-    local BoxFrame = Instance.new("Frame", Billboard)
-    BoxFrame.Size = UDim2.new(1, 0, 1, 0)
-    BoxFrame.BackgroundTransparency = 1
-    local Stroke = Instance.new("UIStroke", BoxFrame)
-    Stroke.Color = Color3.fromRGB(10, 132, 255)
-    Stroke.Thickness = 1.5
-    Stroke.Enabled = false
-    
-    local HeaderLabel = Instance.new("TextLabel", Billboard)
-    HeaderLabel.Size = UDim2.new(1, 0, 0, 15)
-    HeaderLabel.Position = UDim2.new(0, 0, 0, -18)
-    HeaderLabel.BackgroundTransparency = 1
-    HeaderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    HeaderLabel.Font = Enum.Font.SourceSansBold
-    HeaderLabel.TextSize = 13
-    HeaderLabel.TextVisible = false
-    
-    local InternalHealthBar = Instance.new("Frame", BoxFrame)
-    InternalHealthBar.Size = UDim2.new(0, 3, 1, 0)
-    InternalHealthBar.Position = UDim2.new(0, -8, 0, 0)
-    InternalHealthBar.BackgroundColor3 = Color3.fromRGB(48, 209, 88)
-    InternalHealthBar.BorderSizePixel = 0
-    InternalHealthBar.Visible = false
-    
-    EngineCache.EspObjects[TargetPlayer] = {
-        Gui = Billboard,
-        Box = Stroke,
-        Text = HeaderLabel,
-        Health = InternalHealthBar
-    }
-    
-    local function BindCharacter(Char)
-        if Char then
-            local Root = Char:WaitForChild("HumanoidRootPart", 5)
-            if Root then Billboard.Adornee = Root; Billboard.Parent = CoreGui end
-        end
-    end
-    
-    TargetPlayer.CharacterAdded:Connect(BindCharacter)
-    BindCharacter(TargetPlayer.Character)
-end
-
-local function CleanPlayerEsp(TargetPlayer)
-    if EngineCache.EspObjects[TargetPlayer] then
-        pcall(function() EngineCache.EspObjects[TargetPlayer].Gui:Destroy() end)
-        EngineCache.EspObjects[TargetPlayer] = nil
-    end
-end
-
-for _, P in pairs(Players:GetPlayers()) do ConstructPlayerEsp(P) end
-table.insert(EngineCache.Connections, Players.PlayerAdded:Connect(ConstructPlayerEsp))
-table.insert(EngineCache.Connections, Players.PlayerRemoving:Connect(CleanPlayerEsp))
-
-table.insert(EngineCache.Connections, RunService.RenderStepped:Connect(function()
-    if not SystemConfig.Visuals.EspEnabled then
-        for _, Assets in pairs(EngineCache.EspObjects) do
-            Assets.Box.Enabled = false
-            Assets.Text.Visible = false
-            Assets.Health.Visible = false
-        end
-        return
-    end
-    
-    for Plr, Assets in pairs(EngineCache.EspObjects) do
-        if Plr.Character and Plr.Character:FindFirstChild("HumanoidRootPart") and Plr.Character:FindFirstChildOfClass("Humanoid") then
-            local Hum = Plr.Character:FindFirstChildOfClass("Humanoid")
-            Assets.Box.Enabled = SystemConfig.Visuals.EspBoxes
-            
-            if SystemConfig.Visuals.EspNames then
-                Assets.Text.Text = Plr.DisplayName .. " (@" .. Plr.Name .. ")"
-                Assets.Text.Visible = true
-            else
-                Assets.Text.Visible = false
-            end
-            
-            if SystemConfig.Visuals.EspHealth and Hum.MaxHealth > 0 then
-                local Scale = math.clamp(Hum.Health / Hum.MaxHealth, 0, 1)
-                Assets.Health.Size = UDim2.new(0, 3, Scale, 0)
-                Assets.Health.Position = UDim2.new(0, -8, 1 - Scale, 0)
-                Assets.Health.BackgroundColor3 = Color3.fromRGB(255 * (1 - Scale), 214 * Scale, 0)
-                Assets.Health.Visible = true
-            else
-                Assets.Health.Visible = false
-            end
-        else
-            Assets.Box.Enabled = false
-            Assets.Text.Visible = false
-            Assets.Health.Visible = false
-        end
-    end
-end))
-
--- [6. UI ENGINE DESIGN: APPLE DARK MINIMALIST]
-local MainGui = Instance.new("ScreenGui")
-MainGui.Name = "AppleCoreSuite"
-MainGui.ResetOnSpawn = false
-MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-if not pcall(function() MainGui.Parent = CoreGui end) then MainGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-
--- Flight Mobile Anchors
-local FlyControlAscend = Instance.new("TextButton", MainGui)
-FlyControlAscend.Size = UDim2.new(0, 75, 0, 50)
-FlyControlAscend.Position = UDim2.new(0.88, -40, 0.55, -25)
-FlyControlAscend.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-FlyControlAscend.TextColor3 = Color3.fromRGB(255, 255, 255)
-FlyControlAscend.Font = Enum.Font.SourceSansBold
-FlyControlAscend.TextSize = 15
-FlyControlAscend.Text = "Ascend"
-FlyControlAscend.Visible = false
-Instance.new("UICorner", FlyControlAscend).CornerRadius = UDim.new(0, 14)
-local ControlStroke1 = Instance.new("UIStroke", FlyControlAscend)
-ControlStroke1.Color = Color3.fromRGB(58, 58, 60)
-ControlStroke1.Thickness = 1
-
-local FlyControlDescend = Instance.new("TextButton", MainGui)
-FlyControlDescend.Size = UDim2.new(0, 75, 0, 50)
-FlyControlDescend.Position = UDim2.new(0.88, -40, 0.65, 0)
-FlyControlDescend.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-FlyControlDescend.TextColor3 = Color3.fromRGB(255, 255, 255)
-FlyControlDescend.Font = Enum.Font.SourceSansBold
-FlyControlDescend.TextSize = 15
-FlyControlDescend.Text = "Descend"
-FlyControlDescend.Visible = false
-Instance.new("UICorner", FlyControlDescend).CornerRadius = UDim.new(0, 14)
-local ControlStroke2 = Instance.new("UIStroke", FlyControlDescend)
-ControlStroke2.Color = Color3.fromRGB(58, 58, 60)
-ControlStroke2.Thickness = 1
-
-FlyControlAscend.InputBegan:Connect(function() EngineCache.FlyAscend = true end)
-FlyControlAscend.InputEnded:Connect(function() EngineCache.FlyAscend = false end)
-FlyControlDescend.InputBegan:Connect(function() EngineCache.FlyDescend = true end)
-FlyControlDescend.InputEnded:Connect(function() EngineCache.FlyDescend = false end)
-
--- Smooth Apple Interceptor Widget Button
-local FloatingWidget = Instance.new("TextButton", MainGui)
-FloatingWidget.Size = UDim2.new(0, 55, 0, 55)
-FloatingWidget.Position = UDim2.new(0.05, 0, 0.15, 0)
-FloatingWidget.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-FloatingWidget.Text = "⚡"
-FloatingWidget.TextColor3 = Color3.fromRGB(10, 132, 255)
-FloatingWidget.TextSize = 24
-Instance.new("UICorner", FloatingWidget).CornerRadius = UDim.new(1, 0)
-local WidgetStroke = Instance.new("UIStroke", FloatingWidget)
-WidgetStroke.Color = Color3.fromRGB(58, 58, 60)
-WidgetStroke.Thickness = 1.5
-
-local IsDraggingWidget, PositionDragStart, InitialWidgetPosition
-FloatingWidget.InputBegan:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-        IsDraggingWidget = true
-        PositionDragStart = Input.Position
-        InitialWidgetPosition = FloatingWidget.Position
-    end
-end)
-UserInputService.InputChanged:Connect(function(Input)
-    if IsDraggingWidget and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
-        local OffsetDelta = Input.Position - PositionDragStart
-        FloatingWidget.Position = UDim2.new(InitialWidgetPosition.X.Scale, InitialWidgetPosition.X.Offset + OffsetDelta.X, InitialWidgetPosition.Y.Scale, InitialWidgetPosition.Y.Offset + OffsetDelta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-        IsDraggingWidget = false
-    end
-end)
-
--- Main Settings Glass Window Frame
-local MainViewFrame = Instance.new("Frame", MainGui)
-MainViewFrame.Size = UDim2.new(0, 620, 0, 420)
-MainViewFrame.Position = UDim2.new(0.5, -310, 0.5, -210)
-MainViewFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-MainViewFrame.BackgroundTransparency = 0.05
-MainViewFrame.Visible = false
-Instance.new("UICorner", MainViewFrame).CornerRadius = UDim.new(0, 16)
-local PanelStroke = Instance.new("UIStroke", MainViewFrame)
-PanelStroke.Color = Color3.fromRGB(58, 58, 60)
-PanelStroke.Thickness = 1.5
-
-FloatingWidget.MouseButton1Click:Connect(function()
-    MainViewFrame.Visible = not MainViewFrame.Visible
-end)
-
--- Left Side Apple System Sidebar Menu List
-local LeftNavigationFrame = Instance.new("Frame", MainViewFrame)
-LeftNavigationFrame.Size = UDim2.new(0, 180, 1, 0)
-LeftNavigationFrame.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-LeftNavigationFrame.BackgroundTransparency = 0.3
-LeftNavigationFrame.BorderSizePixel = 0
-Instance.new("UICorner", LeftNavigationFrame).CornerRadius = UDim.new(0, 16)
-local SeparatorLine = Instance.new("Frame", LeftNavigationFrame)
-SeparatorLine.Size = UDim2.new(0, 1, 1, 0)
-SeparatorLine.Position = UDim2.new(1, 0, 0, 0)
-SeparatorLine.BackgroundColor3 = Color3.fromRGB(58, 58, 60)
-SeparatorLine.BorderSizePixel = 0
-
-local ContentDisplayFrame = Instance.new("Frame", MainViewFrame)
-ContentDisplayFrame.Size = UDim2.new(1, -195, 1, -20)
-ContentDisplayFrame.Position = UDim2.new(0, 190, 0, 10)
-ContentDisplayFrame.BackgroundTransparency = 1
-
-local ActiveViewTabs = {}
-local NavigationSelectionButtons = {}
-
-local function InsertiOSMenuTab(TabName, IdentityIcon)
-    local ScrollerCellContainer = Instance.new("ScrollingFrame", ContentDisplayFrame)
-    ScrollerCellContainer.Size = UDim2.new(1, 0, 1, 0)
-    ScrollerCellContainer.BackgroundTransparency = 1
-    ScrollerCellContainer.ScrollBarThickness = 0
-    ScrollerCellContainer.Visible = false
-    
-    local ListConfig = Instance.new("UIListLayout", ScrollerCellContainer)
-    ListConfig.Padding = UDim.new(0, 12)
-    ListConfig.SortOrder = Enum.SortOrder.LayoutOrder
-    
-    local TabSelectionButton = Instance.new("TextButton", LeftNavigationFrame)
-    TabSelectionButton.Size = UDim2.new(1, -20, 0, 42)
-    TabSelectionButton.Position = UDim2.new(0, 10, 0, #NavigationSelectionButtons * 50 + 15)
-    TabSelectionButton.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-    TabSelectionButton.BackgroundTransparency = 1
-    TabSelectionButton.TextColor3 = Color3.fromRGB(235, 235, 245)
-    TabSelectionButton.Font = Enum.Font.SourceSansBold
-    TabSelectionButton.TextSize = 16
-    TabSelectionButton.Text = IdentityIcon .. "  " .. TabName
-    TabSelectionButton.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local PaddingOffset = Instance.new("UIPadding", TabSelectionButton)
-    PaddingOffset.PaddingLeft = UDim.new(0, 15)
-    Instance.new("UICorner", TabSelectionButton).CornerRadius = UDim.new(0, 12)
-    
-    TabSelectionButton.MouseButton1Click:Connect(function()
-        for RegistryName, RegisteredView in pairs(ActiveViewTabs) do RegisteredView.Visible = (RegistryName == TabName) end
-        for _, NavigationButton in pairs(NavigationSelectionButtons) do
-            NavigationButton.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-            NavigationButton.BackgroundTransparency = 1
-            NavigationButton.TextColor3 = Color3.fromRGB(235, 235, 245)
-        end
-        TabSelectionButton.BackgroundColor3 = Color3.fromRGB(10, 132, 255)
-        TabSelectionButton.BackgroundTransparency = 0
-        TabSelectionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    end)
-    
-    ActiveViewTabs[TabName] = ScrollerCellContainer
-    table.insert(NavigationSelectionButtons, TabSelectionButton)
-    return ScrollerCellContainer
-end
-
-local TabMovement = InsertiOSMenuTab("Movement", "🏃‍♂️")
-local TabCombat = InsertiOSMenuTab("FTAP Combat", "⚔️")
-local TabVisuals = InsertiOSMenuTab("Visuals", "👁️")
-local TabWorld = InsertiOSMenuTab("World", "🏪")
-local TabChaos = InsertiOSMenuTab("Chaos", "🤡")
-local TabSystem = InsertiOSMenuTab("System", "🛡️")
-
-NavigationSelectionButtons[1].BackgroundColor3 = Color3.fromRGB(10, 132, 255)
-NavigationSelectionButtons[1].BackgroundTransparency = 0
-NavigationSelectionButtons[1].TextColor3 = Color3.fromRGB(255, 255, 255)
-ActiveViewTabs["Movement"].Visible = true
-
--- [7. STABLE COMPONENT GRAPHICS BUILDERS]
-local function AppendAppleToggle(ParentCell, LabelString, TriggerCallback)
-    local FrameCell = Instance.new("Frame", ParentCell)
-    FrameCell.Size = UDim2.new(1, -10, 0, 50)
-    FrameCell.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-    Instance.new("UICorner", FrameCell).CornerRadius = UDim.new(0, 12)
-    
-    local Label = Instance.new("TextLabel", FrameCell)
-    Label.Size = UDim2.new(0.7, 0, 1, 0)
-    Label.Position = UDim2.new(0, 15, 0, 0)
-    Label.BackgroundTransparency = 1
-    Label.Text = LabelString
-    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Label.Font = Enum.Font.SourceSansSemibold
-    Label.TextSize = 16
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local ToggleHousing = Instance.new("TextButton", FrameCell)
-    ToggleHousing.Size = UDim2.new(0, 51, 0, 31)
-    ToggleHousing.Position = UDim2.new(1, -66, 0, 9)
-    ToggleHousing.BackgroundColor3 = Color3.fromRGB(58, 58, 60)
-    ToggleHousing.Text = ""
-    Instance.new("UICorner", ToggleHousing).CornerRadius = UDim.new(1, 0)
-    
-    local ToggleSliderBall = Instance.new("Frame", ToggleHousing)
-    ToggleSliderBall.Size = UDim2.new(0, 27, 0, 27)
-    ToggleSliderBall.Position = UDim2.new(0, 2, 0, 2)
-    ToggleSliderBall.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Instance.new("UICorner", ToggleSliderBall).CornerRadius = UDim.new(1, 0)
-    
-    local InternalState = false
-    ToggleHousing.MouseButton1Click:Connect(function()
-        InternalState = not InternalState
-        TweenService:Create(ToggleHousing, TweenInfo.new(0.2), {BackgroundColor3 = InternalState and Color3.fromRGB(48, 209, 88) or Color3.fromRGB(58, 58, 60)}):Play()
-        TweenService:Create(ToggleSliderBall, TweenInfo.new(0.2), {Position = InternalState and UDim2.new(1, -29, 0, 2) or UDim2.new(0, 2, 0, 2)}):Play()
-        TriggerCallback(InternalState)
-    end)
-end
-
-local function AppendAppleSlider(ParentCell, LabelString, MinimumValue, MaximumValue, InitialDefault, TriggerCallback)
-    local FrameCell = Instance.new("Frame", ParentCell)
-    FrameCell.Size = UDim2.new(1, -10, 0, 65)
-    FrameCell.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-    Instance.new("UICorner", FrameCell).CornerRadius = UDim.new(0, 12)
-    
-    local Label = Instance.new("TextLabel", FrameCell)
-    Label.Size = UDim2.new(0.5, 0, 0, 30)
-    Label.Position = UDim2.new(0, 15, 0, 5)
-    Label.BackgroundTransparency = 1
-    Label.Text = LabelString
-    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Label.Font = Enum.Font.SourceSansSemibold
-    Label.TextSize = 16
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local IndicatorLabel = Instance.new("TextLabel", FrameCell)
-    IndicatorLabel.Size = UDim2.new(0.4, 0, 0, 30)
-    IndicatorLabel.Position = UDim2.new(0.6, -15, 0, 5)
-    IndicatorLabel.BackgroundTransparency = 1
-    IndicatorLabel.Text = tostring(InitialDefault)
-    IndicatorLabel.TextColor3 = Color3.fromRGB(235, 235, 245)
-    IndicatorLabel.TextTransparency = 0.4
-    IndicatorLabel.Font = Enum.Font.SourceSansSemibold
-    IndicatorLabel.TextSize = 16
-    IndicatorLabel.TextXAlignment = Enum.TextXAlignment.Right
-    
-    local SliderRail = Instance.new("Frame", FrameCell)
-    SliderRail.Size = UDim2.new(1, -30, 0, 4)
-    SliderRail.Position = UDim2.new(0, 15, 0, 45)
-    SliderRail.BackgroundColor3 = Color3.fromRGB(58, 58, 60)
-    Instance.new("UICorner", SliderRail).CornerRadius = UDim.new(1, 0)
-    
-    local SliderFill = Instance.new("Frame", SliderRail)
-    SliderFill.Size = UDim2.new((InitialDefault - MinimumValue)/(MaximumValue - MinimumValue), 0, 1, 0)
-    SliderFill.BackgroundColor3 = Color3.fromRGB(10, 132, 255)
-    Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
-    
-    local ContinuousDragState = false
-    SliderRail.InputBegan:Connect(function(Input)
-        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then ContinuousDragState = true end
-    end)
-    UserInputService.InputEnded:Connect(function(Input)
-        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then ContinuousDragState = false end
-    end)
-    UserInputService.InputChanged:Connect(function(Input)
-        if ContinuousDragState and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
-            local PercentPosition = math.clamp((Input.Position.X - SliderRail.AbsolutePosition.X) / SliderRail.AbsoluteSize.X, 0, 1)
-            SliderFill.Size = UDim2.new(PercentPosition, 0, 1, 0)
-            local RealValue = math.floor(MinimumValue + ((MaximumValue - MinimumValue) * PercentPosition))
-            IndicatorLabel.Text = tostring(RealValue)
-            TriggerCallback(RealValue)
-        end
-    end)
-end
-
--- [8. CONFIGURING THE DATA CELLS]
-
--- Movement Settings Tab
-AppendAppleToggle(TabMovement, "Modify WalkSpeed Spoofer", function(V) SystemConfig.Movement.WalkSpeedToggle = V end)
-AppendAppleSlider(TabMovement, "Target Speed Value", 16, 300, 16, function(V) SystemConfig.Movement.WalkSpeed = V end)
-AppendAppleToggle(TabMovement, "Modify JumpPower Spoofer", function(V) SystemConfig.Movement.JumpPowerToggle = V end)
-AppendAppleSlider(TabMovement, "Target Jump Value", 50, 400, 50, function(V) SystemConfig.Movement.JumpPower = V end)
-AppendAppleToggle(TabMovement, "Enable Infinite Airborne Jumps", function(V) SystemConfig.Movement.InfiniteJump = V end)
-AppendAppleToggle(TabMovement, "Stable Engine Flight Mode", function(V) 
-    SystemConfig.Movement.FlyMode = V
-    FlyControlAscend.Visible = V
-    FlyControlDescend.Visible = V
-    if not V and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-    end
-end)
-AppendAppleSlider(TabMovement, "Flight Control Speed Factor", 20, 300, 50, function(V) SystemConfig.Movement.FlySpeed = V end)
-AppendAppleToggle(TabMovement, "Bypass Collision Matrix (Noclip)", function(V) SystemConfig.Movement.Noclip = V end)
-AppendAppleToggle(TabMovement, "Prevent Phase Forces (AntiFling)", function(V) SystemConfig.Movement.AntiFling = V end)
-
--- Combat Target Tab
-AppendAppleToggle(TabCombat, "Raycast Screen Click-To-Grab", function(V) SystemConfig.Combat.ClickToGrab = V end)
-AppendAppleToggle(TabCombat, "Instant Anchor Break (AntiGrab)", function(V) SystemConfig.Combat.AntiGrab = V end)
-AppendAppleToggle(TabCombat, "Amplify Velocity (MegaThrow)", function(V) SystemConfig.Combat.MegaThrow = V end)
-AppendAppleSlider(TabCombat, "Launch Force Projection Factor", 5000, 500000, 50000, function(V) SystemConfig.Combat.ThrowForce = V end)
-
--- Render Visuals Tab
-AppendAppleToggle(TabVisuals, "Activate Structural HUD ESP Master", function(V) SystemConfig.Visuals.EspEnabled = V end)
-AppendAppleToggle(TabVisuals, "Show Identity Text (Names)", function(V) SystemConfig.Visuals.EspNames = V end)
-AppendAppleToggle(TabVisuals, "Render Relative Vital Metrics (Health)", function(V) SystemConfig.Visuals.EspHealth = V end)
-AppendAppleToggle(TabVisuals, "Draw Solid Targeting Bounds (Boxes)", function(V) SystemConfig.Visuals.EspBoxes = V end)
-AppendAppleSlider(TabVisuals, "Camera Aspect Wide-Stretch Ratio", 5, 25, 10, function(V) SystemConfig.Visuals.AspectRatio = V / 10 end)
-AppendAppleToggle(TabVisuals, "Luminescence Correction (Fullbright)", function(V) 
-    SystemConfig.Visuals.Fullbright = V 
-    if not V then
-        Lighting.Ambient = EngineCache.OriginalLighting.Ambient
-        Lighting.OutdoorAmbient = EngineCache.OriginalLighting.OutdoorAmbient
-        Lighting.ClockTime = EngineCache.OriginalLighting.ClockTime
-        Lighting.FogEnd = EngineCache.OriginalLighting.FogEnd
-        Lighting.GlobalShadows = EngineCache.OriginalLighting.GlobalShadows
-    end
-end)
-AppendAppleToggle(TabVisuals, "Maximize Mobile FPS (Potato Mode)", function(V)
-    SystemConfig.Visuals.PotatoMode = V
-    if V then
-        for _, AssetPart in pairs(Workspace:GetDescendants()) do
-            if AssetPart:IsA("BasePart") and not AssetPart:IsDescendantOf(LocalPlayer.Character) then
-                EngineCache.OriginalMaterials[AssetPart] = AssetPart.Material
-                AssetPart.Material = Enum.Material.SmoothPlastic
-            end
-        end
-    else
-        for TrackedPart, CoreMaterial in pairs(EngineCache.OriginalMaterials) do
-            if TrackedPart and TrackedPart.Parent then TrackedPart.Material = CoreMaterial end
-        end
-        table.clear(EngineCache.OriginalMaterials)
-    end
-end)
-
--- World Engine Manipulator
-AppendAppleToggle(TabWorld, "Override Gravitational Constant", function(V) 
-    SystemConfig.World.GravityToggle = V 
-    if not V then Workspace.Gravity = 196.2 end
-end)
-AppendAppleSlider(TabWorld, "System Gravity Acceleration Value", 0, 196, 196, function(V) SystemConfig.World.GravityValue = V end)
-
--- Chaos Disruption Module
-AppendAppleToggle(TabChaos, "Activate Orbital Crown Vortex Aura", function(V) 
-    SystemConfig.Chaos.CrownVortex = V 
-    if not V then
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.Anchored = false
-        end
-        -- Launch targets based on view direction
-        for _, TargetRoot in ipairs(EngineCache.CapturedVortexTargets) do
-            if TargetRoot and TargetRoot.Parent then
-                TargetRoot.AssemblyLinearVelocity = Camera.CFrame.LookVector * SystemConfig.Chaos.ThrowForceSlider
-            end
-        end
-        table.clear(EngineCache.CapturedVortexTargets)
-    end
-end)
-AppendAppleSlider(TabChaos, "Vortex Release Launch Force", 50000, 2000000, 100000, function(V) SystemConfig.Chaos.ThrowForceSlider = V end)
-
--- System Workspace Controller
-local DestructionTriggerButton = Instance.new("TextButton", TabSystem)
-DestructionTriggerButton.Size = UDim2.new(1, -10, 0, 50)
-DestructionTriggerButton.BackgroundColor3 = Color3.fromRGB(255, 69, 58)
-DestructionTriggerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-DestructionTriggerButton.Font = Enum.Font.SourceSansBold
-DestructionTriggerButton.TextSize = 16
-DestructionTriggerButton.Text = "FORCE UNLOAD EXECUTIVE SUITE"
-Instance.new("UICorner", DestructionTriggerButton).CornerRadius = UDim.new(0, 12)
-
-DestructionTriggerButton.MouseButton1Click:Connect(function()
-    SystemConfig.Visuals.EspEnabled = false
-    task.wait(0.1)
-    
-    for _, CurrentConnection in pairs(EngineCache.Connections) do 
-        if CurrentConnection.Connected then CurrentConnection:Disconnect() end 
-    end
-    table.clear(EngineCache.Connections)
-    
-    for Plr, _ in pairs(EngineCache.EspObjects) do CleanPlayerEsp(Plr) end
-    
-    Lighting.Ambient = EngineCache.OriginalLighting.Ambient
-    Lighting.OutdoorAmbient = EngineCache.OriginalLighting.OutdoorAmbient
-    Lighting.ClockTime = EngineCache.OriginalLighting.ClockTime
-    Lighting.FogEnd = EngineCache.OriginalLighting.FogEnd
-    Lighting.GlobalShadows = EngineCache.OriginalLighting.GlobalShadows
-    Camera.AspectRatio = 1.0
-    Workspace.Gravity = 196.2
-    
-    for TrackedPart, CoreMaterial in pairs(EngineCache.OriginalMaterials) do
-        if TrackedPart and TrackedPart.Parent then TrackedPart.Material = CoreMaterial end
-    end
-    
-    pcall(function()
-        local Character = LocalPlayer.Character
-        if Character then
-            local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-            local RootPart = Character:FindFirstChild("HumanoidRootPart")
-            if Humanoid then
-                Humanoid.WalkSpeed = 16
-                Humanoid.JumpPower = 50
-            end
-            if RootPart then RootPart.Anchored = false end
-        end
-    end)
-    
-    MainGui:Destroy()
-end)
+-- Initialize Tab State
+Tabs["Movement"].Btn.BackgroundColor3 = Colors.Accent
+Tabs["Movement"].Scroll.Visible = true
