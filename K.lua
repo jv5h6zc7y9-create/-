@@ -1,10 +1,9 @@
 --[[
     ================================================================================
-    👑 BROSA SYSTEM v7.2 — ULTIMATE CORE ARCHITECTURE (NO PROXY TELEPORT)
+    👑 BROSA SYSTEM v8.0 — FINAL MONOLITHIC ENGINE (REMOTE INJECTION)
     🎨 UI STYLE: NEO-GLOW CYBERPUNK INTERFACE (PRESERVED)
-    🔒 TARGET GAME: FLING THINGS AND PEOPLE (FTAP) & UNIVERSAL 3D ENGINE
-    🚀 BYPASS STATUS: REBUILT FROM FIRST PRINCIPLES FOR DELTA MOBILE & PC
-    🛡️ FIXED: No Proxy Teleport, No Camera Forcing, True Silent Aim Injection
+    🔒 TARGET GAME: FLING THINGS AND PEOPLE (FTAP) [PlaceId: 5315119777]
+    🚀 BYPASS STATUS: REBUILT FOR DELTA MOBILE & PC — REMOTE INTERCEPTION
     ================================================================================
 ]]
 
@@ -59,6 +58,9 @@ _G.BrosaHubGlobal = {
         SilentAim = false,
         SilentAimFOV = 120,
         ShowFOV = false,
+        AssistAim = false,
+        AssistAimSmoothness = 0.3,
+        AssistAimThroughWalls = false,
         MegaThrow = false,
         ThrowForce = 2000000,
         InstantGrabBreak = false,
@@ -102,7 +104,7 @@ _G.BrosaHubGlobal = {
         -- Core
         BypassMetatable = true,
         ChatSpam = false,
-        ChatSpamMessage = "Brosa System v7.2 Core Engine Running!"
+        ChatSpamMessage = "Brosa System v8.0 Remote Injection Engine Running!"
     },
     Cache = {
         OriginalLighting = {
@@ -126,7 +128,9 @@ _G.BrosaHubGlobal = {
         FlyDown = false,
         IsGrabbing = false,
         CurrentGrabbedTarget = nil,
-        SilentAimTarget = nil
+        SilentAimTarget = nil,
+        AssistAimTarget = nil,
+        OriginalRemoteFunctions = {}
     }
 }
 
@@ -150,7 +154,7 @@ local function FindPlayerByName(name)
 end
 
 -- ============================================================================
--- [2. СИНХРОНИЗАЦИЯ КРУГА FOV СТРОГО ПО ЦЕНТРУ ЭКРАНА]
+-- [2. КРУГ FOV И СИСТЕМА ПОИСКА ЦЕЛЕЙ]
 -- ============================================================================
 local FOVGui = Instance.new("ScreenGui")
 FOVGui.Name = "Brosa_FOV_Core"
@@ -176,11 +180,10 @@ FOVStroke.Thickness = 1.5
 FOVStroke.Parent = FOVCircle
 
 SafeConnect(RunService.RenderStepped, function()
-    if Hub.Flags.SilentAim and Hub.Flags.ShowFOV then
+    if (Hub.Flags.SilentAim or Hub.Flags.AssistAim) and Hub.Flags.ShowFOV then
         local viewportSize = camera.ViewportSize
         local centerX = viewportSize.X / 2
         local centerY = viewportSize.Y / 2
-        
         FOVCircle.Visible = true
         FOVCircle.Position = UDim2.new(0, centerX, 0, centerY)
         FOVCircle.Size = UDim2.new(0, Hub.Flags.SilentAimFOV * 2, 0, Hub.Flags.SilentAimFOV * 2)
@@ -189,7 +192,6 @@ SafeConnect(RunService.RenderStepped, function()
     end
 end)
 
--- Drawing круг для точного отображения
 local fovCircleDrawing = Drawing.new("Circle")
 fovCircleDrawing.Thickness = 1.5
 fovCircleDrawing.Filled = false
@@ -198,7 +200,7 @@ fovCircleDrawing.Transparency = 0.7
 fovCircleDrawing.Visible = false
 
 SafeConnect(RunService.RenderStepped, function()
-    if Hub.Flags.SilentAim and Hub.Flags.ShowFOV then
+    if (Hub.Flags.SilentAim or Hub.Flags.AssistAim) and Hub.Flags.ShowFOV then
         local viewportSize = camera.ViewportSize
         fovCircleDrawing.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
         fovCircleDrawing.Radius = Hub.Flags.SilentAimFOV
@@ -209,66 +211,189 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ============================================================================
--- [2.1. TRUE SILENT AIM — VECTOR INJECTION WITHOUT CAMERA FORCING]
+-- [2.1. ЯДРО ПОИСКА БЛИЖАЙШЕГО ИГРОКА В FOV]
 -- ============================================================================
 
-local function GetClosestPlayerToCenterAbsolute()
+local targetBones = {
+    "Head", "Torso", "HumanoidRootPart", "UpperTorso", "LowerTorso",
+    "LeftArm", "RightArm", "LeftLeg", "RightLeg",
+    "LeftHand", "RightHand", "LeftFoot", "RightFoot"
+}
+
+local function GetClosestPlayerInFOV()
     local closestPlayer = nil
+    local closestPart = nil
     local shortestDistance = Hub.Flags.SilentAimFOV or 120
     local viewportSize = camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
     
-    -- Массив всех костей для максимального покрытия
-    local targetBones = {
-        "Head", "Torso", "HumanoidRootPart", "UpperTorso", "LowerTorso",
-        "LeftArm", "RightArm", "LeftLeg", "RightLeg",
-        "LeftHand", "RightHand", "LeftFoot", "RightFoot"
-    }
-    
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= lp and player.Character then
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health > 0 then
-                -- Фильтрация по Hunting List
-                if #Hub.Cache.HuntingList > 0 then
-                    local found = false
-                    for _, name in ipairs(Hub.Cache.HuntingList) do
-                        if player.Name:lower():find(name:lower()) then
-                            found = true
-                            break
-                        end
-                    end
-                    if not found then
-                        continue
-                    end
+        if player == lp then continue end
+        if not player.Character then continue end
+        
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then continue end
+        
+        if #Hub.Cache.HuntingList > 0 then
+            local found = false
+            for _, name in ipairs(Hub.Cache.HuntingList) do
+                if player.Name:lower():find(name:lower()) then
+                    found = true
+                    break
                 end
-                
-                -- Сканирование всех костей
-                for _, boneName in ipairs(targetBones) do
-                    local part = player.Character:FindFirstChild(boneName)
-                    if part and part:IsA("BasePart") then
-                        local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-                        if onScreen then
-                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                            if distance < shortestDistance then
-                                shortestDistance = distance
-                                closestPlayer = player
-                                Hub.Cache.SilentAimTarget = part
-                            end
-                        end
+            end
+            if not found then continue end
+        end
+        
+        for _, boneName in ipairs(targetBones) do
+            local part = player.Character:FindFirstChild(boneName)
+            if part and part:IsA("BasePart") then
+                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestPlayer = player
+                        closestPart = part
                     end
                 end
             end
         end
     end
-    return closestPlayer
+    
+    return closestPlayer, closestPart
 end
 
 -- ============================================================================
--- [3. МОЩНЫЙ ФИЗИЧЕСКИЙ ДВИЖОК И СТАБИЛЬНЫЕ СИСТЕМЫ ПЕРЕМЕЩЕНИЯ]
+-- [2.2. SILENT AIM — ПЕРЕХВАТ REMOTE EVENTS]
 -- ============================================================================
 
--- Кастомный WalkSpeed & JumpPower в Heartbeat
+local function FindGrabRemote()
+    local remotes = {}
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            if obj.Name:lower():find("grab") or obj.Name:lower():find("throw") or obj.Name:lower():find("interact") or obj.Name:lower():find("action") then
+                table.insert(remotes, obj)
+            end
+        end
+    end
+    return remotes
+end
+
+local grabRemotes = FindGrabRemote()
+
+local function InterceptRemoteCall(remote, method, args)
+    if not Hub.Flags.SilentAim then return end
+    
+    local target, targetPart = GetClosestPlayerInFOV()
+    if target and targetPart then
+        for i, arg in ipairs(args) do
+            if type(arg) == "userdata" and arg:IsA("BasePart") then
+                args[i] = targetPart
+            elseif type(arg) == "CFrame" then
+                args[i] = targetPart.CFrame
+            elseif type(arg) == "Vector3" then
+                args[i] = targetPart.Position
+            end
+        end
+    end
+    
+    return args
+end
+
+-- Перехват RemoteEvent:FireServer
+local oldFireServer = nil
+pcall(function()
+    local mt = getrawmetatable(game)
+    oldFireServer = mt.__index and mt.__index.FireServer
+    if oldFireServer then
+        mt.__index.FireServer = newcclosure(function(self, ...)
+            local args = {...}
+            if Hub.Flags.SilentAim then
+                args = InterceptRemoteCall(self, "FireServer", args)
+            end
+            return oldFireServer(self, unpack(args))
+        end)
+    end
+end)
+
+-- Перехват RemoteFunction:InvokeServer
+local oldInvokeServer = nil
+pcall(function()
+    local mt = getrawmetatable(game)
+    oldInvokeServer = mt.__index and mt.__index.InvokeServer
+    if oldInvokeServer then
+        mt.__index.InvokeServer = newcclosure(function(self, ...)
+            local args = {...}
+            if Hub.Flags.SilentAim then
+                args = InterceptRemoteCall(self, "InvokeServer", args)
+            end
+            return oldInvokeServer(self, unpack(args))
+        end)
+    end
+end)
+
+-- ============================================================================
+-- [2.3. ASSIST AIM — СТАНДАРТНОЕ НАВЕДЕНИЕ С ПРОВЕРКОЙ СТЕН]
+-- ============================================================================
+
+local assistAimTarget = nil
+local assistAimPart = nil
+
+SafeConnect(RunService.RenderStepped, function()
+    if not Hub.Flags.AssistAim then
+        assistAimTarget = nil
+        assistAimPart = nil
+        return
+    end
+    
+    local target, targetPart = GetClosestPlayerInFOV()
+    local viewportSize = camera.ViewportSize
+    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    
+    if target and targetPart then
+        local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+        if onScreen then
+            local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+            if distance <= Hub.Flags.SilentAimFOV then
+                -- Проверка стен
+                local canSee = true
+                if not Hub.Flags.AssistAimThroughWalls then
+                    local char = lp.Character
+                    local head = char and char:FindFirstChild("Head")
+                    if head then
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        rayParams.FilterDescendantsInstances = {char, target.Character}
+                        local result = workspace:Raycast(head.Position, (targetPart.Position - head.Position).Unit * 500, rayParams)
+                        if result then
+                            canSee = false
+                        end
+                    end
+                end
+                
+                if canSee then
+                    assistAimTarget = target
+                    assistAimPart = targetPart
+                    
+                    -- Плавный поворот камеры
+                    local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPart.Position)
+                    local smoothness = Hub.Flags.AssistAimSmoothness or 0.3
+                    camera.CFrame = camera.CFrame:Lerp(targetCFrame, smoothness)
+                    return
+                end
+            end
+        end
+    end
+    
+    assistAimTarget = nil
+    assistAimPart = nil
+end)
+
+-- ============================================================================
+-- [3. ФИЗИЧЕСКИЙ ДВИЖОК И СТАБИЛЬНЫЕ СИСТЕМЫ ПЕРЕМЕЩЕНИЯ]
+-- ============================================================================
+
 SafeConnect(RunService.Heartbeat, function()
     local char = lp.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -282,7 +407,6 @@ SafeConnect(RunService.Heartbeat, function()
     end
 end)
 
--- Noclip через Stepped
 SafeConnect(RunService.Stepped, function()
     local char = lp.Character
     if not char then return end
@@ -295,7 +419,6 @@ SafeConnect(RunService.Stepped, function()
     end
 end)
 
--- Anti-Fling жесткая блокировка
 SafeConnect(RunService.Heartbeat, function()
     local char = lp.Character
     if Hub.Flags.AntiFling and char then
@@ -316,10 +439,6 @@ SafeConnect(RunService.Heartbeat, function()
         end
     end
 end)
-
--- ============================================================================
--- [3.1. FLIGHT MODE — SMOOTH CFrame TRANSLATION]
--- ============================================================================
 
 local flyBodyVelocity = nil
 
@@ -369,7 +488,6 @@ SafeConnect(RunService.RenderStepped, function()
     end
 end)
 
--- Infinite Jump
 SafeConnect(UserInputService.JumpRequest, function()
     if Hub.Flags.InfiniteJump then
         local char = lp.Character
@@ -384,7 +502,6 @@ end)
 -- [4. FTAP СПЕЦИФИЧЕСКИЕ ФУНКЦИИ]
 -- ============================================================================
 
--- Mega Throw
 SafeConnect(UserInputService.InputBegan, function(input, processed)
     if Hub.Flags.MegaThrow and not processed then
         if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
@@ -760,7 +877,7 @@ task.spawn(function()
 end)
 
 -- ============================================================================
--- [6. ПОЛНАЯ РЕАЛИЗАЦИЯ И РЕНДЕРИНГ ESP И ВИЗУАЛОВ]
+-- [6. ESP И ВИЗУАЛЫ]
 -- ============================================================================
 
 local ESPGui = Instance.new("ScreenGui")
@@ -772,7 +889,6 @@ if not ESPGui.Parent then ESPGui.Parent = lp:WaitForChild("PlayerGui") end
 local function CreateESP(player)
     if player == lp then return end
     
-    -- Highlight (всегда работает)
     local highlight = Instance.new("Highlight")
     highlight.Name = "Brosa_ESP_Highlight_" .. player.Name
     highlight.FillColor = Color3.fromRGB(0, 255, 240)
@@ -784,7 +900,6 @@ local function CreateESP(player)
     highlight.Parent = ESPGui
     Hub.Cache.EspHighlights[player] = highlight
     
-    -- Drawing API
     local box = Drawing.new("Square")
     box.Visible = false
     box.Color = Color3.fromRGB(0, 255, 240)
@@ -829,7 +944,6 @@ local function CreateESP(player)
         local root = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         
-        -- Обновляем Highlight
         if Hub.Flags.ESP_Players and char then
             highlight.Enabled = true
             highlight.Adornee = char
@@ -897,9 +1011,7 @@ local function CreateESP(player)
 end
 
 Players.PlayerAdded:Connect(CreateESP)
-for _, p in ipairs(Players:GetPlayers()) do
-    CreateESP(p)
-end
+for _, p in ipairs(Players:GetPlayers()) do CreateESP(p) end
 
 Players.PlayerRemoving:Connect(function(player)
     if Hub.Cache.EspHighlights[player] then
@@ -937,7 +1049,7 @@ local function ApplyPotatoPC(state)
 end
 
 -- ============================================================================
--- [7. UI: NEO-GLOW CYBERPUNK ENGINE (PRESERVED STRUCTURE)]
+-- [7. UI: NEO-GLOW CYBERPUNK ENGINE]
 -- ============================================================================
 local CyberUI = {}
 CyberUI.__index = CyberUI
@@ -1446,10 +1558,10 @@ function CyberUI:SelectTab(tabData)
     tweenUI(tabData.Label, UI_EASE, {TextColor3 = CYBER_THEME.BorderCyan})
 end
 
-local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v7.2 • NO PROXY TELEPORT" })
+local CyberHubMenu = CyberUI.new({ Title = "BROSA SYSTEM", Version = "v8.0 • REMOTE INJECTION" })
 
 -- ============================================================================
--- [8. КОМПЛЕКТАЦИЯ ДИНАМИЧЕСКИХ ВКЛАДОК И СВЯЗЕЙ С ИНТЕРФЕЙСОМ]
+-- [8. ВКЛАДКИ И СВЯЗИ С ИНТЕРФЕЙСОМ]
 -- ============================================================================
 
 -- Вкладка: ДВИЖЕНИЕ
@@ -1550,35 +1662,59 @@ movementTab:AddToggle({
 
 -- Вкладка: FTAP БОЙ
 local ftapCombatTab = CyberHubMenu:CreateTab("FTAP Бой")
-ftapCombatTab:AddSection("Автоматизация Захвата и Траектории")
+ftapCombatTab:AddSection("🔴 СИСТЕМЫ НАВЕДЕНИЯ")
 
 ftapCombatTab:AddToggle({
-    Name = "Сайлент Аим (Silent Aim)",
-    Description = "Инжектирует вектор цели в центр экрана (без поворота камеры)",
+    Name = "Сайлент Аим (Remote Injection)",
+    Description = "Инжектирует вектор цели в RemoteEvent/RemoteFunction вызовы",
     Default = Hub.Flags.SilentAim,
     Callback = function(st) Hub.Flags.SilentAim = st end
 })
 
 ftapCombatTab:AddToggle({
+    Name = "Ассист Аим (Camera Lock)",
+    Description = "Плавно поворачивает камеру к цели с проверкой стен",
+    Default = Hub.Flags.AssistAim,
+    Callback = function(st) Hub.Flags.AssistAim = st end
+})
+
+ftapCombatTab:AddToggle({
+    Name = "Ассист Аим: Сквозь стены",
+    Description = "Отключает проверку препятствий для Assist Aim",
+    Default = Hub.Flags.AssistAimThroughWalls,
+    Callback = function(st) Hub.Flags.AssistAimThroughWalls = st end
+})
+
+ftapCombatTab:AddSlider({
+    Name = "Плавность Ассист Аима",
+    Min = 5,
+    Max = 95,
+    Default = 30,
+    Callback = function(val)
+        Hub.Flags.AssistAimSmoothness = val / 100
+    end
+})
+
+ftapCombatTab:AddToggle({
     Name = "Отображать Круг FOV",
-    Description = "Визуализация кроссплатформенного радиуса наведения",
+    Description = "Визуализация радиуса наведения",
     Default = Hub.Flags.ShowFOV,
     Callback = function(st) Hub.Flags.ShowFOV = st end
 })
 
 ftapCombatTab:AddSlider({
-    Name = "Радиус Наведения (FOV)",
+    Name = "Радиус FOV",
     Min = 30,
     Max = 500,
     Default = Hub.Flags.SilentAimFOV,
     Callback = function(val) Hub.Flags.SilentAimFOV = val end
 })
 
-ftapCombatTab:AddSection("🔴 HITBOX EXPANSION")
+ftapCombatTab:AddSection("🟢 HITBOX EXPANSION")
 
 ftapCombatTab:AddToggle({
     Name = "Расширение Хитбоксов Врагов",
-    Description = "Увеличивает размер всех частей тела врагов для легкого захвата",
+    Description = "Увеличивает размер всех частей тела врагов",
     Default = Hub.Flags.HitboxExpansion,
     Callback = function(st)
         Hub.Flags.HitboxExpansion = st
@@ -1607,11 +1743,11 @@ ftapCombatTab:AddSlider({
     end
 })
 
-ftapCombatTab:AddSection("🟢 PROXIMITY AUTO-GRAB")
+ftapCombatTab:AddSection("🔵 PROXIMITY AUTO-GRAB")
 
 ftapCombatTab:AddToggle({
     Name = "Авто-Захват Ближайшей Цели",
-    Description = "Автоматически хватает игрока или предмет в радиусе 4 студусов",
+    Description = "Автоматически хватает игрока или предмет в радиусе",
     Default = Hub.Flags.ProximityGrab,
     Callback = function(st)
         Hub.Flags.ProximityGrab = st
@@ -2062,7 +2198,6 @@ local function CompleteDestruction()
     end
     table.clear(Hub.Cache.OriginalSizes)
     
-    -- Clean up ESP
     for _, highlight in pairs(Hub.Cache.EspHighlights) do
         if highlight then highlight:Destroy() end
     end
@@ -2087,7 +2222,7 @@ coreConfigTab:AddButton({
 })
 
 -- ============================================================================
--- [9. МЕТАТАБЛИЦА — ТОЛЬКО ДЛЯ Bypass Metatable]
+-- [9. МЕТАТАБЛИЦА — Bypass Metatable]
 -- ============================================================================
 local rawMT = getrawmetatable(game)
 local oldIndexMT = rawMT.__index
@@ -2135,4 +2270,4 @@ SafeConnect(RunService.LightingChanged, function()
     end
 end)
 
-print("[Brosa System v7.2]: NO PROXY TELEPORT — полный рефакторинг завершён. Silent Aim работает через инжекцию вектора, камера не принуждается. ESP на Highlight + Drawing API.")
+print("[Brosa System v8.0]: Remote Injection Engine активен. Silent Aim перехватывает RemoteEvents, Assist Aim плавно наводит камеру.")
