@@ -9,7 +9,7 @@ local HoleButton = Instance.new("TextButton")
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
-MainFrame.Name = "iPadDeltaMenuUltimate"
+MainFrame.Name = "iPadDeltaMenuFinalAbsolute"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
@@ -20,7 +20,7 @@ MainFrame.Draggable = true
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 45)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "IPAD FTP ULTIMATE v4"
+Title.Text = "IPAD FT&P FIXED v5"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
@@ -37,8 +37,8 @@ local function styleButton(btn, text, posY)
 end
 
 styleButton(AimButton, "1. Сверх-Хват + Аим", 65)
-styleButton(EspButton, "2. Подсветка (ESP)", 130)
-styleButton(HoleButton, "3. BlackHole + Kill", 195)
+styleButton(EspButton, "2. Границы Бокса Аима", 130)
+styleButton(HoleButton, "3. Черная Дыра (Сбор)", 195)
 
 -- СЕРВИСЫ ROBLOX
 local Players = game:GetService("Players")
@@ -49,11 +49,10 @@ local Camera = workspace.CurrentCamera
 
 -- НАСТРОЙКИ ФУНКЦИЙ
 local States = { SilentAim = false, ShowEsp = false, BlackHole = false }
--- Config.MaxTargetDistance — это радиус в пикселях, насколько близко нужно нажать к игроку, чтобы сработал Аим-Хват
-local Config = { MaxTargetDistance = 350, ThrowForce = 999999, HoleSpeed = 160, HoleRadius = 250 }
+local Config = { MaxTargetDistance = 350, ThrowForce = 999999, HoleSpeed = 120, HoleRadius = 250 }
 local EspObjects = {}
 
--- 1. ДИНАМИЧЕСКИЙ ПОИСК БЛИЖАЙШЕЙ ЦЕЛИ РЯДОМ С ТАЧЕМ/ПРИЦЕЛОМ (БЕЗ ЗАЛИПАНИЙ)
+-- 1. ДИНАМИЧЕСКИЙ ПОИСК БЛИЖАЙШЕЙ ЦЕЛИ РЯДОМ С ТАЧЕМ СЕНСОРА БЕЗ ЗАЛИПАНИЙ
 local function GetCurrentClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = Config.MaxTargetDistance
@@ -68,10 +67,10 @@ local function GetCurrentClosestPlayer()
                 local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 
                 if onScreen then
-                    -- Вычисляем расстояние от текущего места нажатия до игрока на экране
+                    -- Вычисляем реальное расстояние от пальца до игрока на экране iPad
                     local distance = (Vector2.new(touchPos.X, touchPos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
                     
-                    -- Если цель ближе, чем предыдущие найденные, выбираем её
+                    -- Проверяем, входит ли цель в рамки лимита FOV
                     if distance < shortestDistance then
                         closestPlayer = player
                         shortestDistance = distance
@@ -83,31 +82,42 @@ local function GetCurrentClosestPlayer()
     return closestPlayer
 end
 
--- 2. ДИНАМИЧЕСКОЕ ОБНОВЛЕНИЕ ПОДСВЕТКИ (HIGHLIGHT ESP)
+-- 2. ФУНКЦИЯ КВАДРАТНЫХ ГРАНИЦ БОКСА (BOX ESP)
 local function UpdateEsp()
+    local currentTarget = GetCurrentClosestPlayer()
+
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            if States.ShowEsp then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if root and States.ShowEsp then
+                -- Если бокс еще не создан для игрока, создаем его 3D каркас
                 if not EspObjects[player] then
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "FTP_DYNAMIC_ESP"
-                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    highlight.FillTransparency = 0.6
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.OutlineTransparency = 0.2
-                    highlight.Adornee = player.Character
-                    highlight.Parent = player.Character
-                    EspObjects[player] = highlight
+                    local box = Instance.new("BoxHandleAdornment")
+                    box.Name = "FTP_BOX_DYN"
+                    box.Size = player.Character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4)
+                    box.Color3 = Color3.fromRGB(255, 0, 0) -- По умолчанию красный (просто игрок)
+                    box.Transparency = 0.6
+                    box.AlwaysOnTop = true
+                    box.ZIndex = 10
+                    box.Adornee = player.Character
+                    box.Parent = player.Character
+                    EspObjects[player] = box
                 else
-                    -- Если игрок попал в зону Аима и стал главной целью для хвата — он подсвечивается зеленым
-                    local activeTarget = GetCurrentClosestPlayer()
-                    if activeTarget == player then
-                        EspObjects[player].FillColor = Color3.fromRGB(0, 255, 0)
+                    -- Обновляем размер бокса под движения игрока
+                    EspObjects[player].Size = player.Character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4)
+                    
+                    -- Если этот игрок стал ближайшим к вашему прицелу/пальцу (попал в границы Сайлент Аима)
+                    if currentTarget == player then
+                        EspObjects[player].Color3 = Color3.fromRGB(0, 255, 0) -- Зеленый бокс (Готов к захвату)
+                        EspObjects[player].Transparency = 0.4
                     else
-                        EspObjects[player].FillColor = Color3.fromRGB(255, 0, 0)
+                        EspObjects[player].Color3 = Color3.fromRGB(255, 0, 0) -- Красный (вне зоны Аима)
+                        EspObjects[player].Transparency = 0.7
                     end
                 end
             else
+                -- Если кнопка выключена, мгновенно стираем все боксы
                 if EspObjects[player] then
                     EspObjects[player]:Destroy()
                     EspObjects[player] = nil
@@ -117,6 +127,7 @@ local function UpdateEsp()
     end
 end
 
+-- Очистка памяти при выходе игроков
 Players.PlayerRemoving:Connect(function(player)
     if EspObjects[player] then
         EspObjects[player]:Destroy()
@@ -124,9 +135,8 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- 3. МОЩНЫЙ РУЧНОЙ БРОСОК ПО НАЖАТИЮ ОРИГИНАЛЬНОЙ КНОПКИ
+-- 3. ПЕРЕХВАТ ОРИГИНАЛЬНОЙ КНОПКИ БРОСКА ДЛЯ СУПЕР-ЗАПУСКА ПО НАПРАВЛЕНИЮ КАМЕРЫ
 UserInputService.InputBegan:Connect(function(input, processed)
-    -- Перехватываем только реальное нажатие кнопки броска на iPad
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton2 then
         if States.SilentAim then
             local target = GetCurrentClosestPlayer()
@@ -134,6 +144,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
             if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
                 local targetHrp = target.Character.HumanoidRootPart
                 
+                -- Отключаем коллизию деталей, чтобы цель гарантированно улетела без застреваний
                 for _, part in pairs(target.Character:GetChildren()) do
                     if part:IsA("BasePart") then 
                         part.CanCollide = false 
@@ -157,12 +168,10 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- 4. ХУК НА ХВАТАТЕЛЬНЫЕ ЛУЧИ (ИСПРАВЛЕНЫ ВСЕ БАГИ ПРИВЯЗКИ)
--- Этот блок заставляет игру думать, что ваш палец нажимает ТОЧНО на игрока, когда вы тапаете рядом
+-- 4. ХУКИ НА ДИСТАНЦИОННЫЙ СВЕРХ-ХВАТ (ПОДМЕНА СВОЙСТВ ТАЧПАДА / МЫШИ)
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, key)
     if States.SilentAim and not checkcaller() then
-        -- Хукаем свойства мыши/тача, которые игра использует для функции хватания (Grab)
         if key == "Hit" or key == "Target" then
             local dynamicTarget = GetCurrentClosestPlayer()
             
@@ -170,7 +179,7 @@ oldIndex = hookmetamethod(game, "__index", function(self, key)
                 if key == "Hit" then
                     return dynamicTarget.Character.HumanoidRootPart.CFrame
                 elseif key == "Target" then
-                    -- Возвращаем деталь игрока, чтобы игра успешно выполнила ХВАТ на расстоянии
+                    -- Возвращаем цель Аима, чтобы игра позволила схватить игрока, даже если вы нажали рядом с ним
                     return dynamicTarget.Character.HumanoidRootPart
                 end
             end
@@ -198,9 +207,9 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return oldNamecall(self, unpack(args))
 end)
 
--- 5. АКТИВНЫЙ ЦИКЛ ЧЕРНОЙ ДЫРЫ И АВТО-УБИЙСТВА
+-- 5. ИСПРАВЛЕННЫЙ ЦИКЛ ЧЕРНОЙ ДЫРЫ (БЕЗ ИСЧЕЗНОВЕНИЯ ИГРОКОВ)
 RunService.Heartbeat:Connect(function()
-    UpdateEsp() -- Постоянно обновляем маркеры подсветки игроков
+    UpdateEsp() -- Постоянное сканирование игроков и обновление Боксов на экране iPad
     
     if not States.BlackHole then return end
     
@@ -216,16 +225,10 @@ RunService.Heartbeat:Connect(function()
             if tHrp and tHum and tHum.Health > 0 then
                 local distance = (myHrp.Position - tHrp.Position).Magnitude
                 
+                -- Игроки просто стягиваются к вам. Удаление (телепорт под карту) вырезано, чтобы убрать баг исчезновения
                 if distance < Config.HoleRadius then
-                    if distance < 15 then
-                        -- МГНОВЕННЫЙ КИЛЛ под текстуры в Void при затягивании
-                        tHrp.CFrame = CFrame.new(tHrp.Position.X, -1500, tHrp.Position.Z)
-                        tHrp.AssemblyLinearVelocity = Vector3.new(0, -500, 0)
-                    else
-                        -- Принудительное затягивание скоростным импульсом в эпицентр
-                        local direction = (myHrp.Position - tHrp.Position).Unit
-                        tHrp.AssemblyLinearVelocity = direction * Config.HoleSpeed
-                    end
+                    local direction = (myHrp.Position - tHrp.Position).Unit
+                    tHrp.AssemblyLinearVelocity = direction * Config.HoleSpeed
                 end
             end
         end
@@ -241,14 +244,14 @@ end)
 
 EspButton.MouseButton1Click:Connect(function()
     States.ShowEsp = not States.ShowEsp
-    EspButton.Text = "2. Подсветка " .. (States.ShowEsp and "[ПОКАЗАТЬ]" or "[СКРЫТЬ]")
+    EspButton.Text = "2. Границы Бокса " .. (States.ShowEsp and "[ПОКАЗАТЬ]" or "[СКРЫТЬ]")
     EspButton.BackgroundColor3 = States.ShowEsp and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
 HoleButton.MouseButton1Click:Connect(function()
     States.BlackHole = not States.BlackHole
-    HoleButton.Text = "3. BlackHole + Kill " .. (States.BlackHole and "[ВКЛ]" or "[ВЫКЛ]")
+    HoleButton.Text = "3. Черная Дыра (Сбор) " .. (States.BlackHole and "[ВКЛ]" or "[ВЫКЛ]")
     HoleButton.BackgroundColor3 = States.BlackHole and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
-print("[Delta Ultimate iPad Script Loaded]")
+print("[Delta iPad Script Configured. Anti-Vanishing Code Loaded.]")
