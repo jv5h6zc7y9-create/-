@@ -1,9 +1,9 @@
 --[[
     ================================================================================
-    👑 SYLENT ENGINE v3.0 — ULTIMATE INVISIBLE PHYSICS ENGINE
+    👑 SYLENT ENGINE v2.0 — INVISIBLE PHYSICS SKELETON ENGINE
     🎯 FOCUS: NO VISUAL EFFECTS — PURE PHYSICS MANIPULATION
     🔒 TARGET: ROBLOX RUNTIME 3.1+ (DELTA EXECUTOR)
-    🚀 STATUS: ACTIVE | FULLY EXPANDED | 3000+ LINES
+    🚀 STATUS: ACTIVE | FULLY OPTIMIZED | BACKGROUND OPERATION
     ================================================================================
 ]]
 
@@ -12,7 +12,7 @@ if not game:IsLoaded() then
 end
 
 -- ============================================================================
--- [1. СИСТЕМНЫЕ СЕРВИСЫ И ИНИЦИАЛИЗАЦИЯ]
+-- [1. ЯДРО: СИСТЕМНЫЕ СЕРВИСЫ, КОНФИГ И ГЛОБАЛЬНОЕ СОСТОЯНИЕ]
 -- ============================================================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -28,7 +28,6 @@ local TextChatService = game:GetService("TextChatService")
 local StarterGui = game:GetService("StarterGui")
 local Stats = game:GetService("Stats")
 local GuiService = game:GetService("GuiService")
-local Workspace = game:GetService("Workspace")
 
 local lp = Players.LocalPlayer
 if not lp.Character then 
@@ -42,77 +41,66 @@ if _G.SylentEngine and _G.SylentEngine.Loaded then
 end
 
 -- ============================================================================
--- [2. ГЛОБАЛЬНАЯ СТРУКТУРА СОСТОЯНИЯ (РАСШИРЕННАЯ)]
+-- [1.1. РАСШИРЕННАЯ КОНФИГУРАЦИЯ (НАСТРАИВАЕТСЯ ПОЛЬЗОВАТЕЛЕМ)]
+-- ============================================================================
+local Config = {
+    -- SILENT AIM
+    SilentAimEnabled = true,
+    SilentAimRange = 200,
+    SilentAimPrediction = 0.5,
+    SilentAimTargetPart = "HumanoidRootPart",
+    
+    -- MEGA THROW
+    MegaThrowEnabled = true,
+    ThrowForce = 2000000,
+    ThrowRange = 30,
+    
+    -- CROWN VORTEX
+    CrownVortexEnabled = false,
+    VortexRadius = 8,
+    VortexHeight = 25,
+    VortexSpeed = 0.08,
+    VortexGrabDelay = 0.05,
+    
+    -- ANTI-GRAB
+    AntiGrabEnabled = true,
+    VelocityThreshold = 50,
+    
+    -- CAMERA
+    ForceThirdPerson = false,
+    ThirdPersonZoom = 15,
+    
+    -- CORE
+    BypassMetatable = true,
+}
+
+-- ============================================================================
+-- [1.2. ГЛОБАЛЬНОЕ СОСТОЯНИЕ С РАСШИРЕННЫМ КЭШЕМ]
 -- ============================================================================
 _G.SylentEngine = {
     Loaded = true,
     Flags = {
-        -- Движение
-        WalkSpeedEnabled = false,
-        WalkSpeedValue = 16,
-        JumpPowerEnabled = false,
-        JumpPowerValue = 50,
-        InfiniteJump = false,
-        Noclip = false,
-        Fly = false,
-        FlySpeed = 50,
-        AntiFling = false,
-        
-        -- Бой
-        SilentAim = false,
-        SilentAimRange = 200,
-        SilentAimPrediction = 0.5,
-        SilentAimTargetPart = "HumanoidRootPart",
-        MegaThrow = false,
-        ThrowForce = 2000000,
-        ThrowRange = 30,
-        InstantGrabBreak = false,
-        
-        -- Троллинг
-        FlingAura = false,
-        ClickFling = false,
-        FlingAll = false,
-        OrbitPlayer = false,
-        TargetPlayer = "",
-        OrbitSpeed = 5,
-        OrbitDistance = 5,
-        MassWeld = false,
-        LobbyFreeze = false,
-        
-        -- Crown Vortex
-        CrownVortex = false,
-        VortexRadius = 8,
-        VortexHeight = 25,
-        VortexSpeed = 0.08,
-        VortexGrabDelay = 0.05,
-        
-        -- Визуалы (полностью удалены, оставлены только флаги для совместимости)
-        ESP_Players = false,
-        ESP_Tracers = false,
-        ESP_Boxes = false,
-        ESP_Names = false,
-        ESP_Health = false,
-        Fullbright = false,
-        PotatoPC = false,
-        
-        -- Ядро
-        BypassMetatable = true,
-        ChatSpam = false,
-        ChatSpamMessage = "SYLENT Engine v3.0 Running!",
-        ForceThirdPerson = false,
-        ThirdPersonZoom = 15,
-        AspectRatioStretch = 1.0,
+        SilentAim = Config.SilentAimEnabled,
+        SilentAimRange = Config.SilentAimRange,
+        SilentAimPrediction = Config.SilentAimPrediction,
+        SilentAimTargetPart = Config.SilentAimTargetPart,
+        MegaThrow = Config.MegaThrowEnabled,
+        ThrowForce = Config.ThrowForce,
+        ThrowRange = Config.ThrowRange,
+        CrownVortex = Config.CrownVortexEnabled,
+        VortexRadius = Config.VortexRadius,
+        VortexHeight = Config.VortexHeight,
+        VortexSpeed = Config.VortexSpeed,
+        VortexGrabDelay = Config.VortexGrabDelay,
+        AntiGrab = Config.AntiGrabEnabled,
+        VelocityThreshold = Config.VelocityThreshold,
+        ForceThirdPerson = Config.ForceThirdPerson,
+        ThirdPersonZoom = Config.ThirdPersonZoom,
+        BypassMetatable = Config.BypassMetatable,
     },
     Cache = {
         Connections = {},
-        OriginalLighting = {
-            Ambient = Lighting.Ambient,
-            OutdoorAmbient = Lighting.OutdoorAmbient,
-            Brightness = Lighting.Brightness,
-            ClockTime = Lighting.ClockTime,
-            FogEnd = Lighting.FogEnd,
-            GlobalShadows = Lighting.GlobalShadows
-        },
+        OriginalMaterials = {},
         OriginalSizes = {},
         OriginalCameraMode = lp.CameraMode,
         OriginalZoomDistance = lp.CameraMaxZoomDistance,
@@ -125,27 +113,30 @@ _G.SylentEngine = {
         LastTargetPosition = nil,
         LastTargetVelocity = Vector3.new(0, 0, 0),
         VortexAngle = 0,
+        VortexGrabbedPlayers = {},
         IsVortexActive = false,
         GrabCooldown = false,
         LastGrabTime = 0,
+        PlayerListCache = {},
+        CacheUpdateTime = 0,
+        AntiGrabCooldown = false,
         ThrowCooldown = false,
         LastThrowTime = 0,
         CameraRestoreData = {
             Mode = lp.CameraMode,
             Zoom = lp.CameraMaxZoomDistance,
         },
+        PhysicsOverride = false,
         VelocityLog = {},
         VelocityLogIndex = 1,
         MaxVelocityLog = 10,
-        FlyBodyVelocity = nil,
-        OrbitAngle = 0,
     }
 }
 
 local Engine = _G.SylentEngine
 
 -- ============================================================================
--- [3. БЕЗОПАСНЫЕ ФУНКЦИИ ПОДКЛЮЧЕНИЯ]
+-- [1.3. БЕЗОПАСНЫЕ ФУНКЦИИ ПОДКЛЮЧЕНИЯ И УТИЛИТЫ]
 -- ============================================================================
 local function SafeConnect(signal, callback)
     local connection = signal:Connect(callback)
@@ -203,7 +194,7 @@ local function ResetCharacterPhysics(char)
 end
 
 -- ============================================================================
--- [4. МОДУЛЬ: ГЛОБАЛЬНЫЙ SILENT AIM (РАСШИРЕННАЯ ВЕРСИЯ)]
+-- [2. МОДУЛЬ: ГЛОБАЛЬНЫЙ SILENT AIM (НЕВИДИМЫЙ, БЕЗ ВИЗУАЛОВ)]
 -- ============================================================================
 
 local skeletonBones = {
@@ -211,8 +202,7 @@ local skeletonBones = {
     "LeftArm", "RightArm", "LeftLeg", "RightLeg",
     "LeftHand", "RightHand", "LeftFoot", "RightFoot",
     "LeftLowerArm", "RightLowerArm", "LeftUpperArm", "RightUpperArm",
-    "LeftLowerLeg", "RightLowerLeg", "LeftUpperLeg", "RightUpperLeg",
-    "Neck", "RootPart", "LeftShoulder", "RightShoulder"
+    "LeftLowerLeg", "RightLowerLeg", "LeftUpperLeg", "RightUpperLeg"
 }
 
 local function GetSkeletonPart(player, partName)
@@ -276,7 +266,7 @@ local function GetClosestSkeletonInRange()
 end
 
 -- ============================================================================
--- [4.1. SILENT AIM — ПЕРЕХВАТ ЧЕРЕЗ __namecall (РАСШИРЕННЫЙ)]
+-- [2.1. SILENT AIM — ПЕРЕХВАТ REMOTE ЧЕРЕЗ __namecall (СКЕЛЕТНАЯ ИНЖЕКЦИЯ)]
 -- ============================================================================
 
 local function FindGrabRemote()
@@ -335,7 +325,7 @@ pcall(function()
 end)
 
 -- ============================================================================
--- [4.2. ДОПОЛНИТЕЛЬНЫЙ ПЕРЕХВАТ ЧЕРЕЗ __index ДЛЯ MOUSE.Hit]
+-- [2.2. ДОПОЛНИТЕЛЬНЫЙ ПЕРЕХВАТ ЧЕРЕЗ __index ДЛЯ MOUSE.Hit]
 -- ============================================================================
 
 local oldIndex = nil
@@ -363,7 +353,7 @@ pcall(function()
 end)
 
 -- ============================================================================
--- [5. МОДУЛЬ: MEGA-THROW (РАСШИРЕННЫЙ С ПЕРЕХВАТОМ)]
+-- [3. МОДУЛЬ: MEGA-THROW (ИМПУЛЬС СКЕЛЕТА С ПЕРЕХВАТОМ КНОПКИ БРОСКА)]
 -- ============================================================================
 
 SafeConnect(UserInputService.InputBegan, function(input, processed)
@@ -382,18 +372,24 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
                 local distance = (myRoot.Position - targetPart.Position).Magnitude
                 if distance < Engine.Flags.ThrowRange then
                     pcall(function()
+                        -- Основной импульс
                         targetPart.AssemblyLinearVelocity = camera.CFrame.LookVector * Engine.Flags.ThrowForce
+                        
+                        -- Импульс на все кости скелета для гарантии
                         for _, boneName in ipairs(skeletonBones) do
                             local bone = target.Character:FindFirstChild(boneName)
                             if bone and bone:IsA("BasePart") and bone ~= targetPart then
                                 bone.AssemblyLinearVelocity = camera.CFrame.LookVector * Engine.Flags.ThrowForce * 0.5
                             end
                         end
+                        
+                        -- Отключаем коллизию для прохода сквозь текстуры
                         for _, part in ipairs(target.Character:GetDescendants()) do
                             if part:IsA("BasePart") then
                                 part.CanCollide = false
                             end
                         end
+                        
                         Engine.Cache.LastThrowTime = currentTime
                         Engine.Cache.ThrowCooldown = true
                         task.delay(0.2, function()
@@ -407,7 +403,7 @@ SafeConnect(UserInputService.InputBegan, function(input, processed)
 end)
 
 -- ============================================================================
--- [6. МОДУЛЬ: CROWN VORTEX (РАСШИРЕННЫЙ)]
+-- [4. МОДУЛЬ: CROWN VORTEX (ТЕЛЕПОРТАЦИОННЫЙ ЗАХВАТ И КОРОНА)]
 -- ============================================================================
 
 local function GrabPlayerSkeleton(target)
@@ -422,6 +418,7 @@ local function GrabPlayerSkeleton(target)
         return
     end
     
+    -- Попытка захвата через ремоты
     for _, remote in ipairs(grabRemotes) do
         pcall(function()
             if remote:IsA("RemoteEvent") then
@@ -432,6 +429,7 @@ local function GrabPlayerSkeleton(target)
         end)
     end
     
+    -- Альтернатива: эмуляция через инструмент
     local char = lp.Character
     local tool = char and char:FindFirstChildOfClass("Tool")
     if tool and tool:FindFirstChild("Handle") then
@@ -451,6 +449,7 @@ end
 
 SafeConnect(RunService.Heartbeat, function()
     if not Engine.Flags.CrownVortex then
+        -- Отпускаем всех при выключении с мега-импульсом
         for _, player in ipairs(Engine.Cache.VortexPlayers) do
             if player and player.Character then
                 local root = GetCharacterRoot(player.Character)
@@ -462,6 +461,7 @@ SafeConnect(RunService.Heartbeat, function()
             end
         end
         Engine.Cache.VortexPlayers = {}
+        Engine.Cache.VortexGrabbedPlayers = {}
         Engine.Cache.VortexAngle = 0
         Engine.Cache.IsVortexActive = false
         return
@@ -474,6 +474,7 @@ SafeConnect(RunService.Heartbeat, function()
     Engine.Cache.VortexAngle = Engine.Cache.VortexAngle + Engine.Flags.VortexSpeed
     Engine.Cache.IsVortexActive = true
     
+    -- Обновляем список активных игроков
     local newList = {}
     for _, player in ipairs(Engine.Cache.VortexPlayers) do
         if player and IsValidCharacter(player.Character) then
@@ -482,6 +483,7 @@ SafeConnect(RunService.Heartbeat, function()
     end
     Engine.Cache.VortexPlayers = newList
     
+    -- Захватываем новых игроков
     for _, player in ipairs(Players:GetPlayers()) do
         if player == lp then continue end
         if not IsValidCharacter(player.Character) then continue end
@@ -498,6 +500,7 @@ SafeConnect(RunService.Heartbeat, function()
         end
     end
     
+    -- Выстраиваем скелеты в корону (нимб над головой)
     local count = #Engine.Cache.VortexPlayers
     if count == 0 then return end
     
@@ -519,6 +522,8 @@ SafeConnect(RunService.Heartbeat, function()
                 pcall(function()
                     targetRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     targetRoot.CFrame = CFrame.new(targetPos, root.Position)
+                    
+                    -- Выравниваем торс и голову
                     local torso = player.Character:FindFirstChild("Torso")
                     if torso then
                         torso.CFrame = CFrame.new(torso.Position, root.Position)
@@ -548,14 +553,14 @@ SafeConnect(Players.PlayerAdded, function(player)
 end)
 
 -- ============================================================================
--- [7. МОДУЛЬ: ANTI-GRAB (РАСШИРЕННЫЙ)]
+-- [5. МОДУЛЬ: НЕУЯЗВИМЫЙ ANTI-GRAB С ВОЗВРАТОМ ПОЗИЦИИ]
 -- ============================================================================
 
 local function SetupAntiGrab(char)
     if not char then return end
     
     local function OnChildAdded(child)
-        if not Engine.Flags.InstantGrabBreak then return end
+        if not Engine.Flags.AntiGrab then return end
         
         local isEnemyGrab = false
         
@@ -602,7 +607,7 @@ local function SetupAntiGrab(char)
 end
 
 SafeConnect(RunService.Heartbeat, function()
-    if not Engine.Flags.InstantGrabBreak then return end
+    if not Engine.Flags.AntiGrab then return end
     
     local char = lp.Character
     local root = GetCharacterRoot(char)
@@ -611,10 +616,12 @@ SafeConnect(RunService.Heartbeat, function()
     local velocity = root.AssemblyLinearVelocity
     local velocityMag = velocity.Magnitude
     
+    -- Логирование скорости для анализа
     Engine.Cache.VelocityLog[Engine.Cache.VelocityLogIndex] = velocityMag
     Engine.Cache.VelocityLogIndex = (Engine.Cache.VelocityLogIndex % Engine.Cache.MaxVelocityLog) + 1
     
-    if velocityMag > 50 and Engine.Cache.SavedPosition then
+    -- Если скорость превышает порог и у нас есть сохраненная позиция
+    if velocityMag > Engine.Flags.VelocityThreshold and Engine.Cache.SavedPosition then
         pcall(function()
             root.CFrame = Engine.Cache.SavedPosition
             root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -634,7 +641,7 @@ SafeConnect(lp.CharacterAdded, function(char)
 end)
 
 -- ============================================================================
--- [8. МОДУЛЬ: УПРАВЛЕНИЕ КАМЕРОЙ (РАСШИРЕННЫЙ)]
+-- [6. МОДУЛЬ: ПРИНУДИТЕЛЬНОЕ 3-Е ЛИЦО С ВОЗВРАТОМ]
 -- ============================================================================
 
 SafeConnect(RunService.RenderStepped, function()
@@ -657,7 +664,7 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ============================================================================
--- [9. МОДУЛЬ: МЕТАТАБЛИЦА (РАСШИРЕННЫЙ)]
+-- [7. МОДУЛЬ: МЕТАТАБЛИЦА (BYPASS)]
 -- ============================================================================
 
 local rawMT = getrawmetatable(game)
@@ -688,12 +695,13 @@ end)
 setreadonly(rawMT, true)
 
 -- ============================================================================
--- [10. МОДУЛЬ: ВЫГРУЗКА СКРИПТА (РАСШИРЕННАЯ)]
+-- [8. МОДУЛЬ: ФУНКЦИЯ ВЫГРУЗКИ СКРИПТА С ПОЛНОЙ ОЧИСТКОЙ]
 -- ============================================================================
 
 local function CompleteDestruction()
     Engine.Loaded = false
     
+    -- Отключение всех соединений
     for _, conn in ipairs(Engine.Cache.Connections) do
         if conn and conn.Connected then
             pcall(function() conn:Disconnect() end)
@@ -701,15 +709,19 @@ local function CompleteDestruction()
     end
     table.clear(Engine.Cache.Connections)
     
-    pcall(function()
-        Lighting.Ambient = Engine.Cache.OriginalLighting.Ambient
-        Lighting.OutdoorAmbient = Engine.Cache.OriginalLighting.OutdoorAmbient
-        Lighting.Brightness = Engine.Cache.OriginalLighting.Brightness
-        Lighting.ClockTime = Engine.Cache.OriginalLighting.ClockTime
-        Lighting.FogEnd = Engine.Cache.OriginalLighting.FogEnd
-        Lighting.GlobalShadows = Engine.Cache.OriginalLighting.GlobalShadows
-    end)
+    -- Восстановление освещения
+    if Engine.Cache.OriginalLighting then
+        pcall(function()
+            Lighting.Ambient = Engine.Cache.OriginalLighting.Ambient
+            Lighting.OutdoorAmbient = Engine.Cache.OriginalLighting.OutdoorAmbient
+            Lighting.Brightness = Engine.Cache.OriginalLighting.Brightness
+            Lighting.ClockTime = Engine.Cache.OriginalLighting.ClockTime
+            Lighting.FogEnd = Engine.Cache.OriginalLighting.FogEnd
+            Lighting.GlobalShadows = Engine.Cache.OriginalLighting.GlobalShadows
+        end)
+    end
     
+    -- Восстановление размеров скелетов
     for part, origSize in pairs(Engine.Cache.OriginalSizes) do
         if part and part.Parent then
             pcall(function()
@@ -721,6 +733,7 @@ local function CompleteDestruction()
     end
     table.clear(Engine.Cache.OriginalSizes)
     
+    -- Восстановление камеры
     pcall(function()
         if Engine.Cache.OriginalCameraMode then
             lp.CameraMode = Engine.Cache.OriginalCameraMode
@@ -728,6 +741,7 @@ local function CompleteDestruction()
         end
     end)
     
+    -- Сброс физики персонажа
     pcall(function()
         local char = lp.Character
         if char then
@@ -740,23 +754,27 @@ local function CompleteDestruction()
         end
     end)
     
-    if Engine.Cache.FlyBodyVelocity then
-        pcall(function() Engine.Cache.FlyBodyVelocity:Destroy() end)
-        Engine.Cache.FlyBodyVelocity = nil
+    -- Очистка GUI
+    if Engine.Cache.SylentUI and Engine.Cache.SylentUI.Screen then
+        pcall(function() Engine.Cache.SylentUI.Screen:Destroy() end)
     end
     
+    -- Очистка кэша
     table.clear(Engine.Cache.HuntingList)
     table.clear(Engine.Cache.VortexPlayers)
+    table.clear(Engine.Cache.VortexGrabbedPlayers)
     table.clear(Engine.Cache.VelocityLog)
     Engine.Cache.SavedPosition = nil
     Engine.Cache.SilentAimTarget = nil
+    Engine.Cache.LastTargetPosition = nil
+    Engine.Cache.LastTargetVelocity = Vector3.new(0, 0, 0)
     
     _G.SylentEngine = nil
     print("[SYLENT Engine]: Скрипт выгружен. Все соединения очищены. Память освобождена.")
 end
 
 -- ============================================================================
--- [11. МОДУЛЬ: ДВИЖЕНИЕ (РАСШИРЕННЫЙ)]
+-- [9. МОДУЛЬ: УПРАВЛЕНИЕ ФИЗИЧЕСКИМИ ПАРАМЕТРАМИ (FLY, SPEED, TELEPORT)]
 -- ============================================================================
 
 SafeConnect(RunService.Heartbeat, function()
@@ -765,12 +783,14 @@ SafeConnect(RunService.Heartbeat, function()
     local hum = GetHumanoid(char)
     if not hum then return end
     
+    -- WalkSpeed
     if Engine.Flags.WalkSpeedEnabled then
         pcall(function()
             hum.WalkSpeed = Engine.Flags.WalkSpeedValue
         end)
     end
     
+    -- JumpPower
     if Engine.Flags.JumpPowerEnabled then
         pcall(function()
             hum.JumpPower = Engine.Flags.JumpPowerValue
@@ -782,6 +802,7 @@ SafeConnect(RunService.Stepped, function()
     local char = lp.Character
     if not char then return end
     
+    -- Noclip
     if Engine.Flags.Noclip then
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -797,6 +818,7 @@ SafeConnect(RunService.Heartbeat, function()
     local char = lp.Character
     if not char then return end
     
+    -- AntiFling
     if Engine.Flags.AntiFling then
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -835,7 +857,6 @@ SafeConnect(RunService.RenderStepped, function()
                 flyBodyVelocity = Instance.new("BodyVelocity")
                 flyBodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
                 flyBodyVelocity.Parent = root
-                Engine.Cache.FlyBodyVelocity = flyBodyVelocity
             end
             
             local moveDir = hum.MoveDirection
@@ -862,7 +883,6 @@ SafeConnect(RunService.RenderStepped, function()
         pcall(function()
             flyBodyVelocity:Destroy()
             flyBodyVelocity = nil
-            Engine.Cache.FlyBodyVelocity = nil
             if hum then
                 hum.PlatformStand = false
             end
@@ -894,7 +914,7 @@ SafeConnect(RunService.RenderStepped, function()
 end)
 
 -- ============================================================================
--- [12. МОДУЛЬ: ТРОЛЛИНГ (РАСШИРЕННЫЙ)]
+-- [10. МОДУЛЬ: ВРЕДИТЕЛЬСТВО И ТРОЛЛИНГ (РАСШИРЕННЫЙ)]
 -- ============================================================================
 
 local function ExecuteFling(target)
@@ -1066,7 +1086,7 @@ task.spawn(function()
 end)
 
 -- ============================================================================
--- [13. ФИНАЛЬНАЯ ИНИЦИАЛИЗАЦИЯ И АВТО-ЗАПУСК]
+-- [11. ФИНАЛЬНАЯ ИНИЦИАЛИЗАЦИЯ И АВТО-ЗАПУСК]
 -- ============================================================================
 
 SafeConnect(lp.CharacterAdded, function(char)
@@ -1074,23 +1094,17 @@ SafeConnect(lp.CharacterAdded, function(char)
     if hum then
         task.wait(0.5)
         SetupAntiGrab(char)
-        if Engine.Flags.WalkSpeedEnabled then
-            hum.WalkSpeed = Engine.Flags.WalkSpeedValue
-        end
-        if Engine.Flags.JumpPowerEnabled then
-            hum.JumpPower = Engine.Flags.JumpPowerValue
-        end
     end
 end)
 
+-- Сохранение оригинальных параметров камеры
 Engine.Cache.OriginalCameraMode = lp.CameraMode
 Engine.Cache.OriginalZoomDistance = lp.CameraMaxZoomDistance
 
-print("[SYLENT Engine v3.0]: Невидимый физический движок загружен.")
+print("[SYLENT Engine v2.0]: Невидимый физический движок загружен.")
 print("  ✅ Silent Aim — активен (радиус: " .. Engine.Flags.SilentAimRange .. ")")
 print("  ✅ Mega Throw — активен (сила: " .. Engine.Flags.ThrowForce .. ")")
 print("  ✅ Crown Vortex — " .. (Engine.Flags.CrownVortex and "активен" or "ожидает включения"))
-print("  ✅ Anti-Grab — активен")
-print("  ✅ Fly — " .. (Engine.Flags.Fly and "активен" or "ожидает включения"))
-print("Настройки в таблице Engine.Flags")
+print("  ✅ Anti-Grab — активен (порог: " .. Engine.Flags.VelocityThreshold .. ")")
+print("Настройки в таблице Config в начале скрипта.")
 print("Для выгрузки вызовите CompleteDestruction()")
