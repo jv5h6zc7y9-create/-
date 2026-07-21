@@ -1,15 +1,15 @@
--- СОЗДАНИЕ ИНТЕРФЕЙСА (Крупное меню под пальцы на iPad)
+-- СОЗДАНИЕ ИНТЕРФЕЙСА (Сенсорное меню для iPad)
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 local AimButton = Instance.new("TextButton")
-local FovVisualButton = Instance.new("TextButton")
+local EspButton = Instance.new("TextButton")
 local HoleButton = Instance.new("TextButton")
 
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
-MainFrame.Name = "iPadDeltaMenuFinal"
+MainFrame.Name = "iPadDeltaMenuFixed"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
@@ -20,7 +20,7 @@ MainFrame.Draggable = true
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 45)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "IPAD FT&P EXPLOIT"
+Title.Text = "IPAD FT&P FIXED v3"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
@@ -36,45 +36,27 @@ local function styleButton(btn, text, posY)
     btn.Font = Enum.Font.SourceSansBold
 end
 
-styleButton(AimButton, "1. Silent Aim", 65)
-styleButton(FovVisualButton, "2. Границы FOV (Круг)", 130)
+styleButton(AimButton, "1. Dynamic Silent Aim", 65)
+styleButton(EspButton, "2. Подсветка Игроков", 130)
 styleButton(HoleButton, "3. BlackHole + Kill", 195)
 
--- СЕРВИСЫ И КОНФИГУРАЦИЯ
+-- СЕРВИСЫ ROBLOX
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
-local States = { SilentAim = false, ShowFov = false, BlackHole = false }
-local Config = { SilentAimFov = 280, ThrowForce = 999999, HoleSpeed = 160, HoleRadius = 250 }
+-- НАСТРОЙКИ ФУНКЦИЙ
+local States = { SilentAim = false, ShowEsp = false, BlackHole = false }
+local Config = { MaxTargetDistance = 300, ThrowForce = 999999, HoleSpeed = 160, HoleRadius = 250 }
+local EspObjects = {}
 
--- ОПТИМИЗИРОВАННЫЙ КРУГ ДЛЯ ОТПРАВКИ ГРАНИЦ FOV НА ЭКРАН IPAD
-local FovCircle = Drawing.new("Circle")
-FovCircle.Visible = false
-FovCircle.Thickness = 2.5
-FovCircle.Color = Color3.fromRGB(255, 60, 60)
-FovCircle.Radius = Config.SilentAimFov
-FovCircle.Filled = false
-FovCircle.NumSides = 64
-
-RunService.RenderStepped:Connect(function()
-    if States.ShowFov then
-        local centerScreen = Camera.ViewportSize / 2
-        FovCircle.Position = Vector2.new(centerScreen.X, centerScreen.Y)
-        FovCircle.Radius = Config.SilentAimFov
-        FovCircle.Visible = true
-    else
-        FovCircle.Visible = false
-    end
-end)
-
--- ФУНКЦИЯ ЗАХВАТА ИГРОКА СТРОГО ВНУТРИ ПОДВЕЧЕННОГО КРУГА FOV
-local function GetClosestPlayerInCircle()
+-- 1. ДИНАМИЧЕСКИЙ ПОИСК БЛИЖАЙШЕЙ ЦЕЛИ БЕЗ ЗАЛИПАНИЙ
+local function GetCurrentClosestPlayer()
     local closestPlayer = nil
-    local shortestDistance = Config.SilentAimFov
-    local centerScreen = Camera.ViewportSize / 2
+    local shortestDistance = math.huge
+    local touchPos = UserInputService:GetMouseLocation()
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -85,8 +67,11 @@ local function GetClosestPlayerInCircle()
                 local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 
                 if onScreen then
-                    local distance = (Vector2.new(centerScreen.X, centerScreen.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
-                    if distance < shortestDistance then
+                    -- Расстояние от точки нажатия до персонажа на экране iPad
+                    local distance = (Vector2.new(touchPos.X, touchPos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                    
+                    -- Проверяем, входит ли цель в допустимые рамки и ближе ли она предыдущей
+                    if distance < distance and distance < Config.MaxTargetDistance then
                         closestPlayer = player
                         shortestDistance = distance
                     end
@@ -97,37 +82,81 @@ local function GetClosestPlayerInCircle()
     return closestPlayer
 end
 
--- ПЕРЕХВАТ НАЖАТИЯ ОРИГИНАЛЬНОЙ КНОПКИ БРОСКА ИГРЫ (Throw Hook)
--- Скрипт отслеживает нажатие кнопки "Бросить" (Touch или правый клик мыши на эмуляторах)
+-- 2. ФУНКЦИЯ СОЗДАНИЯ И ОБНОВЛЕНИЯ ПОДСПВЕТКИ (ESP КРУГ / ВЫДЕЛЕНИЕ ВОКРУГ ТЕЛА)
+local function UpdateEsp()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if root and States.ShowEsp then
+                -- Если подсветки еще нет для этого игрока, создаем 3D-выделение (Highlight)
+                if not EspObjects[player] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "FTP_ESP"
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.FillTransparency = 0.6
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.OutlineTransparency = 0.2
+                    highlight.Adornee = player.Character
+                    highlight.Parent = player.Character
+                    EspObjects[player] = highlight
+                else
+                    -- Динамически меняем цвет подсветки, если игрок стал текущей целью Аима
+                    local target = GetCurrentClosestPlayer()
+                    if target == player then
+                        EspObjects[player].FillColor = Color3.fromRGB(0, 255, 0) -- Зеленый, если в прицеле
+                    else
+                        EspObjects[player].FillColor = Color3.fromRGB(255, 0, 0) -- Красный для остальных
+                    end
+                end
+            else
+                -- Если подсветка выключена кнопкой, удаляем ее из мира
+                if EspObjects[player] then
+                    EspObjects[player]:Destroy()
+                    EspObjects[player] = nil
+                end
+            end
+        end
+    end
+end
+
+-- Очистка ESP при выходе игроков
+Players.PlayerRemoving:Connect(function(player)
+    if EspObjects[player] then
+        EspObjects[player]:Destroy()
+        EspObjects[player] = nil
+    end
+end)
+
+-- 3. ПЕРЕХВАТ КНОПКИ БРОСКА И СИМУЛЯЦИЯ РУЧНОГО ИМПУЛЬСА БЕЗ БАГОВ ТЕКСТУР
 UserInputService.InputBegan:Connect(function(input, processed)
-    -- Проверяем оригинальный ввод броска
+    -- Срабатывает только при физическом тапе по экрану броска
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton2 then
-        -- Если Silent Aim включен, принудительно активируем Супер-Импульс
         if States.SilentAim then
-            local target = GetClosestPlayerInCircle()
+            -- Скрипт ищет цель прямо в секунду броска, предотвращая долгое залипание на одной вещи
+            local target = GetCurrentClosestPlayer()
             
             if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
                 local targetHrp = target.Character.HumanoidRootPart
                 
-                -- Отключаем коллизию деталей жертвы, чтобы она не врезалась в забор/стены на спавне
+                -- Безопасный запуск без проваливания сквозь пол на месте взятия
                 for _, part in pairs(target.Character:GetChildren()) do
                     if part:IsA("BasePart") then 
                         part.CanCollide = false 
                     end
                 end
                 
-                -- Создаем мощнейший вектор ускорения
                 local velocityInstance = Instance.new("LinearVelocity")
                 local attachment = Instance.new("Attachment")
                 
                 attachment.Parent = targetHrp
                 velocityInstance.MaxForce = math.huge
-                -- Сила рассчитывается по направлению камеры вашего iPad
+                -- Полет строго туда, куда смотрит камера iPad в момент тапа
                 velocityInstance.VectorVelocity = Camera.CFrame.LookVector * Config.ThrowForce
                 velocityInstance.Attachment0 = attachment
                 velocityInstance.Parent = targetHrp
                 
-                -- Задержка на импульс, после чего физика чистится, а цель улетает за лимиты
+                -- Импульс толкает объект и мгновенно стирается, чтобы не багать физику сервера
                 task.wait(0.2)
                 velocityInstance:Destroy()
                 attachment:Destroy()
@@ -136,14 +165,14 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- ХУК СИСТЕМНЫХ МЕТАМЕТОДОВ ДЛЯ НАВЕДЕНИЯ БРОСКА (SILENT AIM)
+-- 4. ХУКИ НАПРАВЛЕНИЯ ЛУЧА ROBLOX (ДЛЯ ТОЧНОГО ПОПАДАНИЯ РЯДОМ С ЦЕЛЬЮ)
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
     
     if States.SilentAim and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
-        local target = GetClosestPlayerInCircle()
+        local target = GetCurrentClosestPlayer()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             local targetPart = target.Character.HumanoidRootPart
             if method == "Raycast" then
@@ -159,7 +188,7 @@ end)
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, key)
     if States.SilentAim and (key == "Hit" or key == "Target") and not checkcaller() then
-        local target = GetClosestPlayerInCircle()
+        local target = GetCurrentClosestPlayer()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             if key == "Hit" then
                 return target.Character.HumanoidRootPart.CFrame
@@ -171,8 +200,10 @@ oldIndex = hookmetamethod(game, "__index", function(self, key)
     return oldIndex(self, key)
 end)
 
--- НЕПРЕРЫВНЫЙ ЦИКЛ ЗАСАСЫВАНИЯ В ЧЕРНУЮ ДЫРУ + УБИЙСТВО ПОД КАРТУ
+-- 5. АКТИВНЫЙ ЦИКЛ ЧЕРНОЙ ДЫРЫ И АВТО-КИЛЛА С ТЕЛЕПОРТАЦИЕЙ В VOID
 RunService.Heartbeat:Connect(function()
+    UpdateEsp() -- Динамическое обновление подсветки каждый кадр
+    
     if not States.BlackHole then return end
     
     local myChar = LocalPlayer.Character
@@ -188,12 +219,12 @@ RunService.Heartbeat:Connect(function()
                 local distance = (myHrp.Position - tHrp.Position).Magnitude
                 
                 if distance < Config.HoleRadius then
-                    -- МГНОВЕННЫЙ КИЛЛ: Если засосало вплотную к вашему iPad-персонажу
+                    -- МГНОВЕННЫЙ КИЛЛ под карту в Void, если притянуло вплотную
                     if distance < 15 then
                         tHrp.CFrame = CFrame.new(tHrp.Position.X, -1500, tHrp.Position.Z)
                         tHrp.AssemblyLinearVelocity = Vector3.new(0, -500, 0)
                     else
-                        -- Притягивание скоростным импульсом в центр воронки
+                        -- Притягивание скоростным импульсом в эпицентр
                         local direction = (myHrp.Position - tHrp.Position).Unit
                         tHrp.AssemblyLinearVelocity = direction * Config.HoleSpeed
                     end
@@ -203,17 +234,17 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- НАСТРОЙКА КНОПОК ВКЛЮЧЕНИЯ И ОТКЛЮЧЕНИЯ МОДУЛЕЙ
+-- ПОДКЛЮЧЕНИЕ НАЖАТИЙ НА КНОПКИ МЕНЮ ДЛЯ IPAD
 AimButton.MouseButton1Click:Connect(function()
     States.SilentAim = not States.SilentAim
     AimButton.Text = "1. Silent Aim " .. (States.SilentAim and "[ВКЛ]" or "[ВЫКЛ]")
     AimButton.BackgroundColor3 = States.SilentAim and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
-FovVisualButton.MouseButton1Click:Connect(function()
-    States.ShowFov = not States.ShowFov
-    FovVisualButton.Text = "2. Границы FOV " .. (States.ShowFov and "[ПОКАЗАТЬ]" or "[СКРЫТЬ]")
-    FovVisualButton.BackgroundColor3 = States.ShowFov and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
+EspButton.MouseButton1Click:Connect(function()
+    States.ShowEsp = not States.ShowEsp
+    EspButton.Text = "2. Подсветка " .. (States.ShowEsp and "[ПОКАЗАТЬ]" or "[СКРЫТЬ]")
+    EspButton.BackgroundColor3 = States.ShowEsp and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
 HoleButton.MouseButton1Click:Connect(function()
@@ -222,4 +253,4 @@ HoleButton.MouseButton1Click:Connect(function()
     HoleButton.BackgroundColor3 = States.BlackHole and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
-print("[Delta iPad Throw Hook Script Loaded!]")
+print("[Delta iPad Dynamic Target Script Loaded Fully]")
