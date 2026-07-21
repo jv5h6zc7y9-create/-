@@ -1,61 +1,80 @@
--- Создание GUI интерфейса (Крупные элементы для сенсора iPad)
+-- СОЗДАНИЕ ИНТЕРФЕЙСА (Крупное меню под пальцы на iPad)
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 local AimButton = Instance.new("TextButton")
-local ThrowButton = Instance.new("TextButton")
+local FovVisualButton = Instance.new("TextButton")
 local HoleButton = Instance.new("TextButton")
 
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
-MainFrame.Name = "iPadDeltaMenuComplete"
+MainFrame.Name = "iPadDeltaMenuFinal"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 250, 0, 280)
+MainFrame.Size = UDim2.new(0, 260, 0, 280)
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 45)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.Text = "IPAD FULL EXPLOIT"
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Title.Text = "IPAD FT&P EXPLOIT"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 18
+Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
 local function styleButton(btn, text, posY)
     btn.Parent = MainFrame
     btn.Size = UDim2.new(0.9, 0, 0, 50)
     btn.Position = UDim2.new(0.05, 0, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     btn.Text = text .. " [ВЫКЛ]"
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 16
+    btn.TextSize = 15
     btn.Font = Enum.Font.SourceSansBold
 end
 
 styleButton(AimButton, "1. Silent Aim", 65)
-styleButton(ThrowButton, "2. Super Throw", 130)
+styleButton(FovVisualButton, "2. Границы FOV (Круг)", 130)
 styleButton(HoleButton, "3. BlackHole + Kill", 195)
 
--- ОСНОВНЫЕ СЕРВИСЫ ROBLOX
+-- СЕРВИСЫ И КОНФИГУРАЦИЯ
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- СОСТОЯНИЯ И НАСТРОЙКИ
-local States = { SilentAim = false, SuperThrow = false, BlackHole = false }
-local Config = { SilentAimFov = 350, ThrowForce = 999999, HoleSpeed = 160, HoleRadius = 250 }
+local States = { SilentAim = false, ShowFov = false, BlackHole = false }
+local Config = { SilentAimFov = 280, ThrowForce = 999999, HoleSpeed = 160, HoleRadius = 250 }
 
--- 1. ПОЛНАЯ ФУНКЦИЯ НАХОЖДЕНИЯ БЛИЖАЙШЕГО ИГРОКА ДЛЯ АИМА (FOV СКАНИРОВАНИЕ)
-local function GetClosestPlayerToTouch()
+-- ОПТИМИЗИРОВАННЫЙ КРУГ ДЛЯ ОТПРАВКИ ГРАНИЦ FOV НА ЭКРАН IPAD
+local FovCircle = Drawing.new("Circle")
+FovCircle.Visible = false
+FovCircle.Thickness = 2.5
+FovCircle.Color = Color3.fromRGB(255, 60, 60)
+FovCircle.Radius = Config.SilentAimFov
+FovCircle.Filled = false
+FovCircle.NumSides = 64
+
+RunService.RenderStepped:Connect(function()
+    if States.ShowFov then
+        local centerScreen = Camera.ViewportSize / 2
+        FovCircle.Position = Vector2.new(centerScreen.X, centerScreen.Y)
+        FovCircle.Radius = Config.SilentAimFov
+        FovCircle.Visible = true
+    else
+        FovCircle.Visible = false
+    end
+end)
+
+-- ФУНКЦИЯ ЗАХВАТА ИГРОКА СТРОГО ВНУТРИ ПОДВЕЧЕННОГО КРУГА FOV
+local function GetClosestPlayerInCircle()
     local closestPlayer = nil
     local shortestDistance = Config.SilentAimFov
-    local touchPos = UserInputService:GetMouseLocation()
+    local centerScreen = Camera.ViewportSize / 2
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -63,12 +82,10 @@ local function GetClosestPlayerToTouch()
             local human = player.Character:FindFirstChild("Humanoid")
             
             if root and human and human.Health > 0 then
-                -- Переводим 3D координаты игрока в 2D пиксели экрана iPad
                 local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 
                 if onScreen then
-                    -- Считаем расстояние от центра тапа до игрока
-                    local distance = (Vector2.new(touchPos.X, touchPos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                    local distance = (Vector2.new(centerScreen.X, centerScreen.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
                     if distance < shortestDistance then
                         closestPlayer = player
                         shortestDistance = distance
@@ -80,22 +97,59 @@ local function GetClosestPlayerToTouch()
     return closestPlayer
 end
 
--- 2. ПОЛНЫЙ ХУК МЕТАМЕТОДОВ ДЛЯ SILENT AIM (ПОДМЕНА НАПРАВЛЕНИЯ ИГРЫ)
+-- ПЕРЕХВАТ НАЖАТИЯ ОРИГИНАЛЬНОЙ КНОПКИ БРОСКА ИГРЫ (Throw Hook)
+-- Скрипт отслеживает нажатие кнопки "Бросить" (Touch или правый клик мыши на эмуляторах)
+UserInputService.InputBegan:Connect(function(input, processed)
+    -- Проверяем оригинальный ввод броска
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton2 then
+        -- Если Silent Aim включен, принудительно активируем Супер-Импульс
+        if States.SilentAim then
+            local target = GetClosestPlayerInCircle()
+            
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local targetHrp = target.Character.HumanoidRootPart
+                
+                -- Отключаем коллизию деталей жертвы, чтобы она не врезалась в забор/стены на спавне
+                for _, part in pairs(target.Character:GetChildren()) do
+                    if part:IsA("BasePart") then 
+                        part.CanCollide = false 
+                    end
+                end
+                
+                -- Создаем мощнейший вектор ускорения
+                local velocityInstance = Instance.new("LinearVelocity")
+                local attachment = Instance.new("Attachment")
+                
+                attachment.Parent = targetHrp
+                velocityInstance.MaxForce = math.huge
+                -- Сила рассчитывается по направлению камеры вашего iPad
+                velocityInstance.VectorVelocity = Camera.CFrame.LookVector * Config.ThrowForce
+                velocityInstance.Attachment0 = attachment
+                velocityInstance.Parent = targetHrp
+                
+                -- Задержка на импульс, после чего физика чистится, а цель улетает за лимиты
+                task.wait(0.2)
+                velocityInstance:Destroy()
+                attachment:Destroy()
+            end
+        end
+    end
+end)
+
+-- ХУК СИСТЕМНЫХ МЕТАМЕТОДОВ ДЛЯ НАВЕДЕНИЯ БРОСКА (SILENT AIM)
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
     
-    -- Если Аим включен и игра пытается пустить луч/бросок из камеры или мыши
     if States.SilentAim and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
-        local target = GetClosestPlayerToTouch()
+        local target = GetClosestPlayerInCircle()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            -- Перезаписываем направление луча строго в голову или торс цели
             local targetPart = target.Character.HumanoidRootPart
             if method == "Raycast" then
-                args[2] = (targetPart.Position - args[1]).Unit * 1000
+                args = (targetPart.Position - args).Unit * 1000
             else
-                args[1] = Ray.new(args[1].Origin, (targetPart.Position - args[1].Origin).Unit * 1000)
+                args = Ray.new(args.Origin, (targetPart.Position - args.Origin).Unit * 1000)
             end
         end
     end
@@ -104,9 +158,8 @@ end)
 
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, key)
-    -- Подмена координат виртуального курсора для бросков в Delta
     if States.SilentAim and (key == "Hit" or key == "Target") and not checkcaller() then
-        local target = GetClosestPlayerToTouch()
+        local target = GetClosestPlayerInCircle()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             if key == "Hit" then
                 return target.Character.HumanoidRootPart.CFrame
@@ -118,43 +171,7 @@ oldIndex = hookmetamethod(game, "__index", function(self, key)
     return oldIndex(self, key)
 end)
 
--- 3. ПОЛНАЯ ФУНКЦИЯ СУПЕР-БРОСКА ЗА КАРТУ (ДЛЯ СЕНСОРА IPAD)
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    -- Срабатывает, когда вы касаетесь экрана пальцем
-    if input.UserInputType == Enum.UserInputType.Touch and States.SuperThrow then
-        local target = GetClosestPlayerToTouch()
-        
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local targetHrp = target.Character.HumanoidRootPart
-            
-            -- Отключение коллизии (чтобы цель гарантированно улетела сквозь стены)
-            for _, part in pairs(target.Character:GetChildren()) do
-                if part:IsA("BasePart") then 
-                    part.CanCollide = false 
-                end
-            end
-            
-            -- Создание мощного вектора скорости
-            local velocityInstance = Instance.new("LinearVelocity")
-            local attachment = Instance.new("Attachment")
-            
-            attachment.Parent = targetHrp
-            velocityInstance.MaxForce = math.huge
-            -- Запуск происходит по направлению взгляда камеры iPad
-            velocityInstance.VectorVelocity = Camera.CFrame.LookVector * Config.ThrowForce
-            velocityInstance.Attachment0 = attachment
-            velocityInstance.Parent = targetHrp
-            
-            -- Удаление вектора через 0.2 сек, когда цель уже набрала скорость света
-            task.wait(0.2)
-            velocityInstance:Destroy()
-            attachment:Destroy()
-        end
-    end
-end)
-
--- 4. ПОЛНАЯ ФУНКЦИЯ ЧЕРНОЙ ДЫРЫ И АВТО-УБИЙСТВА (VOID KILL)
+-- НЕПРЕРЫВНЫЙ ЦИКЛ ЗАСАСЫВАНИЯ В ЧЕРНУЮ ДЫРУ + УБИЙСТВО ПОД КАРТУ
 RunService.Heartbeat:Connect(function()
     if not States.BlackHole then return end
     
@@ -168,17 +185,15 @@ RunService.Heartbeat:Connect(function()
             local tHum = player.Character:FindFirstChild("Humanoid")
             
             if tHrp and tHum and tHum.Health > 0 then
-                -- Вычисляем дистанцию между вами и жертвой
                 local distance = (myHrp.Position - tHrp.Position).Magnitude
                 
                 if distance < Config.HoleRadius then
-                    -- Если затянуло вплотную (радиус 15 единиц) -> МГНОВЕННЫЙ КИЛЛ
+                    -- МГНОВЕННЫЙ КИЛЛ: Если засосало вплотную к вашему iPad-персонажу
                     if distance < 15 then
-                        -- Телепортация под карту в зону смерти Roblox (Void)
                         tHrp.CFrame = CFrame.new(tHrp.Position.X, -1500, tHrp.Position.Z)
                         tHrp.AssemblyLinearVelocity = Vector3.new(0, -500, 0)
                     else
-                        -- Если далеко -> СТЯГИВАНИЕ в эпицентр
+                        -- Притягивание скоростным импульсом в центр воронки
                         local direction = (myHrp.Position - tHrp.Position).Unit
                         tHrp.AssemblyLinearVelocity = direction * Config.HoleSpeed
                     end
@@ -188,23 +203,23 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ПОДКЛЮЧЕНИЕ КНОПОК ИНТЕРФЕЙСА
+-- НАСТРОЙКА КНОПОК ВКЛЮЧЕНИЯ И ОТКЛЮЧЕНИЯ МОДУЛЕЙ
 AimButton.MouseButton1Click:Connect(function()
     States.SilentAim = not States.SilentAim
     AimButton.Text = "1. Silent Aim " .. (States.SilentAim and "[ВКЛ]" or "[ВЫКЛ]")
-    AimButton.BackgroundColor3 = States.SilentAim and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(55, 55, 55)
+    AimButton.BackgroundColor3 = States.SilentAim and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
-ThrowButton.MouseButton1Click:Connect(function()
-    States.SuperThrow = not States.SuperThrow
-    ThrowButton.Text = "2. Super Throw " .. (States.SuperThrow and "[ВКЛ]" or "[ВЫКЛ]")
-    ThrowButton.BackgroundColor3 = States.SuperThrow and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(55, 55, 55)
+FovVisualButton.MouseButton1Click:Connect(function()
+    States.ShowFov = not States.ShowFov
+    FovVisualButton.Text = "2. Границы FOV " .. (States.ShowFov and "[ПОКАЗАТЬ]" or "[СКРЫТЬ]")
+    FovVisualButton.BackgroundColor3 = States.ShowFov and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
 HoleButton.MouseButton1Click:Connect(function()
     States.BlackHole = not States.BlackHole
     HoleButton.Text = "3. BlackHole + Kill " .. (States.BlackHole and "[ВКЛ]" or "[ВЫКЛ]")
-    HoleButton.BackgroundColor3 = States.BlackHole and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(55, 55, 55)
+    HoleButton.BackgroundColor3 = States.BlackHole and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
-print("[Delta iPad Uncut Script Loaded!]")
+print("[Delta iPad Throw Hook Script Loaded!]")
