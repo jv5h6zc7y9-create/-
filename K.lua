@@ -1,44 +1,49 @@
--- СОЗДАНИЕ ИНТЕРФЕЙСА (Сенсорное меню для iPad)
+-- СОЗДАНИЕ ИНТЕРФЕЙСА (Сенсорное меню для iPad с изменением FOV)
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 local AimButton = Instance.new("TextButton")
 local EspButton = Instance.new("TextButton")
 local HoleButton = Instance.new("TextButton")
+local FovPlusButton = Instance.new("TextButton")
+local FovMinusButton = Instance.new("TextButton")
 
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
-MainFrame.Name = "iPadDeltaMenuFinalAbsolute"
+MainFrame.Name = "iPadDeltaMenuUltimateFinal"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 260, 0, 280)
+MainFrame.Size = UDim2.new(0, 260, 0, 340) -- Увеличили высоту под кнопки FOV
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 45)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "IPAD FT&P FIXED v5"
+Title.Text = "IPAD FT&P FOV EDIT"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
-local function styleButton(btn, text, posY)
+local function styleButton(btn, text, posY, sizeX, posX)
     btn.Parent = MainFrame
-    btn.Size = UDim2.new(0.9, 0, 0, 50)
-    btn.Position = UDim2.new(0.05, 0, 0, posY)
+    btn.Size = UDim2.new(sizeX or 0.9, 0, 0, 45)
+    btn.Position = UDim2.new(posX or 0.05, 0, 0, posY)
     btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.Text = text .. " [ВЫКЛ]"
+    btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 15
     btn.Font = Enum.Font.SourceSansBold
 end
 
-styleButton(AimButton, "1. Сверх-Хват + Аим", 65)
-styleButton(EspButton, "2. Границы Бокса Аима", 130)
-styleButton(HoleButton, "3. Черная Дыра (Сбор)", 195)
+styleButton(AimButton, "1. Сверх-Хват + Аим [ВЫКЛ]", 65)
+styleButton(EspButton, "2. Границы Бокса [ВЫКЛ]", 120)
+styleButton(HoleButton, "3. Физическая Дыра [ВЫКЛ]", 175)
+-- Кнопки изменения размера круга (FOV)
+styleButton(FovPlusButton, "FOV +", 235, 0.42, 0.05)
+styleButton(FovMinusButton, "FOV -", 235, 0.42, 0.53)
 
 -- СЕРВИСЫ ROBLOX
 local Players = game:GetService("Players")
@@ -49,13 +54,34 @@ local Camera = workspace.CurrentCamera
 
 -- НАСТРОЙКИ ФУНКЦИЙ
 local States = { SilentAim = false, ShowEsp = false, BlackHole = false }
-local Config = { MaxTargetDistance = 350, ThrowForce = 999999, HoleSpeed = 120, HoleRadius = 250 }
+local Config = { SilentAimFov = 250, ThrowForce = 999999, HoleSpeed = 140, HoleRadius = 300 }
 local EspObjects = {}
 
--- 1. ДИНАМИЧЕСКИЙ ПОИСК БЛИЖАЙШЕЙ ЦЕЛИ РЯДОМ С ТАЧЕМ СЕНСОРА БЕЗ ЗАЛИПАНИЙ
-local function GetCurrentClosestPlayer()
+-- СОЗДАНИЕ КРУГА С ГРАНИЦАМИ НА ЭКРАНЕ IPAD
+local FovCircle = Drawing.new("Circle")
+FovCircle.Visible = false
+FovCircle.Thickness = 2.5
+FovCircle.Color = Color3.fromRGB(255, 50, 50)
+FovCircle.Radius = Config.SilentAimFov
+FovCircle.Filled = false
+FovCircle.NumSides = 64
+
+-- Обновление позиции и размера круга на экране каждый кадр
+RunService.RenderStepped:Connect(function()
+    if States.SilentAim then
+        local touchPos = UserInputService:GetMouseLocation()
+        FovCircle.Position = touchPos
+        FovCircle.Radius = Config.SilentAimFov
+        FovCircle.Visible = true
+    else
+        FovCircle.Visible = false
+    end
+end)
+
+-- ДИНАМИЧЕСКИЙ ПОИСК ЦЕЛИ СТРОГО ВНУТРИ КРУГА НА ЭКРАНЕ
+local function GetClosestPlayerInCircle()
     local closestPlayer = nil
-    local shortestDistance = Config.MaxTargetDistance
+    local shortestDistance = Config.SilentAimFov -- Дистанция ограничена радиусом круга
     local touchPos = UserInputService:GetMouseLocation()
 
     for _, player in pairs(Players:GetPlayers()) do
@@ -67,10 +93,10 @@ local function GetCurrentClosestPlayer()
                 local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 
                 if onScreen then
-                    -- Вычисляем реальное расстояние от пальца до игрока на экране iPad
+                    -- Считаем расстояние от пальца до игрока на экране iPad
                     local distance = (Vector2.new(touchPos.X, touchPos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
                     
-                    -- Проверяем, входит ли цель в рамки лимита FOV
+                    -- Захват срабатывает, только если расстояние МЕНЬШЕ текущего радиуса круга
                     if distance < shortestDistance then
                         closestPlayer = player
                         shortestDistance = distance
@@ -82,21 +108,20 @@ local function GetCurrentClosestPlayer()
     return closestPlayer
 end
 
--- 2. ФУНКЦИЯ КВАДРАТНЫХ ГРАНИЦ БОКСА (BOX ESP)
+-- ФУНКЦИЯ ОБНОВЛЕНИЯ 3D БОКСОВ (ГРАНИЦ) ДЛЯ ИГРОКОВ В КРУГЕ
 local function UpdateEsp()
-    local currentTarget = GetCurrentClosestPlayer()
+    local currentTarget = GetClosestPlayerInCircle()
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local root = player.Character:FindFirstChild("HumanoidRootPart")
             
             if root and States.ShowEsp then
-                -- Если бокс еще не создан для игрока, создаем его 3D каркас
                 if not EspObjects[player] then
                     local box = Instance.new("BoxHandleAdornment")
-                    box.Name = "FTP_BOX_DYN"
+                    box.Name = "FTP_BOX_FOV_SYSTEM"
                     box.Size = player.Character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4)
-                    box.Color3 = Color3.fromRGB(255, 0, 0) -- По умолчанию красный (просто игрок)
+                    box.Color3 = Color3.fromRGB(255, 0, 0)
                     box.Transparency = 0.6
                     box.AlwaysOnTop = true
                     box.ZIndex = 10
@@ -104,20 +129,18 @@ local function UpdateEsp()
                     box.Parent = player.Character
                     EspObjects[player] = box
                 else
-                    -- Обновляем размер бокса под движения игрока
                     EspObjects[player].Size = player.Character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4)
                     
-                    -- Если этот игрок стал ближайшим к вашему прицелу/пальцу (попал в границы Сайлент Аима)
+                    -- Если игрок зашел внутрь круга прицела на экране, его бокс становится зеленым
                     if currentTarget == player then
-                        EspObjects[player].Color3 = Color3.fromRGB(0, 255, 0) -- Зеленый бокс (Готов к захвату)
+                        EspObjects[player].Color3 = Color3.fromRGB(0, 255, 0)
                         EspObjects[player].Transparency = 0.4
                     else
-                        EspObjects[player].Color3 = Color3.fromRGB(255, 0, 0) -- Красный (вне зоны Аима)
+                        EspObjects[player].Color3 = Color3.fromRGB(255, 0, 0)
                         EspObjects[player].Transparency = 0.7
                     end
                 end
             else
-                -- Если кнопка выключена, мгновенно стираем все боксы
                 if EspObjects[player] then
                     EspObjects[player]:Destroy()
                     EspObjects[player] = nil
@@ -127,7 +150,7 @@ local function UpdateEsp()
     end
 end
 
--- Очистка памяти при выходе игроков
+-- Удаление индикаторов при выходе игрока
 Players.PlayerRemoving:Connect(function(player)
     if EspObjects[player] then
         EspObjects[player]:Destroy()
@@ -135,16 +158,15 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- 3. ПЕРЕХВАТ ОРИГИНАЛЬНОЙ КНОПКИ БРОСКА ДЛЯ СУПЕР-ЗАПУСКА ПО НАПРАВЛЕНИЮ КАМЕРЫ
+-- ОБРАБОТКА ОРИГИНАЛЬНОЙ КНОПКИ БРОСКА ДЛЯ СУПЕР-ЗАПУСКА (СТРОГО ДЛЯ ЦЕЛИ В КРУГЕ)
 UserInputService.InputBegan:Connect(function(input, processed)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton2 then
         if States.SilentAim then
-            local target = GetCurrentClosestPlayer()
+            local target = GetClosestPlayerInCircle()
             
             if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
                 local targetHrp = target.Character.HumanoidRootPart
                 
-                -- Отключаем коллизию деталей, чтобы цель гарантированно улетела без застреваний
                 for _, part in pairs(target.Character:GetChildren()) do
                     if part:IsA("BasePart") then 
                         part.CanCollide = false 
@@ -168,18 +190,18 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- 4. ХУКИ НА ДИСТАНЦИОННЫЙ СВЕРХ-ХВАТ (ПОДМЕНА СВОЙСТВ ТАЧПАДА / МЫШИ)
+-- ХУКИ СВЕРХ-ХВАТА ДЛЯ ДИСТАНЦИОННОГО ЗАХВАТА ИГРОКОВ В КРУГЕ
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, key)
     if States.SilentAim and not checkcaller() then
         if key == "Hit" or key == "Target" then
-            local dynamicTarget = GetCurrentClosestPlayer()
+            local dynamicTarget = GetClosestPlayerInCircle()
             
             if dynamicTarget and dynamicTarget.Character and dynamicTarget.Character:FindFirstChild("HumanoidRootPart") then
                 if key == "Hit" then
                     return dynamicTarget.Character.HumanoidRootPart.CFrame
                 elseif key == "Target" then
-                    -- Возвращаем цель Аима, чтобы игра позволила схватить игрока, даже если вы нажали рядом с ним
+                    -- Игра считает, что палец нажат точно на торс игрока, если он в круге
                     return dynamicTarget.Character.HumanoidRootPart
                 end
             end
@@ -194,7 +216,7 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local args = {...}
     
     if States.SilentAim and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
-        local dynamicTarget = GetCurrentClosestPlayer()
+        local dynamicTarget = GetClosestPlayerInCircle()
         if dynamicTarget and dynamicTarget.Character and dynamicTarget.Character:FindFirstChild("HumanoidRootPart") then
             local targetPart = dynamicTarget.Character.HumanoidRootPart
             if method == "Raycast" then
@@ -207,9 +229,9 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return oldNamecall(self, unpack(args))
 end)
 
--- 5. ИСПРАВЛЕННЫЙ ЦИКЛ ЧЕРНОЙ ДЫРЫ (БЕЗ ИСЧЕЗНОВЕНИЯ ИГРОКОВ)
+-- СТАБИЛЬНЫЙ ФИЗИЧЕСКИЙ ЦИКЛ ЧЕРНОЙ ДЫРЫ (БЕЗ ТЕЛЕПОРТОВ И ИСЧЕЗНОВЕНИЙ)
 RunService.Heartbeat:Connect(function()
-    UpdateEsp() -- Постоянное сканирование игроков и обновление Боксов на экране iPad
+    UpdateEsp() -- Обновление 3D боксов и проверщика круга
     
     if not States.BlackHole then return end
     
@@ -225,8 +247,16 @@ RunService.Heartbeat:Connect(function()
             if tHrp and tHum and tHum.Health > 0 then
                 local distance = (myHrp.Position - tHrp.Position).Magnitude
                 
-                -- Игроки просто стягиваются к вам. Удаление (телепорт под карту) вырезано, чтобы убрать баг исчезновения
+                -- Если игрок входит в радиус действия гравитации черной дыры
                 if distance < Config.HoleRadius then
+                    -- Обнуляем гравитационное сопротивление деталей для чистого засасывания
+                    for _, part in pairs(player.Character:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+                        end
+                    end
+                    
+                    -- Векторное стягивание скоростью прямо к торсу вашего персонажа
                     local direction = (myHrp.Position - tHrp.Position).Unit
                     tHrp.AssemblyLinearVelocity = direction * Config.HoleSpeed
                 end
@@ -235,7 +265,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ПОДКЛЮЧЕНИЕ НАЖАТИЙ НА КНОПКИ МЕНЮ ДЛЯ IPAD
+-- НАСТРОЙКА КНОПОК ИНТЕРФЕЙСА (ВКЛ / ВЫКЛ)
 AimButton.MouseButton1Click:Connect(function()
     States.SilentAim = not States.SilentAim
     AimButton.Text = "1. Сверх-Хват + Аим " .. (States.SilentAim and "[ВКЛ]" or "[ВЫКЛ]")
@@ -250,8 +280,21 @@ end)
 
 HoleButton.MouseButton1Click:Connect(function()
     States.BlackHole = not States.BlackHole
-    HoleButton.Text = "3. Черная Дыра (Сбор) " .. (States.BlackHole and "[ВКЛ]" or "[ВЫКЛ]")
+    HoleButton.Text = "3. Физическая Дыра " .. (States.BlackHole and "[ВКЛ]" or "[ВЫКЛ]")
     HoleButton.BackgroundColor3 = States.BlackHole and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
-print("[Delta iPad Script Configured. Anti-Vanishing Code Loaded.]")
+-- ЛОГИКА ИЗМЕНЕНИЯ РАДИУСА КРУГА (FOV) КНОПКАМИ МЕНЮ
+FovPlusButton.MouseButton1Click:Connect(function()
+    Config.SilentAimFov = Config.SilentAimFov + 25
+    if Config.SilentAimFov > 800 then Config.SilentAimFov = 800 end -- Ограничение максимума
+    print("Текущий радиус круга Аима: " .. tostring(Config.SilentAimFov))
+end)
+
+FovMinusButton.MouseButton1Click:Connect(function()
+    Config.SilentAimFov = Config.SilentAimFov - 25
+    if Config.SilentAimFov < 50 then Config.SilentAimFov = 50 end -- Ограничение минимума
+    print("Текущий радиус круга Аима: " .. tostring(Config.SilentAimFov))
+end)
+
+print("[Delta Ultimate Custom FOV Script Fully Operational]")
