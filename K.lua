@@ -1,17 +1,18 @@
 -- ============================================================================
--- FLING THINGS AND PEOPLE: FULL MONOLITHIC UNABBREVIATED PRODUCTION SCRIPT
--- OPTIMIZED FOR DELTA EXECUTOR (iOS / iPAD) - CRASH SHIELD & NET-STABILITY FIX
+-- FLING THINGS AND PEOPLE: FULL MONOLITHIC PRODUCTION SCRIPT FOR DELTA IOS
+-- PLAYERGUI INTERFACE REWRITE - STABLE TOUCH DETECTOR & PHYSICS IMMUNITY
 -- ============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
+-- Перенаправление интерфейса в безопасную директорию для обхода блокировок Delta
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = Workspace.CurrentCamera
 
 -- Глобальная таблица конфигурации и переключателей
@@ -277,10 +278,10 @@ if LocalPlayer.Character then configureImmunityListener(LocalPlayer.Character) e
 LocalPlayer.CharacterAdded:Connect(configureImmunityListener)
 
 -- ============================================================================
--- INTERFACE DEVELOPMENT: ANTI-CRASH STABLE DARK MENU FOR iPAD
+-- INTERFACE DEVELOPMENT: ANTI-CRASH STABLE DARK MENU FOR iPAD (PLAYERGUI FIX)
 -- ============================================================================
 local function createMobileSafeInterface()
-    local existingGui = CoreGui:FindFirstChild("DeltaFlingMenu")
+    local existingGui = PlayerGui:FindFirstChild("DeltaFlingMenu")
     if existingGui then existingGui:Destroy() end
     
     local ScreenGui = Instance.new("ScreenGui")
@@ -538,7 +539,7 @@ local function createMobileSafeInterface()
     end)
     
     ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
-    ScreenGui.Parent = CoreGui
+    ScreenGui.Parent = PlayerGui
 end
 
 createMobileSafeInterface()
