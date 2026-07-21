@@ -1,208 +1,127 @@
 -- ====================================================================
--- IPAD FLING THINGS AND PEOPLE ULTIMATE EXPLOIT V9 (OVER 500 LINES)
--- OPTIMIZED FOR DELTA EXECUTOR (iOS / iPAD)
+-- IPAD FLING THINGS AND PEOPLE SUPREMAV V11 (FULL UNcut CODE)
+-- FULL SCRIPT EXECUTION FOR DELTA EXECUTOR (iOS)
 -- ====================================================================
 
--- СЕРВИСЫ ROBLOX
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local AimButton = Instance.new("TextButton")
+local HoleButton = Instance.new("TextButton")
+local AntiGrabButton = Instance.new("TextButton")
+local FlyButton = Instance.new("TextButton")
+local ReschButton = Instance.new("TextButton")
+local ThirdButton = Instance.new("TextButton")
+
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+
+MainFrame.Name = "iPadDeltaUltimateSupremacyV11"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 260, 0, 410)
+MainFrame.Active = true
+MainFrame.Draggable = true 
+
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 10)
+FrameCorner.Parent = MainFrame
+
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+Title.Text = "FT&P HARDCORE SUPREMACY V11"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.Font = Enum.Font.SourceSansBold
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = Title
+
+local function styleButton(btn, text, posY)
+    btn.Parent = MainFrame
+    btn.Size = UDim2.new(0.9, 0, 0, 45)
+    btn.Position = UDim2.new(0.05, 0, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.SourceSansBold
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 8)
+    BtnCorner.Parent = btn
+end
+
+styleButton(AimButton, "1. Сверх-Аим + Бросок [ВЫКЛ]", 60)
+styleButton(HoleButton, "2. Истинная Черная Дыра [ВЫКЛ]", 115)
+styleButton(AntiGrabButton, "3. Жесткий Анти-Граб [ВЫКЛ]", 170)
+styleButton(FlyButton, "4. Сенсорный Fly [ВЫКЛ]", 225)
+styleButton(ReschButton, "5. Растяг Экрана [ВЫКЛ]", 280)
+styleButton(ThirdButton, "6. Мод 3-го Лица [ВЫКЛ]", 335)
+
+-- СЕРВИСЫ
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
-local Workspace = game:GetService("Workspace")
-local Debris = game:GetService("Debris")
-
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+local Camera = workspace.CurrentCamera
 
--- ТАБЛИЦА НАСТРОЕК И СОСТОЯНИЙ (ГЛОБАЛЬНЫЙ КОНФИГ)
-local Settings = {
-    SilentAim = false,
-    ShowFov = false,
-    BlackHole = false,
-    AntiGrab = false,
+-- КОНФИГУРАЦИЯ
+local States = { SilentAim = false, BlackHole = false, AntiGrab = false, Fly = false, Stretch = false, ThirdPerson = false }
+local Config = { SilentAimFov = 300, ThrowForce = 9999999, HoleRadius = 15, OrbitSpeed = 5 }
+local GlobalTrackedGrab = { ActiveItem = nil, WasGrabbed = false }
+
+-- ХРАНИЛИЩЕ ДЛЯ ФИЗИЧЕСКИХ СВЯЗЕЙ СУПЕР-ХВАТА ЧЕРНОЙ ДЫРЫ
+local ActiveBlackHoleForces = {}
+
+-- СЕНСОРНЫЙ FLY (АДАПТАЦИЯ ПОД IPAD)
+local FlySpeed = 60
+local BodyGyro = nil
+local BodyVelocity = nil
+
+local function StartFly()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
     
-    SilentAimFov = 220,
-    ThrowForce = 5000000,
-    HoleSpeed = 160,
-    HoleRadius = 320,
-    PredictionIntensity = 0.145,
-    FloorGlitchDepth = -3.5
-}
-
--- УДАЛЕНИЕ СТАРЫХ ИНСТАНСОВ СКРИПТА ДЛЯ ИЗБЕЖАНИЯ ДУБЛИРОВАНИЯ И ЛАГОВ
-if CoreGui:FindFirstChild("iPadDeltaMenuUltimateV9") then
-    CoreGui:FindFirstChild("iPadDeltaMenuUltimateV9"):Destroy()
+    BodyGyro = Instance.new("BodyGyro")
+    BodyGyro.P = 9e4
+    BodyGyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+    BodyGyro.cframe = hrp.CFrame
+    BodyGyro.Parent = hrp
+    
+    BodyVelocity = Instance.new("BodyVelocity")
+    BodyVelocity.velocity = Vector3.new(0, 0.1, 0)
+    BodyVelocity.maxForce = Vector3.new(9e9, 9e9, 9e9)
+    BodyVelocity.Parent = hrp
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = true end
 end
 
--- ====================================================================
--- МОДУЛЬ СЛУЖЕБНЫХ ФУНКЦИЙ ГРАФИКИ И СТИЛИЗАЦИИ GUI
--- ====================================================================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "iPadDeltaMenuUltimateV9"
-ScreenGui.Parent = CoreGui
-ScreenGui.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-MainFrame.Position = UDim2.new(0.08, 0, 0.22, 0)
-MainFrame.Size = UDim2.new(0, 280, 0, 440)
-MainFrame.Active = true
-MainFrame.Draggable = true
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
-MainCorner.Parent = MainFrame
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Thickness = 2
-MainStroke.Color = Color3.fromRGB(45, 45, 55)
-MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-MainStroke.Parent = MainFrame
-
-local MainGradient = Instance.new("UIGradient")
-MainGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 22, 28)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 14, 18))
-})
-MainGradient.Rotation = 45
-MainGradient.Parent = MainFrame
-
-local Title = Instance.new("TextLabel")
-Title.Name = "Title"
-Title.Parent = MainFrame
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
-Title.Text = "FT&P SUPREMACY V9"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-Title.Font = Enum.Font.SourceSansBold
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 12)
-TitleCorner.Parent = Title
-
-local TitleBottomLine = Instance.new("Frame")
-TitleBottomLine.Size = UDim2.new(1, 0, 0, 2)
-TitleBottomLine.Position = UDim2.new(0, 0, 1, -2)
-TitleBottomLine.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-TitleBottomLine.BorderSizePixel = 0
-TitleBottomLine.Parent = Title
-
--- ФУНКЦИЯ СОЗДАНИЯ СТИЛИЗОВАННЫХ КНОПОК С СЕНСОРНЫМ ОТКЛИКОМ
-local function CreateMenuButton(name, text, posY)
-    local Button = Instance.new("TextButton")
-    Button.Name = name
-    Button.Parent = MainFrame
-    Button.Size = UDim2.new(0.9, 0, 0, 45)
-    Button.Position = UDim2.new(0.05, 0, 0, posY)
-    Button.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-    Button.Text = text .. " [ВЫКЛ]"
-    Button.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Button.TextSize = 14
-    Button.Font = Enum.Font.SourceSansBold
-    
-    local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 8)
-    BtnCorner.Parent = Button
-    
-    local BtnStroke = Instance.new("UIStroke")
-    BtnStroke.Thickness = 1
-    BtnStroke.Color = Color3.fromRGB(50, 50, 65)
-    BtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    BtnStroke.Parent = Button
-    
-    Button.MouseButton1Down:Connect(function()
-        TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(40, 40, 50)}):Play()
-    end)
-    
-    return Button
+local function EndFly()
+    if BodyGyro then BodyGyro:Destroy() BodyGyro = nil end
+    if BodyVelocity then BodyVelocity:Destroy() BodyVelocity = nil end
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = false end
 end
 
-local AimBtn = CreateMenuButton("AimBtn", "1. УПРЕЖДАЮЩИЙ АИМ", 65)
-local FovBtn = CreateMenuButton("FovBtn", "2. ГРАНИЦЫ FOV (КРУГ)", 125)
-local HoleBtn = CreateMenuButton("HoleBtn", "3. ФИЗИЧЕСКАЯ ДЫРА", 185)
-local AntiGrabBtn = CreateMenuButton("AntiGrabBtn", "4. АНТИ-ХВАТ (БАГ ПОЛА)", 245)
-
--- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ РАДИУСОМ FOV
-local FovContainer = Instance.new("Frame")
-FovContainer.Size = UDim2.new(0.9, 0, 0, 45)
-FovContainer.Position = UDim2.new(0.05, 0, 0, 305)
-FovContainer.BackgroundTransparency = 1
-FovContainer.Parent = MainFrame
-
-local FovLabel = Instance.new("TextLabel")
-FovLabel.Size = UDim2.new(0.4, 0, 1, 0)
-FovLabel.Position = UDim2.new(0.3, 0, 0, 0)
-FovLabel.BackgroundTransparency = 1
-FovLabel.Text = "FOV: " .. tostring(Settings.SilentAimFov)
-FovLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-FovLabel.TextSize = 14
-FovLabel.Font = Enum.Font.SourceSansBold
-FovLabel.Parent = FovContainer
-
-local function CreateFovAdjuster(text, posX, offset)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(0.25, 0, 1, 0)
-    Btn.Position = UDim2.new(posX, 0, 0, 0)
-    Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    Btn.Text = text
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.TextSize = 16
-    Btn.Font = Enum.Font.SourceSansBold
-    Btn.Parent = FovContainer
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 6)
-    Corner.Parent = Btn
-    
-    Btn.MouseButton1Click:Connect(function()
-        Settings.SilentAimFov = math.clamp(Settings.SilentAimFov + offset, 50, 600)
-        FovLabel.Text = "FOV: " .. tostring(Settings.SilentAimFov)
-    end)
-end
-
-CreateFovAdjuster("-", 0, -25)
-CreateFovAdjuster("+", 0.75, 25)
-
--- ИНДИКАТОР ТЕКУЩЕГО СТАТУСА НАД ПАНЕЛЬЮ
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
-StatusLabel.Position = UDim2.new(0.05, 0, 0, 365)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Скрипт готов к тесту на iPad"
-StatusLabel.TextColor3 = Color3.fromRGB(120, 130, 150)
-StatusLabel.TextSize = 13
-StatusLabel.Font = Enum.Font.SourceSansItalic
-StatusLabel.Parent = MainFrame
-
--- ====================================================================
--- МОДУЛЬ ОТРИСОВКИ ДИНАМИЧЕСКИХ ГРАНИЦ И ПОДПИСЕЙ (FOV)
--- ====================================================================
+-- КРУГ FOV ДЛЯ АИМА
 local FovCircle = Drawing.new("Circle")
 FovCircle.Visible = false
 FovCircle.Thickness = 2
-FovCircle.Color = Color3.fromRGB(0, 160, 255)
-FovCircle.Radius = Settings.SilentAimFov
+FovCircle.Color = Color3.fromRGB(0, 255, 255)
+FovCircle.Radius = Config.SilentAimFov
 FovCircle.Filled = false
 FovCircle.NumSides = 64
 
-local TargetDot = Drawing.new("Circle")
-TargetDot.Visible = false
-TargetDot.Thickness = 1
-TargetDot.Color = Color3.fromRGB(255, 0, 50)
-TargetDot.Radius = 6
-TargetDot.Filled = true
-TargetDot.NumSides = 16
-
--- ====================================================================
--- МАТЕМАТИЧЕСКИЙ МОДУЛЬ СЛЕДОВАНИЯ И ПРЕДСКАЗАНИЯ ДЛЯ АИМА
--- ====================================================================
-local function GetClosestTargetWithPrediction()
+local function GetClosestTargetPlayer()
     local closestPlayer = nil
-    local shortestDistance = Settings.SilentAimFov
+    local shortestDistance = Config.SilentAimFov
     local centerScreen = Camera.ViewportSize / 2
 
     for _, player in pairs(Players:GetPlayers()) do
@@ -211,10 +130,7 @@ local function GetClosestTargetWithPrediction()
             local human = player.Character:FindFirstChild("Humanoid")
             
             if root and human and human.Health > 0 then
-                -- Алгоритм упреждения на основе вектора текущей скорости цели
-                local predictedPosition = root.Position + (root.AssemblyLinearVelocity * Settings.PredictionIntensity)
-                local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPosition)
-                
+                local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 if onScreen then
                     local distance = (Vector2.new(centerScreen.X, centerScreen.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
                     if distance < shortestDistance then
@@ -228,280 +144,269 @@ local function GetClosestTargetWithPrediction()
     return closestPlayer
 end
 
--- ====================================================================
--- МОДУЛЬ ХУКОВ МЕТАМЕТОДОВ СЕТИ (ДЛЯ ПОДМЕНЫ ТРАЕКТОРИЙ В DELTA)
--- ====================================================================
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    
-    if Settings.SilentAim and not checkcaller() then
-        if method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast" then
-            local target = GetClosestTargetWithPrediction()
-            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                local rootPart = target.Character.HumanoidRootPart
-                local aimPos = rootPart.Position + (rootPart.AssemblyLinearVelocity * Settings.PredictionIntensity)
-                
-                if method == "Raycast" then
-                    args[2] = (aimPos - args[1]).Unit * 1000
-                else
-                    args[1] = Ray.new(args[1].Origin, (aimPos - args[1].Origin).Unit * 1000)
-                end
-            end
-        end
-    end
-    return oldNamecall(self, unpack(args))
-end)
-
+-- ХУК СИСТЕМЫ СЕТЕВОГО АИМА
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, key)
-    if Settings.SilentAim and not checkcaller() then
-        if key == "Hit" or key == "Target" then
-            local target = GetClosestTargetWithPrediction()
-            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                local rootPart = target.Character.HumanoidRootPart
-                if key == "Hit" then
-                    -- Подмена CFrame виртуального прицела с учетом вектора упреждения
-                    local aimPos = rootPart.Position + (rootPart.AssemblyLinearVelocity * Settings.PredictionIntensity)
-                    return CFrame.new(aimPos)
-                elseif key == "Target" then
-                    return rootPart
-                end
-            end
+    if States.SilentAim and not checkcaller() and (key == "Hit" or key == "Target") then
+        local target = GetClosestTargetPlayer()
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            return key == "Hit" and target.Character.HumanoidRootPart.CFrame or target.Character.HumanoidRootPart
         end
     end
     return oldIndex(self, key)
 end)
 
--- ====================================================================
--- ЯДРО СВЕРХСКОРОСТНОЙ ФИЗИКИ (ОБНОВЛЕНИЕ КАЖДЫЙ КАДР ДО РЕНДЕРА)
--- ====================================================================
-local CurrentGrabbedItem = nil
+-- ОЧИСТКА ХВАТА ЧЕРНОЙ ДЫРЫ ПРИ ВЫКЛЮЧЕНИИ ИЛИ СЛИВЕ
+local function ClearBlackHoleForces()
+    for part, data in pairs(ActiveBlackHoleForces) do
+        if data.AlignPos then data.AlignPos:Destroy() end
+        if data.Attachment then data.Attachment:Destroy() end
+        if data.CenterAttachment then data.CenterAttachment:Destroy() end
+        
+        -- Слив в черную дыру (Финальный пинок в бездну Void при отпускании)
+        if part and part.Parent then
+            part.CanCollide = true
+            local force = Instance.new("LinearVelocity")
+            local att = Instance.new("Attachment")
+            att.Parent = part
+            force.MaxForce = math.huge
+            force.VectorVelocity = Vector3.new(0, -999, 0)
+            force.Attachment0 = att
+            force.Parent = part
+            game:GetService("Debris"):AddItem(force, 0.3)
+            game:GetService("Debris"):AddItem(att, 0.3)
+        end
+    end
+    table.clear(ActiveBlackHoleForces)
+end
 
+local OrbitAngle = 0
+
+-- ГЛАВНЫЙ СИНХРОННЫЙ ЦИКЛ ПОТОКА ПО КАДРАМ ФИЗИКИ
 RunService.RenderStepped:Connect(function()
     local myChar = LocalPlayer.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
     local centerScreen = Camera.ViewportSize / 2
     
-    -- Синхронизация визуальных кругов FOV
-    if Settings.ShowFov then
-        FovCircle.Position = Vector2.new(centerScreen.X, centerScreen.Y)
-        FovCircle.Radius = Settings.SilentAimFov
+    if States.SilentAim then
+        FovCircle.Position = centerScreen
+        FovCircle.Radius = Config.SilentAimFov
         FovCircle.Visible = true
     else
         FovCircle.Visible = false
     end
-    
-    -- Визуальная точка слежения Аима за бегущей целью
-    if Settings.SilentAim then
-        local activeTarget = GetClosestTargetWithPrediction()
-        if activeTarget and activeTarget.Character and activeTarget.Character:FindFirstChild("HumanoidRootPart") then
-            local tRoot = activeTarget.Character.HumanoidRootPart
-            local predPos = tRoot.Position + (tRoot.AssemblyLinearVelocity * Settings.PredictionIntensity)
-            local sPos, onScreen = Camera:WorldToViewportPoint(predPos)
-            if onScreen then
-                TargetDot.Position = Vector2.new(sPos.X, sPos.Y)
-                TargetDot.Visible = true
-            else
-                TargetDot.Visible = false
-            end
-        else
-            TargetDot.Visible = false
-        end
+
+    if States.Stretch then
+        Camera.FieldOfView = 120
     else
-        TargetDot.Visible = false
+        Camera.FieldOfView = 70
     end
-    
-    -- ВЫЧИСЛЕНИЕ И ОБРАБОТКА ТЕКУЩЕГО ХВАТА В РУКАХ И ПРОВАЛ СКВОЗЬ ПОЛ
+
+    if States.ThirdPerson then
+        LocalPlayer.CameraMaxZoomDistance = 100
+        LocalPlayer.CameraMinZoomDistance = 15
+        Camera.CameraSubject = myChar and myChar:FindFirstChild("Head")
+    end
+
+    if States.Fly and BodyVelocity and BodyGyro and myHrp then
+        BodyGyro.cframe = Camera.CFrame
+        local moveDirection = Vector3.new(0, 0, 0)
+        if UserInputService.TouchEnabled then
+            moveDirection = Camera.CFrame.LookVector
+        end
+        BodyVelocity.velocity = moveDirection * FlySpeed
+    end
+
     if myChar then
-        CurrentGrabbedItem = nil
-        for _, obj in pairs(myChar:GetDescendants()) do
-            if (obj:IsA("Weld") or obj:IsA("Constraint") or obj:IsA("MoverConstraint")) then
-                if obj.Part1 and not obj.Part1:IsDescendantOf(myChar) then
-                    CurrentGrabbedItem = obj.Part1.Parent
-                elseif obj.Part0 and not obj.Part0:IsDescendantOf(myChar) then
-                    CurrentGrabbedItem = obj.Part0.Parent
-                end
-            end
-        end
-        
-        -- Если мы держим игрока или вещь — принудительно гасим коллизию и топим вниз
-        if CurrentGrabbedItem then
-            for _, p in pairs(CurrentGrabbedItem:GetChildren()) do
-                if p:IsA("BasePart") then
-                    p.CanCollide = false
-                    -- Силовой вектор проталкивания объекта сквозь пол при повороте камеры вниз
-                    p.AssemblyLinearVelocity = Vector3.new(p.AssemblyLinearVelocity.X, -65, p.AssemblyLinearVelocity.Z)
-                end
-            end
-        end
-        
-        -- МОДУЛЬ АБСОЛЮТНОГО АНТИ-ХВАТА С БАГОМ ПОЛОВИННОГО ПРОВАЛА В ПОЛ
-        if Settings.AntiGrab and myHrp then
-            local beingGrabbed = false
-            for _, globalObj in pairs(Workspace:GetDescendants()) do
-                if (globalObj:IsA("Weld") or globalObj:IsA("Constraint") or globalObj:IsA("MoverConstraint")) then
-                    if globalObj.Part0 and globalObj.Part0:IsDescendantOf(myChar) and not globalObj.Part1:IsDescendantOf(myChar) then
-                        beingGrabbed = true
-                        globalObj:Destroy()
-                    elseif globalObj.Part1 and globalObj.Part1:IsDescendantOf(myChar) and not globalObj.Part0:IsDescendantOf(myChar) then
-                        beingGrabbed = true
-                        globalObj:Destroy()
-                    end
-                end
-            end
-            
-            -- Если обнаружен чужой захват — багаем физику персонажа наполовину в пол
-            if beingGrabbed then
-                StatusLabel.Text = "Анти-Хват: Попытка захвата заблокирована!"
-                StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-                myHrp.CFrame = myHrp.CFrame * CFrame.new(0, Settings.FloorGlitchDepth, 0)
-                myHrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                for _, force in pairs(myHrp:GetChildren()) do
-                    if force:IsA("BodyPosition") or force:IsA("BodyVelocity") or force:IsA("LinearVelocity") or force:IsA("VectorForce") then
-                        force:Destroy()
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ====================================================================
--- МОДУЛЬ ПЕРЕХВАТА ОРИГИНАЛЬНОЙ КНОПКИ БРОСКА ДЛЯ СУПЕР-ИМПУЛЬСА В НЕБО
--- ====================================================================
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    -- Срабатывает при физическом тапе по экрану iPad (Игровая кнопка броска вызывает Touch)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton2 then
-        if Settings.SilentAim and CurrentGrabbedItem then
-            local tRoot = CurrentGrabbedItem:FindFirstChild("HumanoidRootPart") or CurrentGrabbedItem:FindFirstChildOfClass("BasePart")
-            if tRoot then
-                -- Полное и жесткое уничтожение удерживающих сил игры перед супер-пинком
-                for _, childForce in pairs(tRoot:GetChildren()) do
-                    if childForce:IsA("BodyPosition") or childForce:IsA("BodyVelocity") or childForce:IsA("LinearVelocity") or childForce:IsA("MoverConstraint") then
-                        childForce:Destroy()
-                    end
-                end
-                
-                for _, bodyPart in pairs(CurrentGrabbedItem:GetChildren()) do
-                    if bodyPart:IsA("BasePart") then
-                        bodyPart.CanCollide = false
-                    end
-                end
-                
-                -- Определение направления броска
-                local targetPlayer = GetClosestTargetWithPrediction()
-                local finalVector = Camera.CFrame.LookVector
-                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    -- Если цель в FOV — кидаем наводкой со сверх-скоростью в неё
-                    local targetRoot = targetPlayer.Character.HumanoidRootPart
-                    local predictedAimPos = targetRoot.Position + (targetRoot.AssemblyLinearVelocity * Settings.PredictionIntensity)
-                    finalVector = (predictedAimPos - tRoot.Position).Unit
-                else
-                    -- Если FOV пустой — выстреливаем под углом вверх в небо (без коллизии сквозь крыши)
-                    finalVector = (Camera.CFrame.LookVector + Vector3.new(0, 2.2, 0)).Unit
-                end
-                
-                -- Генерация колоссального физического импульса
-                local velocityConstraint = Instance.new("LinearVelocity")
-                local forceAttachment = Instance.new("Attachment")
-                forceAttachment.Parent = tRoot
-                velocityConstraint.MaxForce = math.huge
-                velocityConstraint.VectorVelocity = finalVector * Settings.ThrowForce
-                velocityConstraint.Attachment0 = forceAttachment
-                velocityConstraint.Parent = tRoot
-                
-                -- Короткий импульс для сохранения бесконечной скорости полета за карту
-                Debris:AddItem(velocityConstraint, 0.18)
-                Debris:AddItem(forceAttachment, 0.18)
-                StatusLabel.Text = "Супер-бросок: Предмет запущен в космос!"
-                StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-                CurrentGrabbedItem = nil
-            end
-        end
-    end
-end)
-
--- ====================================================================
--- ФИЗИЧЕСКИЙ ЦИКЛ ПОСТОЯННОЙ ЧЕРНОЙ ДЫРЫ И АВТО-КИЛЛА ПОД ТЕКСТУРЫ
--- ====================================================================
-RunService.Heartbeat:Connect(function()
-    local myChar = LocalPlayer.Character
-    local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    
-    if Settings.BlackHole and myHrp then
-        for _, targetPlayer in pairs(Players:GetPlayers()) do
-            if targetPlayer ~= LocalPlayer and targetPlayer.Character then
-                local tHrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                local tHum = targetPlayer.Character:FindFirstChild("Humanoid")
-                
-                if tHrp and tHum and tHum.Health > 0 then
-                    local targetDistance = (myHrp.Position - tHrp.Position).Magnitude
-                    
-                    if targetDistance < Settings.HoleRadius then
-                        -- МГНОВЕННЫЙ КИЛЛ ПРИ ПРИБЛИЖЕНИИ В ЦЕНТР ВОРОНКИ ЧЕРНОЙ ДЫРЫ
-                        if targetDistance < 16 then
-                            -- Жесткий сброс CFrame и вектора падения в Бездну Void на координату -2000
-                            tHrp.CFrame = CFrame.new(tHrp.Position.X, -2000, tHrp.Position.Z)
-                            tHrp.AssemblyLinearVelocity = Vector3.new(0, -999, 0)
-                        else
-                            -- Динамическое векторное засасывание в эпицентр
-                            local pullDirection = (myHrp.Position - tHrp.Position).Unit
-                            tHrp.AssemblyLinearVelocity = pullDirection * Settings.HoleSpeed
+        -- АНТИ-ГРАБ (РАЗРЫВ СВЯЗЕЙ НА КОРНЕВОМ УРОВНЕ)
+        if States.AntiGrab then
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("Weld") or v:IsA("ManualWeld") or v:IsA("Constraint") or v:IsA("MoverConstraint") or v:IsA("RopeConstraint") then
+                    if v.Part0 and v.Part0:IsDescendantOf(myChar) or v.Part1 and v.Part1:IsDescendantOf(myChar) then
+                        if not v:IsDescendantOf(myChar) then
+                            v:Destroy()
                         end
                     end
                 end
             end
+            if myHrp then
+                for _, f in pairs(myHrp:GetChildren()) do
+                    if f:IsA("BodyPosition") or f:IsA("BodyVelocity") or f:IsA("LinearVelocity") or f:IsA("AlignPosition") then
+                        f:Destroy()
+                    end
+                end
+            end
+        end
+
+        -- СКАНИРОВАНИЕ ОБЫЧНОГО ОДИНОЧНОГО ХВАТА
+        local currentFrameObject = nil
+        for _, object in pairs(myChar:GetDescendants()) do
+            if object:IsA("Weld") or object:IsA("Constraint") or object:IsA("MoverConstraint") then
+                if object.Part1 and not object.Part1:IsDescendantOf(myChar) then
+                    currentFrameObject = object.Part1.Parent
+                elseif object.Part0 and not object.Part0:IsDescendantOf(myChar) then
+                    currentFrameObject = object.Part0.Parent
+                end
+            end
+        end
+
+        if currentFrameObject then
+            GlobalTrackedGrab.ActiveItem = currentFrameObject
+            GlobalTrackedGrab.WasGrabbed = true
+            if States.SilentAim then
+                for _, part in pairs(currentFrameObject:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                        part.AssemblyLinearVelocity = Vector3.new(0, -120, 0)
+                    end
+                end
+            end
+        else
+            if GlobalTrackedGrab.WasGrabbed and GlobalTrackedGrab.ActiveItem and States.SilentAim then
+                local tHrp = GlobalTrackedGrab.ActiveItem:FindFirstChild("HumanoidRootPart") or GlobalTrackedGrab.ActiveItem:FindFirstChildOfClass("BasePart")
+                if tHrp then
+                    for _, p in pairs(GlobalTrackedGrab.ActiveItem:GetChildren()) do
+                        if p:IsA("BasePart") then p.CanCollide = false end
+                    end
+                    local targetEnemy = GetClosestTargetPlayer()
+                    local throwVector = Camera.CFrame.LookVector
+                    if targetEnemy and targetEnemy.Character and targetEnemy.Character:FindFirstChild("HumanoidRootPart") then
+                        throwVector = (targetEnemy.Character.HumanoidRootPart.Position - tHrp.Position).Unit
+                    else
+                        throwVector = (Camera.CFrame.LookVector + Vector3.new(0, 3, 0)).Unit
+                    end
+                    local velocityInstance = Instance.new("LinearVelocity")
+                    local attachmentInstance = Instance.new("Attachment")
+                    attachmentInstance.Parent = tHrp
+                    velocityInstance.MaxForce = math.huge
+                    velocityInstance.VectorVelocity = throwVector * Config.ThrowForce
+                    velocityInstance.Attachment0 = attachmentInstance
+                    velocityInstance.Parent = tHrp
+                    game:GetService("Debris"):AddItem(velocityInstance, 0.25)
+                    game:GetService("Debris"):AddItem(attachmentInstance, 0.25)
+                end
+                GlobalTrackedGrab.ActiveItem = nil
+                GlobalTrackedGrab.WasGrabbed = false
+            end
+        end
+        
+        -- ЛОГИКА ИСТИННОЙ ЧЕРНОЙ ДЫРЫ: ФИЗИЧЕСКИЙ ОРБИТАЛЬНЫЙ ХВАТ С ЗАПИХИВАНИЕМ ПОД ПОЛ
+        if States.BlackHole and myHrp then
+            OrbitAngle = OrbitAngle + math.rad(Config.OrbitSpeed)
+            local totalElements = {}
+            
+            -- Сбор всех чужих игроков
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    table.insert(totalElements, p.Character.HumanoidRootPart)
+                end
+            end
+            
+            -- Сбор всех свободных интерактивных вещей на карте
+            for _, item in pairs(workspace:GetChildren()) do
+                if item:IsA("BasePart") and item.Anchored == false then
+                    table.insert(totalElements, item)
+                elseif item:IsA("Model") and item:FindFirstChildOfClass("BasePart") and not item:FindFirstChild("Humanoid") then
+                    local primary = item.PrimaryPart or item:FindFirstChildOfClass("BasePart")
+                    if primary and primary.Anchored == false then
+                        table.insert(totalElements, primary)
+                    end
+                end
+            end
+            
+            -- Выстраивание физического кольца захвата вокруг игрока
+            if #totalElements > 0 then
+                for index, element in pairs(totalElements) do
+                    local spacing = (math.pi * 2) / #totalElements
+                    local elementAngle = OrbitAngle + (index * spacing)
+                    
+                    -- Позиция в кольце рук (вжатие на 3 единицы вглубь под пол или микроволновку)
+                    local offsetX = math.cos(elementAngle) * Config.HoleRadius
+                    local offsetZ = math.sin(elementAngle) * Config.HoleRadius
+                    local targetPosition = myHrp.Position + Vector3.new(offsetX, -3, offsetZ)
+                    
+                    element.CanCollide = false
+                    
+                    -- Создание кастомного бесперебойного физического замка (AlignPosition)
+                    if not ActiveBlackHoleForces[element] then
+                        local centerAtt = Instance.new("Attachment")
+                        centerAtt.Name = "BlackHoleCenterAtt"
+                        centerAtt.Parent = myHrp
+                        
+                        local targetAtt = Instance.new("Attachment")
+                        targetAtt.Name = "BlackHoleTargetAtt"
+                        targetAtt.Parent = element
+                        
+                        local alignPos = Instance.new("AlignPosition")
+                        alignPos.MaxForce = math.huge
+                        alignPos.MaxVelocity = math.huge
+                        alignPos.Responsiveness = 200
+                        alignPos.Attachment0 = targetAtt
+                        alignPos.Attachment1 = centerAtt
+                        alignPos.Parent = element
+                        
+                        ActiveBlackHoleForces[element] = {
+                            AlignPos = alignPos,
+                            Attachment = targetAtt,
+                            CenterAttachment = centerAtt
+                        }
+                    end
+                    
+                    -- Обновление координат замка вжатия
+                    local data = ActiveBlackHoleForces[element]
+                    if data and data.CenterAttachment then
+                        data.CenterAttachment.Position = Vector3.new(offsetX, -3, offsetZ)
+                    end
+                    
+                    -- Принудительный силовой вектор проталкивания вниз сквозь препятствия
+                    element.AssemblyLinearVelocity = Vector3.new(0, -90, 0)
+                end
+            end
+        else
+            if #ActiveBlackHoleForces > 0 then
+                ClearBlackHoleForces()
+            end
         end
     end
 end)
 
--- ====================================================================
--- МОДУЛЬ ЛОГИКИ И СИНХРОНИЗАЦИИ КНОПОК ИНТЕРФЕЙСА GUI Меню
--- ====================================================================
-local function UpdateButtonVisual(button, state, text)
-    if state then
-        button.Text = text .. " [ВКЛ]"
-        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 130, 70)}):Play()
-        button.UIStroke.Color = Color3.fromRGB(0, 200, 100)
-    else
-        button.Text = text .. " [ВЫКЛ]"
-        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
-        button.UIStroke.Color = Color3.fromRGB(50, 50, 65)
-    end
-end
-
-AimBtn.MouseButton1Click:Connect(function()
-    Settings.SilentAim = not Settings.SilentAim
-    UpdateButtonVisual(AimBtn, Settings.SilentAim, "1. УПРЕЖДАЮЩИЙ АИМ")
-    if Settings.SilentAim then
-        StatusLabel.Text = "Аим активен. Прицел намертво следует за целью."
-        StatusLabel.TextColor3 = Color3.fromRGB(0, 160, 255)
-    end
+-- ОБРАБОТЧИКИ НАЖАТИЙ КНОПОК МЕНЮ СЕНСОРА IPAD
+AimButton.MouseButton1Click:Connect(function()
+    States.SilentAim = not States.SilentAim
+    AimButton.Text = "1. Сверх-Аим + Бросок " .. (States.SilentAim and "[ВКЛ]" or "[ВЫКЛ]")
+    AimButton.BackgroundColor3 = States.SilentAim and Color3.fromRGB(0, 140, 60) or Color3.fromRGB(45, 45, 52)
 end)
 
-FovBtn.MouseButton1Click:Connect(function()
-    Settings.ShowFov = not Settings.ShowFov
-    UpdateButtonVisual(FovBtn, Settings.ShowFov, "2. ГРАНИЦЫ FOV (КРУГ)")
+HoleButton.MouseButton1Click:Connect(function()
+    States.BlackHole = not States.BlackHole
+    HoleButton.Text = "2. Истинная Черная Дыра " .. (States.BlackHole and "[ВКЛ]" or "[ВЫКЛ]")
+    HoleButton.BackgroundColor3 = States.BlackHole and Color3.fromRGB(0, 140, 60) or Color3.fromRGB(45, 45, 52)
+    if not States.BlackHole then ClearBlackHoleForces() end
 end)
 
-HoleBtn.MouseButton1Click:Connect(function()
-    Settings.BlackHole = not Settings.BlackHole
-    UpdateButtonVisual(HoleBtn, Settings.BlackHole, "3. ФИЗИЧЕСКАЯ ДЫРА")
-    if Settings.BlackHole then
-        StatusLabel.Text = "Черная дыра активирована. Врагов засасывает в Void."
-        StatusLabel.TextColor3 = Color3.fromRGB(180, 80, 255)
-    end
+AntiGrabButton.MouseButton1Click:Connect(function()
+    States.AntiGrab = not States.AntiGrab
+    AntiGrabButton.Text = "3. Жесткий Анти-Граб " .. (States.AntiGrab and "[ВКЛ]" or "[ВЫКЛ]")
+    AntiGrabButton.BackgroundColor3 = States.AntiGrab and Color3.fromRGB(0, 140, 60) or Color3.fromRGB(45, 45, 52)
 end)
 
-AntiGrabBtn.MouseButton1Click:Connect(function()
-    Settings.AntiGrab = not Settings.AntiGrab
-    UpdateButtonVisual(AntiGrabBtn, Settings.AntiGrab, "4. АНТИ-ХВАТ (БАГ ПОЛА)")
+FlyButton.MouseButton1Click:Connect(function()
+    States.Fly = not States.Fly
+    FlyButton.Text = "4. Сенсорный Fly " .. (States.Fly and "[ВКЛ]" or "[ВЫКЛ]")
+    FlyButton.BackgroundColor3 = States.Fly and Color3.fromRGB(0, 140, 60) or Color3.fromRGB(45, 45, 52)
+    if States.Fly then StartFly() else EndFly() end
 end)
 
--- ИНФОРМАЦИОННЫЙ ВЫВОД В ОКОШКО РЕДАКТОРА DELTA ПРИ УСПЕШНОМ ЗАПУСКЕ
-print("========================================================")
-print("[Delta iOS Execution]: FT&P Supremacy V9 успешно загружен!")
-print("[Конфигурация]: Сверх-бросок выставлен на силу: " .. tostring(Settings.ThrowForce))
-print("========================================================")
+ReschButton.MouseButton1Click:Connect(function()
+    States.Stretch = not States.Stretch
+    ReschButton.Text = "5. Растяг Экрана " .. (States.Stretch and "[ВКЛ]" or "[ВЫКЛ]")
+    ReschButton.BackgroundColor3 = States.Stretch and Color3.fromRGB(0, 140, 60) or Color3.fromRGB(45, 45, 52)
+end)
+
+ThirdButton.MouseButton1Click:Connect(function()
+    States.ThirdPerson = not States.ThirdPerson
+    ThirdButton.Text = "6. Мод 3-го Лица " .. (States.ThirdPerson and "[ВКЛ]" or "[ВЫКЛ]")
+    ThirdButton.BackgroundColor3 = States.ThirdPerson and Color3.fromRGB(0, 140, 60) or Color3.fromRGB(45, 45, 52)
+end)
+
+print("[Delta iOS Setup Complete: V11 Uncut Executed]")
