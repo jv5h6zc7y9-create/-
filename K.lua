@@ -12,18 +12,18 @@ local FovMinusButton = Instance.new("TextButton")
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 
-MainFrame.Name = "iPadDeltaMenuFinalVersion"
+MainFrame.Name = "iPadDeltaMenuFinalAbsoluteFix"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 260, 0, 395) -- Увеличена высота под кнопку Анти-Хвата
+MainFrame.Size = UDim2.new(0, 260, 0, 395)
 MainFrame.Active = true
 MainFrame.Draggable = true 
 
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 45)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Title.Text = "IPAD FT&P ULTIMATE v6"
+Title.Text = "IPAD FT&P ULTIMATE v7"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
@@ -42,8 +42,8 @@ end
 styleButton(AimButton, "1. Сверх-Хват + Аим [ВЫКЛ]", 65)
 styleButton(EspButton, "2. Границы Бокса [ВЫКЛ]", 120)
 styleButton(HoleButton, "3. Физическая Дыра [ВЫКЛ]", 175)
-styleButton(AntiGrabButton, "4. Анти-Хват [ВЫКЛ]", 230)
--- Кнопки изменения размера центрального круга (FOV)
+styleButton(AntiGrabButton, "4. Anti-Grab [ВЫКЛ]", 230)
+
 styleButton(FovPlusButton, "FOV +", 290, 0.42, 0.05)
 styleButton(FovMinusButton, "FOV -", 290, 0.42, 0.53)
 
@@ -56,7 +56,7 @@ local Camera = workspace.CurrentCamera
 
 -- НАСТРОЙКИ ФУНКЦИЙ
 local States = { SilentAim = false, ShowEsp = false, BlackHole = false, AntiGrab = false }
-local Config = { SilentAimFov = 200, ThrowForce = 999999, HoleSpeed = 140, HoleRadius = 300 }
+local Config = { SilentAimFov = 200, ThrowForce = 1500000, HoleSpeed = 140, HoleRadius = 300 }
 local EspObjects = {}
 
 -- СОЗДАНИЕ КРУГА СТРОГО ПОСЕРЕДИНЕ ЭКРАНА IPAD
@@ -68,10 +68,8 @@ FovCircle.Radius = Config.SilentAimFov
 FovCircle.Filled = false
 FovCircle.NumSides = 64
 
--- Обновление позиции круга строго в центре экрана каждый кадр
 RunService.RenderStepped:Connect(function()
     if States.SilentAim then
-        -- Рассчитываем точные координаты центра экрана iPad
         local centerScreen = Camera.ViewportSize / 2
         FovCircle.Position = Vector2.new(centerScreen.X, centerScreen.Y)
         FovCircle.Radius = Config.SilentAimFov
@@ -84,7 +82,7 @@ end)
 -- ДИНАМИЧЕСКИЙ ПОИСК ЦЕЛИ СТРОГО ВНУТРИ ЦЕНТРАЛЬНОГО КРУГА ЭКРАНА
 local function GetClosestPlayerInCenterCircle()
     local closestPlayer = nil
-    local shortestDistance = Config.SilentAimFov -- Ограничение по радиусу круга
+    local shortestDistance = Config.SilentAimFov
     local centerScreen = Camera.ViewportSize / 2
 
     for _, player in pairs(Players:GetPlayers()) do
@@ -96,10 +94,7 @@ local function GetClosestPlayerInCenterCircle()
                 local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 
                 if onScreen then
-                    -- Считаем расстояние от ЦЕНТРА экрана до игрока
                     local distance = (Vector2.new(centerScreen.X, centerScreen.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
-                    
-                    -- Захват срабатывает, только если игрок находится внутри границ круга
                     if distance < shortestDistance then
                         closestPlayer = player
                         shortestDistance = distance
@@ -111,7 +106,7 @@ local function GetClosestPlayerInCenterCircle()
     return closestPlayer
 end
 
--- ФУНКЦИЯ ОБНОВЛЕНИЯ 3D БОКСОВ (ГРАНИЦ) ДЛЯ ИГРОКОВ ВНУТРИ ЦЕНТРАЛЬНОГО КРУГА
+-- ФУНКЦИЯ ОБНОВЛЕНИЯ 3D БОКСОВ (ГРАНИЦ)
 local function UpdateEsp()
     local currentTarget = GetClosestPlayerInCenterCircle()
 
@@ -134,7 +129,6 @@ local function UpdateEsp()
                 else
                     EspObjects[player].Size = player.Character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4)
                     
-                    -- Если игрок попал строго в центральный круг на экране, его бокс становится зеленым
                     if currentTarget == player then
                         EspObjects[player].Color3 = Color3.fromRGB(0, 255, 0)
                         EspObjects[player].Transparency = 0.4
@@ -153,7 +147,6 @@ local function UpdateEsp()
     end
 end
 
--- Удаление индикаторов боксов при выходе игрока
 Players.PlayerRemoving:Connect(function(player)
     if EspObjects[player] then
         EspObjects[player]:Destroy()
@@ -161,7 +154,7 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- ОБРАБОТКА ОРИГИНАЛЬНОЙ КНОПКИ БРОСКА ДЛЯ СУПЕР-ЗАПУСКА ИЗ ЦЕНТРА ЭКРАНА
+-- ПЕРЕХВАТ НАЖАТИЯ СЕНСОРНОЙ КНОПКИ БРОСКА ИСПРАВЛЕННЫЙ ВЕКТОР НАПРАВЛЕНИЯ
 UserInputService.InputBegan:Connect(function(input, processed)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton2 then
         if States.SilentAim then
@@ -170,17 +163,24 @@ UserInputService.InputBegan:Connect(function(input, processed)
             if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
                 local targetHrp = target.Character.HumanoidRootPart
                 
+                -- Отключаем коллизию деталей
                 for _, part in pairs(target.Character:GetChildren()) do
                     if part:IsA("BasePart") then 
                         part.CanCollide = false 
                     end
                 end
                 
+                -- Исправлено: Полная очистка старых сил удержания, чтобы они не разворачивали бросок назад
+                if targetHrp:FindFirstChildOfClass("BodyPosition") then targetHrp:FindFirstChildOfClass("BodyPosition"):Destroy() end
+                if targetHrp:FindFirstChildOfClass("BodyVelocity") then targetHrp:FindFirstChildOfClass("BodyVelocity"):Destroy() end
+                
                 local velocityInstance = Instance.new("LinearVelocity")
                 local attachment = Instance.new("Attachment")
                 
                 attachment.Parent = targetHrp
                 velocityInstance.MaxForce = math.huge
+                
+                -- Исправлено: Направление рассчитывается жестко по вектору взгляда вашей камеры (LookVector) вперед
                 velocityInstance.VectorVelocity = Camera.CFrame.LookVector * Config.ThrowForce
                 velocityInstance.Attachment0 = attachment
                 velocityInstance.Parent = targetHrp
@@ -193,7 +193,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- ХУКИ СВЕРХ-ХВАТА ДЛЯ ДИСТАНЦИОННОГО ЗАХВАТА ИГРОКОВ В ЦЕНТРАЛЬНОМ КРУГЕ
+-- ИСПРАВЛЕННЫЙ ХУК МЕТАМЕТОДОВ (УБРАНА БЛОКИРОВКА КНОПКИ ЗАХВАТА)
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, key)
     if States.SilentAim and not checkcaller() then
@@ -201,11 +201,16 @@ oldIndex = hookmetamethod(game, "__index", function(self, key)
             local dynamicTarget = GetClosestPlayerInCenterCircle()
             
             if dynamicTarget and dynamicTarget.Character and dynamicTarget.Character:FindFirstChild("HumanoidRootPart") then
-                if key == "Hit" then
-                    return dynamicTarget.Character.HumanoidRootPart.CFrame
-                elseif key == "Target" then
-                    -- Игра считывает хват точно по центру круга прицела
-                    return dynamicTarget.Character.HumanoidRootPart
+                -- Исправлено: Скрипт вмешивается в свойства Target ТОЛЬКО если вы еще НЕ удерживаете этого игрока в руках
+                local targetHrp = dynamicTarget.Character.HumanoidRootPart
+                local alreadyHolding = targetHrp:FindFirstChildOfClass("Weld") or targetHrp:FindFirstChildOfClass("WeldConstraint")
+                
+                if not alreadyHolding then
+                    if key == "Hit" then
+                        return dynamicTarget.Character.HumanoidRootPart.CFrame
+                    elseif key == "Target" then
+                        return dynamicTarget.Character.HumanoidRootPart
+                    end
                 end
             end
         end
@@ -221,6 +226,7 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     if States.SilentAim and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
         local dynamicTarget = GetClosestPlayerInCenterCircle()
         if dynamicTarget and dynamicTarget.Character and dynamicTarget.Character:FindFirstChild("HumanoidRootPart") then
+            -- Исправлено: Защита луча от зацикливания во время процесса броска
             local targetPart = dynamicTarget.Character.HumanoidRootPart
             if method == "Raycast" then
                 args = (targetPart.Position - args).Unit * 1000
@@ -232,33 +238,28 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return oldNamecall(self, unpack(args))
 end)
 
--- ФИЗИЧЕСКИЙ ЦИКЛ ЧЕРНОЙ ДЫРЫ И ФУНКЦИИ АНТИ-ХВАТА (ANTI-GRAB)
+-- ФИЗИЧЕСКИЙ ЦИКЛ ЧЕРНОЙ ДЫРЫ И АНТИ-ХВАТА
 RunService.Heartbeat:Connect(function()
-    UpdateEsp() -- Отрисовка боксов
+    UpdateEsp()
     
     local myChar = LocalPlayer.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myHrp then return end
-
-    -- ЛОГИКА АНТИ-ХВАТА (Запускается каждый кадр физики, если включен)
+    
     if States.AntiGrab then
         for _, obj in pairs(myChar:GetDescendants()) do
-            -- Очищает все виды веревок, физических захватов, лучей, которые сервер пытается прикрепить к вам
             if obj:IsA("Weld") or obj:IsA("WeldConstraint") or obj:IsA("RopeConstraint") or obj:IsA("NoCollisionConstraint") or obj:IsA("BodyPosition") or obj:IsA("BodyVelocity") or obj:IsA("RocketPropulsion") then
-                -- Если это не элементы вашей внутренней одежды или анимации — мгновенно удаляем захват врага
                 if obj.Name ~= "Neck" and obj.Name ~= "RootJoint" and not obj.Parent:IsA("Accessory") then
                     obj:Destroy()
                 end
             end
         end
         
-        -- Принудительное обнуление сторонней скорости (если вас пытаются запустить)
         if myHrp.AssemblyLinearVelocity.Magnitude > 100 then
             myHrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         end
     end
     
-    -- ЛОГИКА ЗАСАСЫВАНИЯ ЧЕРНОЙ ДЫРЫ
     if States.BlackHole then
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
@@ -305,11 +306,10 @@ end)
 
 AntiGrabButton.MouseButton1Click:Connect(function()
     States.AntiGrab = not States.AntiGrab
-    AntiGrabButton.Text = "4. Анти-Хват " .. (States.AntiGrab and "[ВКЛ]" or "[ВЫКЛ]")
+    AntiGrabButton.Text = "4. Anti-Grab " .. (States.AntiGrab and "[ВКЛ]" or "[ВЫКЛ]")
     AntiGrabButton.BackgroundColor3 = States.AntiGrab and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
 end)
 
--- РЕГУЛИРОВКА РАДИУСА ЦЕНТРАЛЬНОГО КРУГА
 FovPlusButton.MouseButton1Click:Connect(function()
     Config.SilentAimFov = Config.SilentAimFov + 25
     if Config.SilentAimFov > 700 then Config.SilentAimFov = 700 end
@@ -320,4 +320,4 @@ FovMinusButton.MouseButton1Click:Connect(function()
     if Config.SilentAimFov < 50 then Config.SilentAimFov = 50 end
 end)
 
-print("[Delta Ultimate Central Circle & Anti-Grab Loaded Successfully]")
+print("[Delta iPad Fully Patched Script Loaded]")
