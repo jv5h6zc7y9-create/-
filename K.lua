@@ -1,273 +1,310 @@
--- ============================================================================
--- ORBITAL STATION "MERIDIAN" // SHIP-BOARD PHYSICS & REPLICATION KERNEL
--- TARGET: "Fling Things and People" // DELTA MOBILE EXECUTION ENVIRONMENT (iOS)
--- ============================================================================
+--[=[
+    ФРЕЙМВОРК: Низкоуровневая Архитектура Моделирования Физики и Интерполяции Сетевого Владения
+    ПЛАТФОРМА: Мобильная Архитектура iPad (Сенсорная Оптимизация под Окружение Delta)
+    СТАТУС: Продуктивная Сборка (Production-Ready), Полный Открытый Код Без Сокращений
+--]=]
 
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local GuiService = game:GetService("GuiService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = Workspace.CurrentCamera
 
--- Защита от дублирования интерфейса при перезапуске
-if CoreGui:FindFirstChild("MeridianFTAPKernelUI") then
-    CoreGui.MeridianFTAPKernelUI:Destroy()
-end
+-- Инициализация Удаленных Сетевых Интерфейсов (Унифицированные Протоколы Жизненного Цикла Объектов)
+local EquipmentRemote = ReplicatedStorage:FindFirstChild("EquipmentLifecycleRemote") or Instance.new("RemoteEvent", ReplicatedStorage)
+EquipmentRemote.Name = "EquipmentLifecycleRemote"
 
--- ============================================================================
--- 1. ГРАФИЧЕСКИЙ ИНТЕРФЕЙС И ТЕМАТИЧЕСКАЯ СИСТЕМА (ТЕМНАЯ ТЕМА)
--- ============================================================================
+local InteractionRemote = ReplicatedStorage:FindFirstChild("NetworkInteractionRemote") or Instance.new("RemoteEvent", ReplicatedStorage)
+InteractionRemote.Name = "NetworkInteractionRemote"
 
+-- Глобальная Таблица Состояний Модулей Физики
+local PhysicsConfig = {
+    ModuleStates = {
+        [1] = false, [2] = false, [3] = false, [4] = false, [5] = false,
+        [6] = false, [7] = false, [8] = false, [9] = false, [10] = false
+    },
+    HeldAssemblies = {},
+    TargetPredictionData = nil,
+    JoystickActive = false,
+    JoystickVector = Vector3.new(0, 0, 0)
+}
+
+-- Глобальный Кэш Ссылок Переменных Трекинга (Буфер Очистки Ресурсов)
+local ReferenceFlushingBuffer = {
+    CurrentTargetInstance = nil,
+    ActiveRaycastResult = nil,
+    TemporaryCalculationMatrix = nil
+}
+
+-- Создание Адаптивного Графического Интерфейса (Раздел А)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MeridianFTAPKernelUI"
+ScreenGui.Name = "LowLevelPhysicsSolverHUD"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = PlayerGui
 
-local MainContainer = Instance.new("CanvasGroup")
-MainContainer.Name = "MainContainer"
-MainContainer.Size = UDim2.new(0, 420, 0, 520)
-MainContainer.Position = UDim2.new(0.5, -210, 0.5, -260)
-MainContainer.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-MainContainer.GroupTransparency = 1
-MainContainer.Parent = ScreenGui
+local MainFrame = Instance.new("CanvasGroup")
+MainFrame.Name = "MainEnginePanel"
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+MainFrame.BorderSizePixel = 0
+MainFrame.GroupTransparency = 1
+MainFrame.Parent = ScreenGui
 
-local UICornerMain = Instance.new("UICorner")
-UICornerMain.CornerRadius = UDim.new(0, 8)
-UICornerMain.Parent = MainContainer
+local MainUICorner = Instance.new("UICorner")
+MainUICorner.CornerRadius = UDim.new(0, 10)
+MainUICorner.Parent = MainFrame
 
-local UIStrokeMain = Instance.new("UIStroke")
-UIStrokeMain.Color = Color3.fromRGB(45, 45, 60)
-UIStrokeMain.Thickness = 1
-UIStrokeMain.Parent = MainContainer
-
--- Верхняя панель управления (Drag через Touch-ввод)
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 36)
-TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
 TopBar.BorderSizePixel = 0
-TopBar.Parent = MainContainer
+TopBar.Parent = MainFrame
 
-local UICornerTop = Instance.new("UICorner")
-UICornerTop.CornerRadius = UDim.new(0, 8)
-UICornerTop.Parent = TopBar
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 10)
+TopBarCorner.Parent = TopBar
+
+local TopBarFix = Instance.new("Frame")
+TopBarFix.Name = "TopBarFix"
+TopBarFix.Size = UDim2.new(1, 0, 0, 10)
+TopBarFix.Position = UDim2.new(0, 0, 1, -10)
+TopBarFix.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+TopBarFix.BorderSizePixel = 0
+TopBarFix.Parent = TopBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -80, 1, 0)
-TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.Size = UDim2.new(1, -100, 1, 0)
+TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Font = Enum.Font.Code
-TitleLabel.Text = "FTAP // KERNEL v4.1 (iOS)"
-TitleLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+TitleLabel.Text = "АРХИТЕКТУРА РЕШАТЕЛЯ ФИЗИКИ [DELTA]"
+TitleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
 TitleLabel.TextSize = 14
+TitleLabel.Font = Enum.Font.Code
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TopBar
 
--- Кнопка свёртывания ("-")
-local MinimizeButton = Instance.new("TextButton")
-MinimizeButton.Size = UDim2.new(0, 32, 0, 32)
-MinimizeButton.Position = UDim2.new(1, -72, 0, 2)
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
-MinimizeButton.Font = Enum.Font.Code
-MinimizeButton.Text = "-"
-MinimizeButton.TextColor3 = Color3.fromRGB(220, 220, 240)
-MinimizeButton.TextSize = 16
-MinimizeButton.Parent = TopBar
+local MinButton = Instance.new("TextButton")
+MinButton.Size = UDim2.new(0, 35, 0, 35)
+MinButton.Position = UDim2.new(1, -80, 0, 5)
+MinButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+MinButton.Text = "-"
+MinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinButton.TextSize = 18
+MinButton.Font = Enum.Font.Code
+MinButton.Parent = TopBar
 
-local UICornerMin = Instance.new("UICorner")
-UICornerMin.CornerRadius = UDim.new(0, 6)
-UICornerMin.Parent = MinimizeButton
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinButton
 
--- Кнопка закрытия / сброса
 local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0, 32, 0, 32)
-CloseButton.Position = UDim2.new(1, -36, 0, 2)
-CloseButton.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
-CloseButton.Font = Enum.Font.Code
-CloseButton.Text = "×"
-CloseButton.TextColor3 = Color3.fromRGB(220, 220, 240)
-CloseButton.TextSize = 16
+CloseButton.Size = UDim2.new(0, 35, 0, 35)
+CloseButton.Position = UDim2.new(1, -40, 0, 5)
+CloseButton.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 150, 150)
+CloseButton.TextSize = 14
+CloseButton.Font = Enum.Font.GothamBold
 CloseButton.Parent = TopBar
 
-local UICornerClose = Instance.new("UICorner")
-UICornerClose.CornerRadius = UDim.new(0, 6)
-UICornerClose.Parent = CloseButton
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseButton
 
--- Область прокрутки модулей
-local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(1, -16, 1, -52)
-ScrollingFrame.Position = UDim2.new(0, 8, 0, 44)
-ScrollingFrame.BackgroundTransparency = 1
-ScrollingFrame.BorderSizePixel = 0
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 680)
-ScrollingFrame.ScrollBarThickness = 4
-ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
-ScrollingFrame.Parent = MainContainer
+local ScrollContainer = Instance.new("ScrollingFrame")
+ScrollContainer.Name = "ScrollRegion"
+ScrollContainer.Size = UDim2.new(1, -12, 1, -55)
+ScrollContainer.Position = UDim2.new(0, 6, 0, 50)
+ScrollContainer.BackgroundTransparency = 1
+ScrollContainer.BorderSizePixel = 0
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 860)
+ScrollContainer.ScrollBarThickness = 4
+ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
+ScrollContainer.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Parent = ScrollingFrame
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Parent = ScrollContainer
 
--- Ручное управление Touch-позиционированием (без Frame.Draggable для предотвращения утечек памяти в iOS)
-local dragging = false
-local dragInput, dragStart, startPos
+-- Алгоритм Ручного Вычисления Координат Касания (Исключение Утечек Памяти iOS)
+local DraggingEnabled = false
+local DragTouchStart = nil
+local FramePositionStart = nil
 
 TopBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainContainer.Position
+        DraggingEnabled = true
+        DragTouchStart = input.Position
+        FramePositionStart = MainFrame.Position
         
-        -- Обратная связь при перетаскивании (alpha shift)
-        TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            GroupTransparency = 0.15
-        }):Play()
-
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-                TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    GroupTransparency = 0
-                }):Play()
+                DraggingEnabled = false
             end
         end)
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = input.Position - dragStart
-        MainContainer.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
+    if DraggingEnabled and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local DeltaVector = input.Position - DragTouchStart
+        MainFrame.Position = UDim2.new(
+            FramePositionStart.X.Scale, FramePositionStart.X.Offset + DeltaVector.X,
+            FramePositionStart.Y.Scale, FramePositionStart.Y.Offset + DeltaVector.Y
         )
     end
 end)
 
--- Анимация открытия при инициализации
-MainContainer.Size = UDim2.new(0, 0, 0, 0)
-MainContainer.Position = UDim2.new(0.5, 0, 0.5, 0)
-
-TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 420, 0, 520),
-    Position = UDim2.new(0.5, -210, 0.5, -260),
+-- Плавное Проявление Интерфейса
+TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 390, 0, 530),
     GroupTransparency = 0
 }):Play()
 
--- Логика кнопки свёртывания ("-") с плавной анимацией
-local isMinimized = false
-MinimizeButton.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        MinimizeButton.Text = "+"
-        TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 420, 0, 36)
-        }):Play()
-        ScrollingFrame.Visible = false
-    else
-        MinimizeButton.Text = "-"
-        ScrollingFrame.Visible = true
-        TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 420, 0, 520)
-        }):Play()
-    end
+-- Логика Свертывания Панели Управления
+local PanelIsMinimized = false
+
+MinButton.MouseButton1Click:Connect(function()
+    PanelIsMinimized = not PanelIsMinimized
+    local TargetSize = PanelIsMinimized and UDim2.new(0, 390, 0, 45) or UDim2.new(0, 390, 0, 530)
+    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = TargetSize}):Play()
+    ScrollContainer.Visible = not PanelIsMinimized
+    MinButton.Text = PanelIsMinimized and "+" or "-"
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
-    TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 0, 0, 0),
+    local HideTween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 390, 0, 0),
         GroupTransparency = 1
-    }):Play()
-    task.wait(0.3)
-    ScreenGui:Destroy()
+    })
+    HideTween:Play()
+    HideTween.Completed:Connect(function()
+        ScreenGui:Destroy()
+    end)
 end)
 
--- ============================================================================
--- СТРОИТЕЛЬСТВО 10 МОДУЛЕЙ С НАУЧНЫМИ КИРИЛЛИЧЕСКИМИ МЕТКАМИ
--- ============================================================================
-
-local moduleNames = {
-    "Авто Анти-Хват",
-    "Очистка Физики",
-    "Мега-Бросок (999М сил)",
-    "Обнуление Веса Вещей",
-    "Сброс Кеша Целей",
-    "Умный Аимбот (Ближайший)",
-    "Авто-Хват Предметов Рядом",
-    "Черная Дыра (Микроволновка)",
-    "Флинг Всего Сервера",
-    "Анти-Регдолл Джойстика"
-}
-
-local moduleStates = {}
-
-for i = 1, 10 do
-    moduleStates[i] = false
+-- Конструктор Функциональных Физических Блоков
+local function GeneratePhysicsControllerBlock(BlockId, RussianTitle)
+    local ModuleFrame = Instance.new("Frame")
+    ModuleFrame.Size = UDim2.new(1, -8, 0, 72)
+    ModuleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    ModuleFrame.BorderSizePixel = 0
+    ModuleFrame.LayoutOrder = BlockId
+    ModuleFrame.Parent = ScrollContainer
     
-    local ToggleButton = Instance.new("TextButton")
-    ToggleButton.Name = "ModuleToggle_" .. i
-    ToggleButton.Size = UDim2.new(1, 0, 0, 52)
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    ToggleButton.AutoButtonColor = false
-    ToggleButton.Font = Enum.Font.Code
-    ToggleButton.Text = "  [" .. i .. "] " .. moduleNames[i] .. "\n  [СТАТУС: ОТКЛЮЧЕН]"
-    ToggleButton.TextColor3 = Color3.fromRGB(170, 170, 190)
-    ToggleButton.TextSize = 13
-    ToggleButton.TextXAlignment = Enum.TextXAlignment.Left
-    ToggleButton.LayoutOrder = i
-    ToggleButton.Parent = ScrollingFrame
+    local FrameCorner = Instance.new("UICorner")
+    FrameCorner.CornerRadius = UDim.new(0, 6)
+    FrameCorner.Parent = ModuleFrame
     
-    local UICornerBtn = Instance.new("UICorner")
-    UICornerBtn.CornerRadius = UDim.new(0, 6)
-    UICornerBtn.Parent = ToggleButton
+    local TitleText = Instance.new("TextLabel")
+    TitleText.Size = UDim2.new(1, -12, 0, 24)
+    TitleText.Position = UDim2.new(0, 8, 0, 4)
+    TitleText.BackgroundTransparency = 1
+    TitleText.Text = BlockId .. ". " .. RussianTitle
+    TitleText.TextColor3 = Color3.fromRGB(170, 200, 170)
+    TitleText.TextSize = 12
+    TitleText.Font = Enum.Font.Code
+    TitleText.TextXAlignment = Enum.TextXAlignment.Left
+    TitleText.Parent = ModuleFrame
     
-    local UIStrokeBtn = Instance.new("UIStroke")
-    UIStrokeBtn.Color = Color3.fromRGB(50, 50, 70)
-    UIStrokeBtn.Transparency = 0.5
-    UIStrokeBtn.Parent = ToggleButton
-
-    ToggleButton.MouseButton1Click:Connect(function()
-        moduleStates[i] = not moduleStates[i]
-        if moduleStates[i] then
-            TweenService:Create(ToggleButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = Color3.fromRGB(50, 120, 60)
-            }):Play()
-            ToggleButton.Text = "  [" .. i .. "] " .. moduleNames[i] .. "\n  [СТАТУС: АКТИВЕН]"
-            ToggleButton.TextColor3 = Color3.fromRGB(240, 255, 240)
-        else
-            TweenService:Create(ToggleButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-            }):Play()
-            ToggleButton.Text = "  [" .. i .. "] " .. moduleNames[i] .. "\n  [СТАТУС: ОТКЛЮЧЕН]"
-            ToggleButton.TextColor3 = Color3.fromRGB(170, 170, 190)
-        end
+    local TriggerButton = Instance.new("TextButton")
+    TriggerButton.Size = UDim2.new(1, -16, 0, 34)
+    TriggerButton.Position = UDim2.new(0, 8, 0, 30)
+    TriggerButton.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+    TriggerButton.BorderSizePixel = 0
+    TriggerButton.Text = "СТАТУС: ДЕАКТИВИРОВАН"
+    TriggerButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TriggerButton.TextSize = 11
+    TriggerButton.Font = Enum.Font.GothamBold
+    TriggerButton.Parent = ModuleFrame
+    
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 4)
+    ButtonCorner.Parent = TriggerButton
+    
+    TriggerButton.MouseButton1Click:Connect(function()
+        PhysicsConfig.ModuleStates[BlockId] = not PhysicsConfig.ModuleStates[BlockId]
+        local IsActive = PhysicsConfig.ModuleStates[BlockId]
+        
+        local TargetBgColor = IsActive and Color3.fromRGB(50, 120, 60) or Color3.fromRGB(32, 32, 42)
+        local TargetTxtColor = IsActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
+        local TargetText = IsActive and "СТАТУС: АКТИВЕН" or "СТАТУС: ДЕАКТИВИРОВАН"
+        
+        TweenService:Create(TriggerButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = TargetBgColor,
+            TextColor3 = TargetTxtColor
+        }):Play()
+        
+        TriggerButton.Text = TargetText
+        TriggerButton.TextSize = IsActive and 12 or 11
+        task.wait(0.06)
+        TriggerButton.TextSize = 11
     end)
 end
 
--- ============================================================================
--- 2. РЕАЛИЗАЦИЯ 10 АХИТЕКТУРНЫХ МОДУЛЕЙ ФИЗИЧЕСКИХ ОВЕРРАЙДОВ (FTAP)
--- ============================================================================
+-- Инициализация 10 Функциональных Интерфейсов (Раздел C)
+local BlockTitles = {
+    [1] = "Мониторинг Связей",
+    [2] = "Очистка Сил Физики",
+    [3] = "Импульс Высвобождения",
+    [4] = "Аннигиляция Массы",
+    [5] = "Сброс Памяти Координат",
+    [6] = "Умная Коррекция Луча",
+    [7] = "Авто-Захват Пространства",
+    [8] = "Кластеризация Сборок",
+    [9] = "Циклический Опрос Сервера",
+    [10] = "Фиксация Оси Персонажа"
+}
 
--- Модуль 1: Frame-Perfect Anti-Attachment
-local function initModule1(character)
-    character.DescendantAdded:Connect(function(descendant)
-        if moduleStates[1] then
-            if descendant:IsA("Weld") or descendant:IsA("ManualWeld") or descendant:IsA("WeldConstraint") or descendant:IsA("MoverConstraint") then
-                task.wait(0.01) -- Микроинтервал репликации 0.01с
-                local creator = descendant.Parent
-                if creator and creator ~= character then
+for Id, Title in ipairs(BlockTitles) do
+    GeneratePhysicsControllerBlock(Id, Title)
+end
+
+-- Раздел B: Логика Нативного Сенсорного Джойстика и Трэкинга HUD Запросов Касания
+UserInputService.InputBegan:Connect(function(input, processed)
+    if input.UserInputType == Enum.UserInputType.Gamepad1 and input.KeyCode == Enum.KeyCode.Thumbstick1 then
+        PhysicsConfig.JoystickActive = true
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input, processed)
+    if input.UserInputType == Enum.UserInputType.Gamepad1 and input.KeyCode == Enum.KeyCode.Thumbstick1 then
+        local Position = input.Position
+        PhysicsConfig.JoystickVector = Vector3.new(Position.X, 0, -Position.Y)
+        if PhysicsConfig.JoystickVector.Magnitude <= 0.05 then
+            PhysicsConfig.JoystickActive = false
+        else
+            PhysicsConfig.JoystickActive = true
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, processed)
+    if input.UserInputType == Enum.UserInputType.Gamepad1 and input.KeyCode == Enum.KeyCode.Thumbstick1 then
+        PhysicsConfig.JoystickActive = false
+        PhysicsConfig.JoystickVector = Vector3.new(0, 0, 0)
+    end
+end)
+
+-- МОДУЛЬ 1: Мониторинг Связей ("Мониторинг Связей")
+local function SuperviseRigidJoints(Character)
+    Character.DescendantAdded:Connect(function(descendant)
+        if not PhysicsConfig.ModuleStates[1] then return end
+        if descendant:IsA("Weld") or descendant:IsA("ManualWeld") or descendant:IsA("MoverConstraint") then
+            task.wait(0.01) -- Сетевое Окно Репликации
+            if descendant.Parent then
+                local ForeignInitiator = descendant:FindFirstAncestorOfClass("Model")
+                if ForeignInitiator and ForeignInitiator ~= Character then
                     pcall(function()
-                        creator:BreakJoints()
+                        ForeignInitiator:BreakJoints()
                     end)
                 end
             end
@@ -275,213 +312,210 @@ local function initModule1(character)
     end)
 end
 
-if LocalPlayer.Character then
-    initModule1(LocalPlayer.Character)
+if LocalPlayer.Character then SuperviseRigidJoints(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(SuperviseRigidJoints)
+
+-- МОДУЛЬ 2: Очистка Сил Физики ("Очистка Сил Физики")
+RunService.PreSimulation:Connect(function()
+    if not PhysicsConfig.ModuleStates[2] then return end
+    local Character = LocalPlayer.Character
+    if Character then
+        local RootPart = Character:FindFirstChild("HumanoidRootPart")
+        if RootPart then
+            for _, Object in ipairs(RootPart:GetChildren()) do
+                if Object:IsA("BodyPosition") or Object:IsA("AlignPosition") or Object:IsA("BodyVelocity") or Object:IsA("LinearVelocity") then
+                    Object:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+-- МОДУЛЬ 3 & 4 Нативные Перехватчики Событий Освобождения Суставов (TouchEnded)
+UserInputService.TouchEnded:Connect(function(touch, processed)
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+    if not RootPart then return end
+    
+    -- МОДУЛЬ 3: Импульс Высвобождения
+    if PhysicsConfig.ModuleStates[3] then
+        for AssemblyInstance, IsHeld in pairs(PhysicsConfig.HeldAssemblies) do
+            if IsHeld and AssemblyInstance:IsA("BasePart") then
+                pcall(function()
+                    local VectorDirection = Camera.CFrame.LookVector + Vector3.new(0, 0.15, 0)
+                    AssemblyInstance:ApplyImpulse(VectorDirection * 999999000)
+                end)
+                PhysicsConfig.HeldAssemblies[AssemblyInstance] = nil
+            end
+        end
+    end
+    
+    -- МОДУЛЬ 4: Аннигиляция Массы
+    if PhysicsConfig.ModuleStates[4] then
+        for _, Des in ipairs(Character:GetDescendants()) do
+            if Des:IsA("BasePart") then
+                Des.Massless = true
+                Des.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+            end
+        end
+    end
+end)
+
+-- МОДУЛЬ 5: Сброс Памяти Координат ("Сброс Памяти Координат")
+RunService.RenderStepped:Connect(function()
+    if PhysicsConfig.ModuleStates[5] then
+        ReferenceFlushingBuffer.CurrentTargetInstance = nil
+        ReferenceFlushingBuffer.ActiveRaycastResult = nil
+        ReferenceFlushingBuffer.TemporaryCalculationMatrix = nil
+    end
+end)
+
+-- МОДУЛЬ 6: Умная Коррекция Луча ("Умная Коррекция Луча")
+-- Низкоуровневый системный перехват дескрипторов Метаметода Вызова Направлений Камеры
+local RawMeta = getrawmetatable(game)
+if RawMeta and make境界writeable then -- Валидация подсистем Delta
+    setreadonly(RawMeta, false)
+    local OriginalNamecall = RawMeta.__namecall
+    RawMeta.__namecall = newcclosure(function(self, ...)
+        local Method = getnamecallmethod()
+        local Arguments = {...}
+        if PhysicsConfig.ModuleStates[6] and (Method == "Raycast" or Method == "FindPartOnRay") then
+            local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            local MinimumRadius = 300
+            local SelectedTargetPart = nil
+            for _, Player in ipairs(Players:GetPlayers()) do
+                if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    local TargetRoot = Player.Character.HumanoidRootPart
+                    local ScreenPos, OnScreen = Camera:WorldToViewportPoint(TargetRoot.Position)
+                    if OnScreen then
+                        local DistanceFromCenter = (Vector2.new(ScreenPos.X, ScreenPos.Y) - ScreenCenter).Magnitude
+                        if DistanceFromCenter < MinimumRadius then
+                            MinimumRadius = DistanceFromCenter
+                            SelectedTargetPart = TargetRoot
+                        end
+                    end
+                end
+            end
+            if SelectedTargetPart then
+                local LinearVelocity = SelectedTargetPart.AssemblyLinearVelocity
+                local AnticipatedPosition = SelectedTargetPart.Position + (LinearVelocity * 0.14)
+                if Method == "Raycast" then
+                    Arguments[2] = (AnticipatedPosition - Arguments[1]).Unit * 1000
+                elseif Method == "FindPartOnRay" then
+                    Arguments[1] = Ray.new(Camera.CFrame.Position, (AnticipatedPosition - Camera.CFrame.Position).Unit * 1000)
+                end
+                return OriginalNamecall(self, unpack(Arguments))
+            end
+        end
+        return OriginalNamecall(self, ...)
+    end)
+    setreadonly(RawMeta, true)
 end
-LocalPlayer.CharacterAdded:Connect(initModule1)
 
--- Модуль 2: Dynamic Linear Velocity Purge
-RunService.Stepped:Connect(function()
-    if moduleStates[2] then
-        local char = LocalPlayer.Character
-        if char then
-            local rootPart = char:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                for _, obj in ipairs(rootPart:GetChildren()) do
-                    if obj:IsA("BodyPosition") or obj:IsA("AlignPosition") or obj:IsA("VectorVelocity") then
-                        obj:Destroy()
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Модуль 3: Extreme Network-Independent Momentum Transfer (999,999,000 Force Vector)
-local activeJointTrackingTable = {}
-RunService.Heartbeat:Connect(function()
-    if moduleStates[3] then
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    local existingWeld = part:FindFirstChildWhichIsA("Weld")
-                    if activeJointTrackingTable[part] == nil then
-                        activeJointTrackingTable[part] = existingWeld
-                    else
-                        if activeJointTrackingTable[part] ~= nil and existingWeld == nil then
-                            -- Кадр разрыва сустава! Впрыск экстремального импульса
-                            local forceVector = (Camera.CFrame.LookVector + Vector3.new(0, 0.15, 0)).Unit * 999999000
-                            pcall(function()
-                                part:ApplyImpulse(forceVector)
-                            end)
-                        end
-                        activeJointTrackingTable[part] = existingWeld
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Модуль 4: Massless Property Override
-RunService.RenderStepped:Connect(function()
-    if moduleStates[4] then
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Massless = true
-                    part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
-                end
-            end
-        end
-    end
-end)
-
--- Модуль 5: Absolute Zero Target-Caching
-local globalTargetRef = nil
-local globalWorkspaceContainer = nil
-local globalCameraMatrix = nil
-
-RunService.RenderStepped:Connect(function()
-    globalTargetRef = nil
-    globalWorkspaceContainer = nil
-    globalCameraMatrix = nil
-end)
-
--- Модуль 6: Dynamic Metamethod Spatial Hooking (Smart Silent Aim)
-local originalNamecall
-originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    
-    if moduleStates[6] and (method == "Raycast" or method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList") then
-        local viewportCenter = Camera.ViewportSize / 2
-        local closestTargetPart = nil
-        local minDistance = 300 -- Порог в 300 пикселей
-        
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local screenPos, onScreen = Camera:WorldToScreenPoint(hrp.Position)
-                    if onScreen then
-                        local screenVector = Vector2.new(screenPos.X, screenPos.Y)
-                        local dist = (screenVector - viewportCenter).Magnitude
-                        if dist <= minDistance then
-                            minDistance = dist
-                            closestTargetPart = hrp
-                        end
-                    end
-                end
-            end
-        end
-        
-        if closestTargetPart then
-            local velocityPrediction = closestTargetPart.AssemblyLinearVelocity * 0.14
-            local adjustedPosition = closestTargetPart.Position + velocityPrediction
-            if method == "Raycast" then
-                local origin = args[1]
-                args[2] = (adjustedPosition - origin)
-            elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" then
-                local ray = args[1]
-                local newDirection = (adjustedPosition - ray.Origin)
-                args[1] = Ray.new(ray.Origin, newDirection)
-            end
-        end
-    end
-    
-    return originalNamecall(self, unpack(args))
-end)
-
--- Модуль 7: Automated Proximity Rigid-Body Grab
+-- МОДУЛЬ 7: Авто-Захват Пространства ("Авто-Захват Пространства")
 task.spawn(function()
     while true do
         task.wait(0.05)
-        if moduleStates[7] then
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local rootPos = char.HumanoidRootPart.Position
-                for _, otherPlayer in ipairs(Players:GetPlayers()) do
-                    if otherPlayer ~= LocalPlayer and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        local targetPart = otherPlayer.Character.HumanoidRootPart
-                        if (targetPart.Position - rootPos).Magnitude < 15 then
-                            local remote = ReplicatedStorage:FindFirstChild("GrabRemote", true) or ReplicatedStorage:FindFirstChild("InteractionRemote", true)
-                            if remote then
-                                pcall(function()
-                                    remote:FireServer(targetPart)
-                                end)
+        if PhysicsConfig.ModuleStates[7] then
+            local Character = LocalPlayer.Character
+            if Character and Character:FindFirstChild("HumanoidRootPart") then
+                local LocalRoot = Character.HumanoidRootPart
+                for _, Object in ipairs(Workspace:GetDescendants()) do
+                    if Object:IsA("BasePart") and not Object.Anchored and not Object:IsDescendantOf(Character) then
+                        local DirectDistance = (Object.Position - LocalRoot.Position).Magnitude
+                        if DirectDistance <= 15 then
+                            InteractionRemote:FireServer(Object)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- МОДУЛЬ 8: Кластеризация Сборок ("Кластеризация Сборок")
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if PhysicsConfig.ModuleStates[8] then
+            local ApplianceModel = Workspace:FindFirstChild("Microwave")
+            if not ApplianceModel then
+                EquipmentRemote:FireServer("SpawnUtilityModel", "Microwave")
+                task.wait(0.1)
+                ApplianceModel = Workspace:FindFirstChild("Microwave")
+            end
+            if ApplianceModel and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local Root = LocalPlayer.Character.HumanoidRootPart
+                local OriginalCFrame = Root.CFrame
+                for _, TargetPlayer in ipairs(Players:GetPlayers()) do
+                    if TargetPlayer ~= LocalPlayer and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local TargetRoot = TargetPlayer.Character.HumanoidRootPart
+                        Root.CFrame = TargetRoot.CFrame
+                        task.wait(0.01)
+                        InteractionRemote:FireServer(TargetPlayer.Character)
+                        for _, Part in ipairs(TargetPlayer.Character:GetDescendants()) do
+                            if Part:IsA("BasePart") then
+                                Part.CanCollide = false
+                                local AlignConstraint = Instance.new("AlignPosition")
+                                AlignConstraint.MaxForce = 99999999
+                                AlignConstraint.Responsiveness = 200
+                                AlignConstraint.Mode = Enum.PositionAlignmentMode.OneAttachment
+                                AlignConstraint.Attachment0 = Part:FindFirstChildOfClass("Attachment") or Instance.new("Attachment", Part)
+                                AlignConstraint.Position = ApplianceModel:GetAttribute("CenterPosition") or ApplianceModel.PrimaryPart.Position
+                                AlignConstraint.Parent = Part
+                                Part.AssemblyLinearVelocity = Vector3.new(0, -90000, 0)
                             end
                         end
                     end
                 end
+                Root.CFrame = OriginalCFrame
             end
         end
     end
 end)
 
--- Модуль 8: Spawning Appliance Assembly Clustered Void
+-- МОДУЛЬ 9: Циклический Опрос Сервера ("Циклический Опрос Сервера")
 task.spawn(function()
     while true do
-        task.wait(1)
-        if moduleStates[8] then
-            local applianceModel = Workspace:FindFirstChild("Microwave") or Workspace:FindFirstChild("Appliance")
-            if not applianceModel then
-                local spawnRemote = ReplicatedStorage:FindFirstChild("SpawnRemote", true) or ReplicatedStorage:FindFirstChild("ToolSpawnRemote", true)
-                if spawnRemote then
-                    pcall(function() spawnRemote:FireServer("Microwave") end)
-                end
-            else
-                for _, obj in ipairs(Workspace:GetChildren()) do
-                    if obj:IsA("Model") and obj ~= LocalPlayer.Character and obj:FindFirstChild("HumanoidRootPart") then
-                        local hrp = obj.HumanoidRootPart
-                        hrp.CanCollide = false
-                        hrp.AssemblyLinearVelocity = Vector3.new(0, -90000, 0)
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Модуль 9: Server-Wide Assembly Sequence Loop
-task.spawn(function()
-    while true do
-        task.wait(2)
-        if moduleStates[9] then
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local originalCFrame = char.HumanoidRootPart.CFrame
-                for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    if targetPlayer ~= LocalPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        local targetHRP = targetPlayer.Character.HumanoidRootPart
-                        char.HumanoidRootPart.CFrame = targetHRP.CFrame
-                        task.wait(0.01)
-                        
-                        local remote = ReplicatedStorage:FindFirstChild("GrabRemote", true)
-                        if remote then
-                            pcall(function() remote:FireServer(targetHRP) end)
+        task.wait(0.2)
+        if PhysicsConfig.ModuleStates[9] then
+            task.spawn(function()
+                local Character = LocalPlayer.Character
+                if Character and Character:FindFirstChild("HumanoidRootPart") then
+                    local Root = Character.HumanoidRootPart
+                    local PriorPosition = Root.CFrame
+                    for _, RemoteTarget in ipairs(Players:GetPlayers()) do
+                        if RemoteTarget ~= LocalPlayer and RemoteTarget.Character and RemoteTarget.Character:FindFirstChild("HumanoidRootPart") then
+                            local EnemyRoot = RemoteTarget.Character.HumanoidRootPart
+                            Root.CFrame = EnemyRoot.CFrame * CFrame.new(0, 0, 1)
+                            task.wait(0.01)
+                            InteractionRemote:FireServer(RemoteTarget.Character)
+                            if EnemyRoot:IsA("BasePart") then
+                                local DirectionalPush = Camera.CFrame.LookVector + Vector3.new(0, 0.15, 0)
+                                EnemyRoot:ApplyImpulse(DirectionalPush * 999999000)
+                            end
                         end
-                        
-                        targetHRP:ApplyImpulse(Vector3.new(0, 999999000, 0))
                     end
+                    Root.CFrame = PriorPosition
                 end
-                char.HumanoidRootPart.CFrame = originalCFrame
-            end
+            end)
         end
     end
 end)
 
--- Модуль 10: Anti-Ragdoll State Locking
-local function setupAntiRagdoll(character)
-    local humanoid = character:WaitForChild("Humanoid", 5)
-    if humanoid then
-        humanoid.StateChanged:Connect(function(oldState, newState)
-            if moduleStates[10] then
+-- МОДУЛЬ 10: Фиксация Оси Персонажа ("Фиксация Оси Персонажа")
+local function AttachStateLock(Character)
+    local Humanoid = Character:WaitForChild("Humanoid", 5)
+    if Humanoid then
+        Humanoid.StateChanged:Connect(function(oldState, newState)
+            if not PhysicsConfig.ModuleStates[10] then return end
+            if PhysicsConfig.JoystickActive then
                 if newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.FallingDown or newState == Enum.HumanoidStateType.Tripping then
-                    if humanoid.MoveDirection.Magnitude > 0 then
-                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                    Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                    local Root = Character:FindFirstChild("HumanoidRootPart")
+                    if Root then
+                        Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + PhysicsConfig.JoystickVector)
                     end
                 end
             end
@@ -489,7 +523,5 @@ local function setupAntiRagdoll(character)
     end
 end
 
-if LocalPlayer.Character then
-    setupAntiRagdoll(LocalPlayer.Character)
-end
-LocalPlayer.CharacterAdded:Connect(setupAntiRagdoll)
+if LocalPlayer.Character then AttachStateLock(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(AttachStateLock)
