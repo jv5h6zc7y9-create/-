@@ -1,4 +1,4 @@
--- BLOXSTRIKE ULTRA PERF-SUITE v3 (WITH INVENTORY UI SCANNER)-- Оптимизировано для iOS/Android эмуляторов и инжекторов.
+-- BLOXSTRIKE ULTRA PERF-SUITE v4 (TOTAL BYPASS & OVERLAY INJECTION)-- Разработано специально для обхода блокировки TextureId и скрытых моделей врагов.
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
@@ -11,7 +11,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = Workspace.CurrentCamera
 
 -- ==========================================
--- КОНФИГУРАЦИЯ И ПЛЕСХОЛДЕРЫ ТЕКСТУР
+-- КОНФИГУРАЦИЯ И ЦВЕТОВАЯ БАЗА СКИНОВ
 -- ==========================================
 local ScriptConfig = {
     EspEnabled = false,
@@ -20,11 +20,7 @@ local ScriptConfig = {
     SelectedSkin = "Asimov"
 }
 
-local OriginalAssets = {
-    WeaponTextures = {},
-    DefaultHands = {}
-}
-
+local OriginalAssets = {}
 local ActiveConnections = {}
 local EspInstances = {}
 
@@ -33,20 +29,21 @@ local function RegisterConnection(connection)
     return connection
 end
 
+-- Из-за защиты игры переходим на систему генерации кастомных материалов и перекрытия цветов
 local SkinDatabase = {
     Weapons = {
-        ["Asimov"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(255, 120, 0) },
-        ["Dragon Lore"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.Glass, Color = Color3.fromRGB(230, 185, 40) },
-        ["Hyper Beast"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.Neon, Color = Color3.fromRGB(0, 255, 150) },
-        ["Printstream"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(240, 240, 245) }
+        ["Asimov"] = { Color = Color3.fromRGB(255, 110, 0), Material = Enum.Material.Neon },
+        ["Dragon Lore"] = { Color = Color3.fromRGB(240, 190, 30), Material = Enum.Material.Glass },
+        ["Hyper Beast"] = { Color = Color3.fromRGB(0, 255, 140), Material = Enum.Material.ForceField },
+        ["Printstream"] = { Color = Color3.fromRGB(235, 235, 240), Material = Enum.Material.SmoothPlastic }
     },
     Knives = {
-        ["Karambit"] = { MeshId = "rbxassetid://5117435422", TextureId = "rbxassetid://13404172551" },
-        ["Butterfly Knife"] = { MeshId = "rbxassetid://5117435422", TextureId = "rbxassetid://13404172551" }
+        ["Karambit"] = { Color = Color3.fromRGB(180, 0, 255), Material = Enum.Material.Neon },
+        ["Butterfly Knife"] = { Color = Color3.fromRGB(255, 30, 30), Material = Enum.Material.ForceField }
     },
     Gloves = {
-        ["Sport Vice"] = { LeftColor = Color3.fromRGB(255, 0, 128), RightColor = Color3.fromRGB(0, 191, 255), Material = Enum.Material.Neon },
-        ["Pandora Box"] = { LeftColor = Color3.fromRGB(75, 0, 130), RightColor = Color3.fromRGB(75, 0, 130), Material = Enum.Material.Fabric }
+        ["Sport Vice"] = { Color = Color3.fromRGB(255, 0, 128), Material = Enum.Material.Neon },
+        ["Pandora Box"] = { Color = Color3.fromRGB(60, 0, 120), Material = Enum.Material.Neon }
     }
 }
 
@@ -78,7 +75,7 @@ MainStroke.Color = Color3.fromRGB(45, 45, 50)
 MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = MainFrame
 
--- Кастомный Touch-Drag рендеринг
+-- Сенсорное перетаскивание меню
 local Dragging, DragInput, DragStart, StartPosition
 
 RegisterConnection(MainFrame.InputBegan:Connect(function(input)
@@ -107,7 +104,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -40, 0, 35)
 TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "BLOXSTRIKE EXTERNAL PERF-SUITE v3"
+TitleLabel.Text = "BLOXSTRIKE PERF-SUITE v4 (BYPASS)"
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextSize = 13
 TitleLabel.TextColor3 = Color3.fromRGB(230, 230, 235)
@@ -176,10 +173,6 @@ local function CreateToggleButton(name, configKey, callback)
     Indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Indicator.Parent = Switch
     
-    local IndicatorCorner = Instance.new("UICorner")
-    IndicatorCorner.CornerRadius = UDim.new(1, 0)
-    IndicatorCorner.Parent = Indicator
-    
     Switch.MouseButton1Click:Connect(function()
         ScriptConfig[configKey] = not ScriptConfig[configKey]
         local active = ScriptConfig[configKey]
@@ -234,57 +227,53 @@ local function CreateDropdown(name, options, onSelect)
 end
 
 -- ==========================================
--- ИСПРАВЛЕННЫЙ HARDWARE ESP
+-- ТОТАЛЬНЫЙ АГРЕССИВНЫЙ ПОИСК ВРАГОВ ДЛЯ ESP
 -- ==========================================
-local function IsTeammate(player)
-    if player.Team == LocalPlayer.Team then return true end
-    if player.TeamColor == LocalPlayer.TeamColor then return true end
-    return false
-end
-
-local function RemoveHardwareEsp(player)
-    if EspInstances[player] then
-        for _, obj in ipairs(EspInstances[player]) do
-            if obj then obj:Destroy() end
-        end
-        EspInstances[player] = nil
+local function ClearAllEsp()
+    for _, adornment in pairs(EspInstances) do
+        if adornment then adornment:Destroy() end
     end
-end
-
-local function ApplyHardwareEsp(player)
-    RemoveHardwareEsp(player)
-    if not ScriptConfig.EspEnabled or IsTeammate(player) then return end
-    
-    local character = player.Character
-    if not character then return end
-    
-    local targetPart = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart")
-    if not targetPart then return end
-    
-    local boxAdornment = Instance.new("BoxHandleAdornment")
-    boxAdornment.Size = character:GetExtentsSize() + Vector3.new(0.1, 0.1, 0.1)
-    boxAdornment.AlwaysOnTop = true
-    boxAdornment.ZIndex = 5
-    boxAdornment.Adornee = targetPart
-    boxAdornment.Color3 = Color3.fromRGB(255, 60, 60)
-    boxAdornment.Transparency = 0.65
-    boxAdornment.Parent = ScreenGui
-    
-    EspInstances[player] = { boxAdornment }
+    table.clear(EspInstances)
 end
 
 local function InitEspWorker()
     RegisterConnection(RunService.Heartbeat:Connect(function()
-        if not ScriptConfig.EspEnabled then return end
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                if not IsTeammate(player) then
-                    local instances = EspInstances[player]
-                    if not instances or not instances[1] or not instances[1].Parent or not instances[1].Adornee then
-                        ApplyHardwareEsp(player)
+        if not ScriptConfig.EspEnabled then 
+            ClearAllEsp()
+            return 
+        end
+        
+        -- Сканируем всё пространство игры на скрытые модельки
+        for _, model in ipairs(Workspace:GetDescendants()) do
+            if model:IsA("Model") and model ~= LocalPlayer.Character and not model:IsDescendantOf(Camera) then
+                -- Признак игрока в BloxStrike: наличие Humanoid или специфичных хитбоксов
+                local hasHumanoid = model:FindFirstChildOfClass("Humanoid")
+                local anyPart = model:FindFirstChildWhichIsA("BasePart")
+                
+                if anyPart and (hasHumanoid or model.Name:find("Player") or model:FindFirstChild("Head")) then
+                    -- Проверка на тиммейта через поиск ника над головой или в таблице
+                    local isFriendly = false
+                    local p = Players:GetPlayerFromCharacter(model)
+                    if p and (p.Team == LocalPlayer.Team or p.TeamColor == LocalPlayer.TeamColor) then
+                        isFriendly = true
                     end
-                else
-                    if EspInstances[player] then RemoveHardwareEsp(player) end
+                    
+                    if not isFriendly then
+                        if not EspInstances[model] or not EspInstances[model].Parent then
+                            if EspInstances[model] then EspInstances[model]:Destroy() end
+                            
+                            local boxAdornment = Instance.new("BoxHandleAdornment")
+                            boxAdornment.Size = model:GetExtentsSize() + Vector3.new(0.3, 0.3, 0.3)
+                            boxAdornment.AlwaysOnTop = true
+                            boxAdornment.ZIndex = 10
+                            boxAdornment.Adornee = anyPart
+                            boxAdornment.Color3 = Color3.fromRGB(255, 35, 35)
+                            boxAdornment.Transparency = 0.5
+                            boxAdornment.Parent = ScreenGui
+                            
+                            EspInstances[model] = boxAdornment
+                        end
+                    end
                 end
             end
         end
@@ -292,29 +281,26 @@ local function InitEspWorker()
 end
 
 -- ==========================================
--- ГЛОБАЛЬНЫЙ СКИНЧЕНДЖЕР (ОКРУЖЕНИЕ + ИНВЕНТАРЬ)
+-- ОБХОД ЗАЩИТЫ ТЕКСТУР (ИНЖЕКЦИЯ СЛОЕВ)
 -- ==========================================
-local function ApplySkinToInstance(obj, currentSkinData)
-    if obj:IsA("MeshPart") or obj:IsA("SpecialMesh") then
-        if not OriginalAssets.WeaponTextures[obj] then
-            OriginalAssets.WeaponTextures[obj] = {
-                TextureId = obj.TextureId,
-                Material = obj:IsA("MeshPart") and obj.Material or nil,
-                Color = obj:IsA("MeshPart") and obj.Color or nil,
-                MeshId = obj:IsA("MeshPart") and obj.MeshId or (obj:IsA("SpecialMesh") and obj.MeshId or nil)
+local function ForceStyleInstance(obj, skinData)
+    if obj:IsA("MeshPart") or obj:IsA("BasePart") then
+        -- Вместо TextureId перекрашиваем сам физический слой и материал детали
+        if not OriginalAssets[obj] then
+            OriginalAssets[obj] = {
+                Material = obj.Material,
+                Color = obj.Color,
+                Transparency = obj.Transparency
             }
         end
         
-        if ScriptConfig.SelectedCategory == "Weapons" then
-            obj.TextureId = currentSkinData.TextureId
-            if obj:IsA("MeshPart") then
-                obj.Material = currentSkinData.Material
-                obj.Color = currentSkinData.Color
-            end
-        elseif ScriptConfig.SelectedCategory == "Knives" then
-            obj.MeshId = currentSkinData.MeshId
-            obj.TextureId = currentSkinData.TextureId
-        end
+        -- Удаляем внутренние текстурные меши игры, если они блокируют цвет
+        local tex = obj:FindFirstChildOfClass("Texture") or obj:FindFirstChildOfClass("SurfaceAppearance")
+        if tex then tex:Destroy() end
+        
+        obj.Material = skinData.Material
+        obj.Color = skinData.Color
+        obj.Transparency = 0 -- Делаем скин видимым сквозь тени матча
     end
 end
 
@@ -324,23 +310,18 @@ local function ScanAndApplySkins()
     local currentSkinData = SkinDatabase[ScriptConfig.SelectedCategory][ScriptConfig.SelectedSkin]
     if not currentSkinData then return end
     
-    -- 1. Сканирование мира и рук
+    -- Инжекция в пушку в руках от первого лица (Camera)
+    for _, item in ipairs(Camera:GetDescendants()) do
+        ForceStyleInstance(item, currentSkinData)
+    end
+    
+    -- Инжекция в пушку на персонаже от третьего лица
     if LocalPlayer.Character then
         for _, item in ipairs(LocalPlayer.Character:GetDescendants()) do
-            ApplySkinToInstance(item, currentSkinData)
-        end
-    end
-    
-    -- 2. Сканирование камеры (первый вид пушек в BloxStrike)
-    for _, item in ipairs(Camera:GetDescendants()) do
-        ApplySkinToInstance(item, currentSkinData)
-    end
-    
-    -- 3. ХУК ИНВЕНТАРЯ (Попытка подмены скинов во ViewportFrames главного меню)
-    for _, gui in ipairs(PlayerGui:GetDescendants()) do
-        if gui:IsA("ViewportFrame") then
-            for _, item in ipairs(gui:GetDescendants()) do
-                ApplySkinToInstance(item, currentSkinData)
+            if item:IsA("Tool") or item.Name:find("Weapon") or item.Name:find("Knife") then
+                for _, subItem in ipairs(item:GetDescendants()) do
+                    ForceStyleInstance(subItem, currentSkinData)
+                end
             end
         end
     end
@@ -355,29 +336,23 @@ local function InitSkinEngine()
 end
 
 -- ==========================================
--- ИНИЦИАЛИЗАЦИЯ И РЕГИСТРАЦИЯ КОМПОНЕНТОВ
+-- УПРАВЛЕНИЕ И СБРОС СИСТЕМЫ
 -- ==========================================
 CreateToggleButton("Hardware Box ESP", "EspEnabled", function(state)
-    if not state then
-        for _, player in ipairs(Players:GetPlayers()) do RemoveHardwareEsp(player) end
-    end
+    if not state then ClearAllEsp() end
 end)
 
 CreateToggleButton("Skin Changer Master", "SkinChangerEnabled", function(state)
     if not state then
-        for obj, data in pairs(OriginalAssets.WeaponTextures) do
+        -- Полный откат к заводским ассетам BloxStrike
+        for obj, data in pairs(OriginalAssets) do
             if obj and obj.Parent then
-                obj.TextureId = data.TextureId
-                if obj:IsA("MeshPart") then
-                    obj.Material = data.Material
-                    obj.Color = data.Color
-                    obj.MeshId = data.MeshId
-                elseif obj:IsA("SpecialMesh") then
-                    obj.MeshId = data.MeshId
-                end
+                obj.Material = data.Material
+                obj.Color = data.Color
+                obj.Transparency = data.Transparency
             end
         end
-        table.clear(OriginalAssets.WeaponTextures)
+        table.clear(OriginalAssets)
     end
 end)
 
@@ -399,7 +374,7 @@ local function TotalUnloadRegistry()
     for _, connection in ipairs(ActiveConnections) do
         if connection then connection:Disconnect() end
     end
-    for _, player in ipairs(Players:GetPlayers()) do RemoveHardwareEsp(player) end
+    ClearAllEsp()
     ScreenGui:Destroy()
 end
 
