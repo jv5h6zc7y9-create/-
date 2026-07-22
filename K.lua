@@ -1,15 +1,17 @@
--- MONOLITHIC PASSIVE OPTIMIZED SCRIPT FOR BLOXSTRIKE (MOBILE EXECUTORS)-- Architected for maximum hardware efficiency, zero camera manipulation, and strict memory management.
+-- BLOXSTRIKE ULTRA PERF-SUITE v3 (WITH INVENTORY UI SCANNER)-- Оптимизировано для iOS/Android эмуляторов и инжекторов.
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = CoreGui:FindFirstChild("RobloxGui") or LocalPlayer:WaitForChild("PlayerGui")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Camera = Workspace.CurrentCamera
 
 -- ==========================================
--- FEATURE REGISTRIES & CLEANUP SYSTEMS
+-- КОНФИГУРАЦИЯ И ПЛЕСХОЛДЕРЫ ТЕКСТУР
 -- ==========================================
 local ScriptConfig = {
     EspEnabled = false,
@@ -31,19 +33,16 @@ local function RegisterConnection(connection)
     return connection
 end
 
--- ==========================================
--- INVENTORY CONFIGURATION DATABASE
--- ==========================================
 local SkinDatabase = {
     Weapons = {
-        ["Asimov"] = { TextureId = "rbxassetid://123456789", Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(255, 120, 0) },
-        ["Dragon Lore"] = { TextureId = "rbxassetid://987654321", Material = Enum.Material.Glass, Color = Color3.fromRGB(230, 185, 40) },
-        ["Hyper Beast"] = { TextureId = "rbxassetid://543216789", Material = Enum.Material.Neon, Color = Color3.fromRGB(0, 255, 150) },
-        ["Printstream"] = { TextureId = "rbxassetid://112233445", Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(240, 240, 245) }
+        ["Asimov"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(255, 120, 0) },
+        ["Dragon Lore"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.Glass, Color = Color3.fromRGB(230, 185, 40) },
+        ["Hyper Beast"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.Neon, Color = Color3.fromRGB(0, 255, 150) },
+        ["Printstream"] = { TextureId = "rbxassetid://13404172551", Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(240, 240, 245) }
     },
     Knives = {
-        ["Karambit"] = { MeshId = "rbxassetid://135792468", TextureId = "rbxassetid://246813579" },
-        ["Butterfly Knife"] = { MeshId = "rbxassetid://864209753", TextureId = "rbxassetid://975310864" }
+        ["Karambit"] = { MeshId = "rbxassetid://5117435422", TextureId = "rbxassetid://13404172551" },
+        ["Butterfly Knife"] = { MeshId = "rbxassetid://5117435422", TextureId = "rbxassetid://13404172551" }
     },
     Gloves = {
         ["Sport Vice"] = { LeftColor = Color3.fromRGB(255, 0, 128), RightColor = Color3.fromRGB(0, 191, 255), Material = Enum.Material.Neon },
@@ -52,13 +51,13 @@ local SkinDatabase = {
 }
 
 -- ==========================================
--- PREMIUM DARK MOBILE UI INFRASTRUCTURE
+-- PREMIUM MOBILE DARK UI
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "BloxStrikeHardwareOptimizedUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = PlayerGui
+ScreenGui.Parent = CoreGui:FindFirstChild("RobloxGui") or PlayerGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -67,7 +66,6 @@ MainFrame.Position = UDim2.new(0.5, -170, 0.5, -130)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = false -- Enforcing manual UserInputService Touch processing for consistency across executors
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -80,47 +78,36 @@ MainStroke.Color = Color3.fromRGB(45, 45, 50)
 MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = MainFrame
 
--- Mobile Touch Drag Handling
-local Dragging = false
-local DragInput, DragStart, StartPosition
-
-local function UpdateDrag(input)
-    local delta = input.Position - DragStart
-    MainFrame.Position = UDim2.new(StartPosition.X.Scale, StartPosition.X.Offset + delta.X, StartPosition.Y.Scale, StartPosition.Y.Offset + delta.Y)
-end
+-- Кастомный Touch-Drag рендеринг
+local Dragging, DragInput, DragStart, StartPosition
 
 RegisterConnection(MainFrame.InputBegan:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         Dragging = true
         DragStart = input.Position
         StartPosition = MainFrame.Position
-        
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                Dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then Dragging = false end
         end)
     end
 end))
 
 RegisterConnection(MainFrame.InputChanged:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        DragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then DragInput = input end
 end))
 
 RegisterConnection(UserInputService.InputChanged:Connect(function(input)
     if input == DragInput and Dragging then
-        UpdateDrag(input)
+        local delta = input.Position - DragStart
+        MainFrame.Position = UDim2.new(StartPosition.X.Scale, StartPosition.X.Offset + delta.X, StartPosition.Y.Scale, StartPosition.Y.Offset + delta.Y)
     end
 end))
 
--- Top Bar UI Elements
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -40, 0, 35)
 TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "BLOXSTRIKE EXTERNAL PERF-SUITE"
+TitleLabel.Text = "BLOXSTRIKE EXTERNAL PERF-SUITE v3"
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextSize = 13
 TitleLabel.TextColor3 = Color3.fromRGB(230, 230, 235)
@@ -137,11 +124,6 @@ CloseButton.TextColor3 = Color3.fromRGB(240, 80, 80)
 CloseButton.TextSize = 12
 CloseButton.Parent = MainFrame
 
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 6)
-CloseCorner.Parent = CloseButton
-
--- Content Area
 local Container = Instance.new("ScrollingFrame")
 Container.Size = UDim2.new(1, -20, 1, -50)
 Container.Position = UDim2.new(0, 10, 0, 45)
@@ -156,7 +138,6 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.Parent = Container
 
--- Dynamic Component Constructors
 local function CreateToggleButton(name, configKey, callback)
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(1, 0, 0, 40)
@@ -202,10 +183,8 @@ local function CreateToggleButton(name, configKey, callback)
     Switch.MouseButton1Click:Connect(function()
         ScriptConfig[configKey] = not ScriptConfig[configKey]
         local active = ScriptConfig[configKey]
-        
         TweenService:Create(Switch, TweenInfo.new(0.2), {BackgroundColor3 = active and Color3.fromRGB(0, 180, 110) or Color3.fromRGB(45, 45, 50)}):Play()
         TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = active and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)}):Play()
-        
         callback(active)
     end)
 end
@@ -215,10 +194,6 @@ local function CreateDropdown(name, options, onSelect)
     Frame.Size = UDim2.new(1, 0, 0, 40)
     Frame.BackgroundColor3 = Color3.fromRGB(26, 26, 28)
     Frame.Parent = Container
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 6)
-    Corner.Parent = Frame
     
     local Label = Instance.new("TextLabel")
     Label.Size = UDim2.new(0, 110, 1, 0)
@@ -235,23 +210,15 @@ local function CreateDropdown(name, options, onSelect)
     Button.Size = UDim2.new(1, -135, 0, 26)
     Button.Position = UDim2.new(0, 123, 0.5, -13)
     Button.BackgroundColor3 = Color3.fromRGB(36, 36, 40)
-    Button.Text = options[1] or "None"
+    Button.Text = type(options) == "table" and options[1] or tostring(options)
     Button.Font = Enum.Font.Gotham
     Button.TextSize = 11
     Button.TextColor3 = Color3.fromRGB(230, 230, 235)
     Button.Parent = Frame
     
-    local ButtonCorner = Instance.new("UICorner")
-    ButtonCorner.CornerRadius = UDim.new(0, 4)
-    ButtonCorner.Parent = Button
-    
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Thickness = 1
-    Stroke.Color = Color3.fromRGB(50, 50, 55)
-    Stroke.Parent = Button
-    
     local CurrentIndex = 1
     Button.MouseButton1Click:Connect(function()
+        if type(options) ~= "table" or #options == 0 then return end
         CurrentIndex = CurrentIndex + 1
         if CurrentIndex > #options then CurrentIndex = 1 end
         Button.Text = options[CurrentIndex]
@@ -261,13 +228,13 @@ local function CreateDropdown(name, options, onSelect)
     return function(newOptions)
         options = newOptions
         CurrentIndex = 1
-        Button.Text = options[1] or "None"
-        onSelect(options[1])
+        Button.Text = type(options) == "table" and options[1] or "None"
+        if type(options) == "table" and options[1] then onSelect(options[1]) end
     end
 end
 
 -- ==========================================
--- HIGH-PERFORMANCE HARDWARE BOX ESP SYSTEM
+-- ИСПРАВЛЕННЫЙ HARDWARE ESP
 -- ==========================================
 local function IsTeammate(player)
     if player.Team == LocalPlayer.Team then return true end
@@ -278,7 +245,7 @@ end
 local function RemoveHardwareEsp(player)
     if EspInstances[player] then
         for _, obj in ipairs(EspInstances[player]) do
-            obj:Destroy()
+            if obj then obj:Destroy() end
         end
         EspInstances[player] = nil
     end
@@ -291,11 +258,11 @@ local function ApplyHardwareEsp(player)
     local character = player.Character
     if not character then return end
     
-    local targetPart = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+    local targetPart = character.PrimaryPart or character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart")
     if not targetPart then return end
     
     local boxAdornment = Instance.new("BoxHandleAdornment")
-    boxAdornment.Size = character:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)
+    boxAdornment.Size = character:GetExtentsSize() + Vector3.new(0.1, 0.1, 0.1)
     boxAdornment.AlwaysOnTop = true
     boxAdornment.ZIndex = 5
     boxAdornment.Adornee = targetPart
@@ -307,149 +274,110 @@ local function ApplyHardwareEsp(player)
 end
 
 local function InitEspWorker()
-    RegisterConnection(Players.PlayerAdded:Connect(function(player)
-        RegisterConnection(player.CharacterAdded:Connect(function()
-            task.wait(0.5) -- Small delay for character assembly instantiation
-            if ScriptConfig.EspEnabled then ApplyHardwareEsp(player) end
-        end))
-    end))
-    
-    RegisterConnection(Players.PlayerRemoving:Connect(function(player)
-        RemoveHardwareEsp(player)
-    end))
-    
     RegisterConnection(RunService.Heartbeat:Connect(function()
         if not ScriptConfig.EspEnabled then return end
         for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and not IsTeammate(player) then
-                local instances = EspInstances[player]
-                if not instances or #instances == 0 or not instances[1].Adornee or not instances[1].Parent then
-                    ApplyHardwareEsp(player)
+            if player ~= LocalPlayer then
+                if not IsTeammate(player) then
+                    local instances = EspInstances[player]
+                    if not instances or not instances[1] or not instances[1].Parent or not instances[1].Adornee then
+                        ApplyHardwareEsp(player)
+                    end
+                else
+                    if EspInstances[player] then RemoveHardwareEsp(player) end
                 end
-            elseif IsTeammate(player) and EspInstances[player] then
-                RemoveHardwareEsp(player)
             end
         end
     end))
 end
 
 -- ==========================================
--- COMPACT EVENT-BASED SKIN ENGINE
+-- ГЛОБАЛЬНЫЙ СКИНЧЕНДЖЕР (ОКРУЖЕНИЕ + ИНВЕНТАРЬ)
 -- ==========================================
-local function SkinChangerWorker(tool)
-    if not ScriptConfig.SkinChangerEnabled or not tool:IsA("Tool") then return end
-    
-    if not OriginalAssets.WeaponTextures[tool] then
-        OriginalAssets.WeaponTextures[tool] = {}
-        for _, part in ipairs(tool:GetDescendants()) do
-            if part:IsA("MeshPart") or part:IsA("SpecialMesh") then
-                OriginalAssets.WeaponTextures[tool][part] = {
-                    TextureId = part.TextureId,
-                    Material = part:IsA("MeshPart") and part.Material or nil,
-                    Color = part:IsA("MeshPart") and part.Color or nil
-                }
+local function ApplySkinToInstance(obj, currentSkinData)
+    if obj:IsA("MeshPart") or obj:IsA("SpecialMesh") then
+        if not OriginalAssets.WeaponTextures[obj] then
+            OriginalAssets.WeaponTextures[obj] = {
+                TextureId = obj.TextureId,
+                Material = obj:IsA("MeshPart") and obj.Material or nil,
+                Color = obj:IsA("MeshPart") and obj.Color or nil,
+                MeshId = obj:IsA("MeshPart") and obj.MeshId or (obj:IsA("SpecialMesh") and obj.MeshId or nil)
+            }
+        end
+        
+        if ScriptConfig.SelectedCategory == "Weapons" then
+            obj.TextureId = currentSkinData.TextureId
+            if obj:IsA("MeshPart") then
+                obj.Material = currentSkinData.Material
+                obj.Color = currentSkinData.Color
             end
+        elseif ScriptConfig.SelectedCategory == "Knives" then
+            obj.MeshId = currentSkinData.MeshId
+            obj.TextureId = currentSkinData.TextureId
         end
     end
+end
+
+local function ScanAndApplySkins()
+    if not ScriptConfig.SkinChangerEnabled then return end
     
     local currentSkinData = SkinDatabase[ScriptConfig.SelectedCategory][ScriptConfig.SelectedSkin]
     if not currentSkinData then return end
     
-    if ScriptConfig.SelectedCategory == "Weapons" then
-        for _, part in ipairs(tool:GetDescendants()) do
-            if part:IsA("MeshPart") or part:IsA("SpecialMesh") then
-                part.TextureId = currentSkinData.TextureId
-                if part:IsA("MeshPart") then
-                    part.Material = currentSkinData.Material
-                    part.Color = currentSkinData.Color
-                end
-            end
+    -- 1. Сканирование мира и рук
+    if LocalPlayer.Character then
+        for _, item in ipairs(LocalPlayer.Character:GetDescendants()) do
+            ApplySkinToInstance(item, currentSkinData)
         end
-    elseif ScriptConfig.SelectedCategory == "Knives" then
-        for _, part in ipairs(tool:GetDescendants()) do
-            if part:IsA("MeshPart") or part:IsA("SpecialMesh") then
-                part.MeshId = currentSkinData.MeshId
-                part.TextureId = currentSkinData.TextureId
+    end
+    
+    -- 2. Сканирование камеры (первый вид пушек в BloxStrike)
+    for _, item in ipairs(Camera:GetDescendants()) do
+        ApplySkinToInstance(item, currentSkinData)
+    end
+    
+    -- 3. ХУК ИНВЕНТАРЯ (Попытка подмены скинов во ViewportFrames главного меню)
+    for _, gui in ipairs(PlayerGui:GetDescendants()) do
+        if gui:IsA("ViewportFrame") then
+            for _, item in ipairs(gui:GetDescendants()) do
+                ApplySkinToInstance(item, currentSkinData)
             end
         end
     end
-end
-
-local function GLOVE_MODULE_PROCESS(character)
-    if not ScriptConfig.SkinChangerEnabled or ScriptConfig.SelectedCategory ~= "Gloves" then return end
-    local config = SkinDatabase.Gloves[ScriptConfig.SelectedSkin]
-    if not config then return end
-    
-    for _, limbName in ipairs({"LeftArm", "RightArm", "LeftHand", "RightHand"}) do
-        local limb = character:FindFirstChild(limbName)
-        if limb and limb:IsA("BasePart") then
-            if not OriginalAssets.DefaultHands[limb] then
-                OriginalAssets.DefaultHands[limb] = { Material = limb.Material, Color = limb.Color }
-            end
-            limb.Material = config.Material
-            limb.Color = limbName:find("Left") and config.LeftColor or config.RightColor
-        end
-    end
-end
-
-local function ListenToCharacter(character)
-    if not character then return end
-    
-    RegisterConnection(character.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") then
-            task.wait()
-            SkinChangerWorker(child)
-        end
-    end))
-    
-    RegisterConnection(RunService.Heartbeat:Connect(function()
-        if ScriptConfig.SkinChangerEnabled and ScriptConfig.SelectedCategory == "Gloves" then
-            GLOVE_MODULE_PROCESS(character)
-        end
-    end))
 end
 
 local function InitSkinEngine()
-    if LocalPlayer.Character then ListenToCharacter(LocalPlayer.Character) end
-    RegisterConnection(LocalPlayer.CharacterAdded:Connect(ListenToCharacter))
+    RegisterConnection(RunService.Heartbeat:Connect(function()
+        if ScriptConfig.SkinChangerEnabled then
+            ScanAndApplySkins()
+        end
+    end))
 end
 
 -- ==========================================
--- REGISTRATION AND CONTROL WIREFRAME
+-- ИНИЦИАЛИЗАЦИЯ И РЕГИСТРАЦИЯ КОМПОНЕНТОВ
 -- ==========================================
 CreateToggleButton("Hardware Box ESP", "EspEnabled", function(state)
     if not state then
         for _, player in ipairs(Players:GetPlayers()) do RemoveHardwareEsp(player) end
-    else
-        for _, player in ipairs(Players:GetPlayers()) do ApplyHardwareEsp(player) end
     end
 end)
 
 CreateToggleButton("Skin Changer Master", "SkinChangerEnabled", function(state)
     if not state then
-        for tool, parts in pairs(OriginalAssets.WeaponTextures) do
-            if tool and tool.Parent then
-                for part, data in pairs(parts) do
-                    part.TextureId = data.TextureId
-                    if part:IsA("MeshPart") then
-                        part.Material = data.Material
-                        part.Color = data.Color
-                    end
+        for obj, data in pairs(OriginalAssets.WeaponTextures) do
+            if obj and obj.Parent then
+                obj.TextureId = data.TextureId
+                if obj:IsA("MeshPart") then
+                    obj.Material = data.Material
+                    obj.Color = data.Color
+                    obj.MeshId = data.MeshId
+                elseif obj:IsA("SpecialMesh") then
+                    obj.MeshId = data.MeshId
                 end
             end
         end
-        for limb, data in pairs(OriginalAssets.DefaultHands) do
-            if limb and limb.Parent then
-                limb.Material = data.Material
-                limb.Color = data.Color
-            end
-        end
-    else
-        local char = LocalPlayer.Character
-        if char then
-            local currentTool = char:FindFirstChildOfClass("Tool")
-            if currentTool then SkinChangerWorker(currentTool) end
-        end
+        table.clear(OriginalAssets.WeaponTextures)
     end
 end)
 
@@ -460,55 +388,22 @@ local SkinCategoryDropdown = CreateDropdown("Category", {"Weapons", "Knives", "G
     for name, _ in pairs(SkinDatabase[category]) do
         table.insert(newOptions, name)
     end
-    if SkinDropdownUpdater then
-        SkinDropdownUpdater(newOptions)
-    end
+    if SkinDropdownUpdater then SkinDropdownUpdater(newOptions) end
 end)
 
 SkinDropdownUpdater = CreateDropdown("Select Skin", {"Asimov", "Dragon Lore", "Hyper Beast", "Printstream"}, function(skinName)
     ScriptConfig.SelectedSkin = skinName
-    if ScriptConfig.SkinChangerEnabled and LocalPlayer.Character then
-        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if tool then SkinChangerWorker(tool) end
-    end
 end)
 
--- ==========================================
--- COMPREHENSIVE REGISTRY CLEANUP
--- ==========================================
 local function TotalUnloadRegistry()
     for _, connection in ipairs(ActiveConnections) do
         if connection then connection:Disconnect() end
     end
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        RemoveHardwareEsp(player)
-    end
-    
-    for tool, parts in pairs(OriginalAssets.WeaponTextures) do
-        if tool and tool.Parent then
-            for part, data in pairs(parts) do
-                part.TextureId = data.TextureId
-                if part:IsA("MeshPart") then
-                    part.Material = data.Material
-                    part.Color = data.Color
-                end
-            end
-        end
-    end
-    
-    for limb, data in pairs(OriginalAssets.DefaultHands) do
-        if limb and limb.Parent then
-            limb.Material = data.Material
-            limb.Color = data.Color
-        end
-    end
-    
+    for _, player in ipairs(Players:GetPlayers()) do RemoveHardwareEsp(player) end
     ScreenGui:Destroy()
 end
 
 CloseButton.MouseButton1Click:Connect(TotalUnloadRegistry)
 
--- Initialization Hooks
 InitEspWorker()
 InitSkinEngine()
