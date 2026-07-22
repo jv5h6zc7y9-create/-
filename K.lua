@@ -1,9 +1,11 @@
 -- ====================================================================
--- IPAD FLING THINGS AND PEOPLE ULTIMATE SUPREMAV V25 (40-50 CHEAT FUNCTIONS)
--- NO SHORTCUTS - FULL EXPANDED RUSSIAN SOURCE CODE FOR DELTA IOS EXECUTOR
+-- IPAD FLING THINGS AND PEOPLE SUPREMACY V27 (ULTIMATE TOTAL FIX)
+-- NO SHORTCUTS - FULL EXPANDED SOURCE CODE FOR DELTA EXECUTOR iOS
 -- ====================================================================
 
-if not game:IsLoaded() then game.Loaded:Wait() end
+if not game:IsLoaded() then 
+    game.Loaded:Wait() 
+end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,25 +13,26 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Полная очистка старых окон во избежание наложения GUI интерфейсов
-if CoreGui:FindFirstChild("FlingThingsUltimateGUI_V25") then
-    CoreGui:FindFirstChild("FlingThingsUltimateGUI_V25"):Destroy()
+-- Полная очистка старых окон во избежание наложения GUI
+if CoreGui:FindFirstChild("FlingThingsUltimateGUI_V27") then
+    CoreGui:FindFirstChild("FlingThingsUltimateGUI_V27"):Destroy()
 end
 
--- СОЗДАНИЕ ИНТЕРФЕЙСА (Полностью на русском языке)
+-- СОЗДАНИЕ ИНТЕРФЕЙСА (Полностью на русском языке, фикс Draggable)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FlingThingsUltimateGUI_V25"
+ScreenGui.Name = "FlingThingsUltimateGUI_V27"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 260, 0, 360)
-MainFrame.Position = UDim2.new(0.5, -120, 0.5, -180)
+MainFrame.Size = UDim2.new(0, 260, 0, 390)
+MainFrame.Position = UDim2.new(0.5, -120, 0.5, -195)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -45,7 +48,7 @@ TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 13
 TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Text = "  FT&P HARDCORE SUPREMACY V25"
+TitleLabel.Text = "  FT&P HARDCORE SUPREMACY V27"
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = MainFrame
 
@@ -80,17 +83,34 @@ UIListLayout.Parent = Container
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 6)
 
--- НАСТРОЙКИ И СОСТОЯНИЯ ЧИТОВ
-local Toggles = { SilentAim = false, MaxThrow = false, BlackHole = false, AntiGrab = false, PushAura = false, Fly = false, Stretch = false }
-local Config = { SilentAimFov = 250, ThrowForce = 35000000, HoleRadius = 15, OrbitSpeed = 5, PushRadius = 12, FlySpeed = 60 }
+-- НАСТРОЕЧНЫЕ ТАБЛИЦЫ ЧИТОВ И СОСТОЯНИЙ ФИЗИКИ
+local Toggles = { 
+    SilentAim = false, 
+    MaxThrow = false, 
+    BlackHole = false, 
+    AntiGrab = false, 
+    PushAura = false,
+    ShowEsp = false
+}
+
+local Config = { 
+    SilentAimFov = 350, 
+    ThrowForce = 95000000, 
+    HoleRadius = 12, 
+    OrbitSpeed = 7, 
+    PushRadius = 14,
+    PredictionIntensity = 0.15
+}
 
 local GlobalTrackedGrab = { ActiveItem = nil, WasGrabbed = false }
-local ActiveBlackHoleForces = {}
-local TargetMachineObj = nil
-local BodyGyro, BodyVelocity = nil, nil
+local EspVisualObjects = {}
+local OrbitAngle = 0
+local ToyRemoteInstance = nil
 
--- БЕЗОПАСНОЕ ПЕРЕТАСКИВАНИЕ МЕНЮ НА IPAD (ЗАЩИТА ОТ КРАША DELTA)
-local dragging, dragStart, startPos = false, nil, nil
+-- БЕЗОПАСНОЕ ПЕРЕТАСКИВАНИЕ МЕНЮ НА IPAD (БЕЗ ВЫЛЕТОВ И КРАШЕЙ)
+local dragging = false
+local dragStart = nil
+local startPos = nil
 
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -110,7 +130,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- СВЕРТЫВАНИЕ И РАСВЕРТЫВАНИЕ ОКНА НА МЕСТЕ
 local MenuMinimized = false
 
 MinimizeBtn.MouseButton1Click:Connect(function()
@@ -124,7 +143,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
         MinimizeBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
     else
         Container.Visible = true
-        MainFrame.Size = UDim2.new(0, 260, 0, 360)
+        MainFrame.Size = UDim2.new(0, 260, 0, 390)
         TitleLabel.Visible = true
         MinimizeBtn.Position = UDim2.new(1, -45, 0, 0)
         MinimizeBtn.Text = "—"
@@ -132,7 +151,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ФУНКЦИЯ ПОИСКА БЛИЖАЙШЕГО ИГРОКА К ЦЕНТРУ ЭКРАНА ДЛЯ АИМА
+-- ДИНАМИЧЕСКИЙ АИМ-ЗАХВАТ БЛИЖАЙШЕГО ИГРОКА К ЦЕНТРУ СЕНСОРА
 local function GetClosestPlayerToCenter()
     local closestPlayer = nil
     local shortestDistance = Config.SilentAimFov
@@ -158,81 +177,80 @@ local function GetClosestPlayerToCenter()
     return closestPlayer
 end
 
--- НАЧАЛО И КОНЕЦ БЕЗОПАСНОГО МОБИЛЬНОГО ФЛАЯ
-local function StartMobileFly(hrp, hum)
-    BodyGyro = Instance.new("BodyGyro")
-    BodyGyro.P = 9e4
-    BodyGyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-    BodyGyro.cframe = hrp.CFrame
-    BodyGyro.Parent = hrp
+-- -------------------------------------------------------------------------------
+-- МОДУЛЬ 1: ОБНОВЛЕННЫЙ СВЕРХСКОРОСТНОЙ ХУК АИМА (WALLBANG И ПРЕДСКАЗАНИЕ БЕГА)
+-- -------------------------------------------------------------------------------
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
     
-    BodyVelocity = Instance.new("BodyVelocity")
-    BodyVelocity.velocity = Vector3.new(0, 0.1, 0)
-    BodyVelocity.maxForce = Vector3.new(9e9, 9e9, 9e9)
-    BodyVelocity.Parent = hrp
-    if hum then hum.PlatformStand = true end
-end
-
-local function EndMobileFly(hum)
-    if BodyGyro then BodyGyro:Destroy() BodyGyro = nil end
-    if BodyVelocity then BodyVelocity:Destroy() BodyVelocity = nil end
-    if hum then hum.PlatformStand = false end
-end
-
--- -------------------------------------------------------------------------------
--- МОДУЛЬ 1: УПРЕЖДАЮЩИЙ СВЕРХ-АИМ СКВОЗЬ СТЕНЫ (HEARTBEAT ВЕКТОРЫ)
--- -------------------------------------------------------------------------------
-RunService.Heartbeat:Connect(function()
-    if Toggles.SilentAim and GlobalTrackedGrab.ActiveItem and GlobalTrackedGrab.ActiveItem:IsA("BasePart") then
-        local activeSilentTarget = GetClosestPlayerToCenter()
-        if activeSilentTarget and activeSilentTarget.Character and activeSilentTarget.Character:FindFirstChild("HumanoidRootPart") then
-            local tRoot = activeSilentTarget.Character.HumanoidRootPart
-            -- Рассчитываем упреждение бега цели сквозь любые текстуры
-            local predictedPos = tRoot.Position + (tRoot.AssemblyLinearVelocity * 0.14)
-            local direction = (predictedPos - GlobalTrackedGrab.ActiveItem.Position).Unit
+    if Toggles.SilentAim and not checkcaller() and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
+        local activeTarget = GetClosestPlayerToCenter()
+        if activeTarget and activeTarget.Character and activeTarget.Character:FindFirstChild("HumanoidRootPart") then
+            local tRoot = activeTarget.Character.HumanoidRootPart
+            -- Жесткое упреждение траектории луча сквозь любые стены
+            local predictedPos = tRoot.Position + (tRoot.AssemblyLinearVelocity * Config.PredictionIntensity)
             
-            -- Корректируем полет предмета строго во врага
-            GlobalTrackedGrab.ActiveItem.AssemblyLinearVelocity = direction * 165
+            if method == "Raycast" then
+                args[2] = (predictedPos - args[1]).Unit * 15000
+            else
+                args[1] = Ray.new(args[1].Origin, (predictedPos - args[1].Origin).Unit * 15000)
+            end
         end
     end
+    return oldNamecall(self, unpack(args))
+end)
+
+local oldIndex
+oldIndex = hookmetamethod(game, "__index", function(self, key)
+    if Toggles.SilentAim and not checkcaller() and (key == "Hit" or key == "Target") then
+        local activeTarget = GetClosestPlayerToCenter()
+        if activeTarget and activeTarget.Character and activeTarget.Character:FindFirstChild("HumanoidRootPart") then
+            local tRoot = activeTarget.Character.HumanoidRootPart
+            local aimPos = tRoot.Position + (tRoot.AssemblyLinearVelocity * Config.PredictionIntensity)
+            
+            return key == "Hit" and CFrame.new(aimPos) or tRoot
+        end
+    end
+    return oldIndex(self, key)
 end)
 
 -- -------------------------------------------------------------------------------
--- МОДУЛЬ 2: АВТОНОМНЫЙ ДАЛЕКИЙ БРОСОК С МГНОВЕННЫМ СБРОСОМ КЭША РУК
+-- МОДУЛЬ 2: МЕГА-БРОСОК НА УСКОРИТЕЛЯХ BODYTHRUST (95,000,000) + ТРАМБОВКА ПОД ПОЛ
 -- -------------------------------------------------------------------------------
-local function applyMaxThrowPhysics(toolObject)
-    if not toolObject or not toolObject:IsA("BasePart") then return end
+local function applyMassiveVelocityThrow(obj)
+    if not obj or not obj:IsA("BasePart") then return end
+    
     pcall(function()
-        toolObject.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
-        toolObject.AssemblyMass = 0
-        toolObject.Massless = true
+        obj.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+        obj.AssemblyMass = 0
+        obj.Massless = true
     end)
+
+    local throwDirection = Camera.CFrame.LookVector
+    local activeTarget = GetClosestPlayerToCenter()
     
-    local throwVector = Camera.CFrame.LookVector
-    local activeSilentTarget = GetClosestPlayerToCenter()
-    
-    if Toggles.SilentAim and activeSilentTarget and activeSilentTarget.Character and activeSilentTarget.Character:FindFirstChild("HumanoidRootPart") then
-        local tRoot = activeSilentTarget.Character.HumanoidRootPart
-        throwVector = ((tRoot.Position + (tRoot.AssemblyLinearVelocity * 0.14)) - toolObject.Position).Unit
+    if Toggles.SilentAim and activeTarget and activeTarget.Character and activeTarget.Character:FindFirstChild("HumanoidRootPart") then
+        local tRoot = activeTarget.Character.HumanoidRootPart
+        throwDirection = ((tRoot.Position + (tRoot.AssemblyLinearVelocity * Config.PredictionIntensity)) - obj.Position).Unit
     else
-        throwVector = (Camera.CFrame.LookVector + Vector3.new(0, 3.6, 0)).Unit
+        throwDirection = (Camera.CFrame.LookVector + Vector3.new(0, 4, 0)).Unit
     end
 
-    -- Мощнейший силовой импульс броска на 35,000,000 в космос за карту
-    toolObject:ApplyImpulse(throwVector * Config.ThrowForce)
-    toolObject.AssemblyLinearVelocity = throwVector * Config.ThrowForce
+    -- Принудительный разгон через BodyThrust (Абсолютный лимит мощности против лагов)
+    local thrust = Instance.new("BodyThrust")
+    thrust.Force = throwDirection * Config.ThrowForce
+    thrust.Location = Vector3.new(0, 0, 0)
+    thrust.Parent = obj
     
-    local attachment = Instance.new("Attachment", toolObject)
-    local lv = Instance.new("LinearVelocity", toolObject)
-    lv.Attachment0 = attachment
-    lv.VectorVelocity = throwVector * 850000
-    lv.MaxForce = Config.ThrowForce
-    
-    Debris:AddItem(lv, 0.3)
-    Debris:AddItem(attachment, 0.3)
+    obj:ApplyImpulse(throwDirection * Config.ThrowForce)
+    obj.AssemblyLinearVelocity = throwDirection * Config.ThrowForce
+
+    Debris:AddItem(thrust, 0.35)
 end
 
--- Покадровый сканер связей: стирает историю хвата и вжимает текущую вещь под пол
+-- Сканнер хвата: стирает старую историю предметов каждую миллисекунду
 RunService.Stepped:Connect(function()
     local myChar = LocalPlayer.Character
     if myChar then
@@ -252,17 +270,16 @@ RunService.Stepped:Connect(function()
             GlobalTrackedGrab.ActiveItem = currentGrabbedPart
             GlobalTrackedGrab.WasGrabbed = true
             if Toggles.MaxThrow then
-                -- Полное вжимание удерживаемой вещи/игрока глубоко под текстуры пола
+                -- Принудительное заталкивание удерживаемой жертвы/вещи под текстуры земли
                 currentGrabbedPart.CanCollide = false
-                currentGrabbedPart.AssemblyLinearVelocity = Vector3.new(currentGrabbedPart.AssemblyLinearVelocity.X, -150, currentGrabbedPart.AssemblyLinearVelocity.Z)
+                currentGrabbedPart.AssemblyLinearVelocity = Vector3.new(currentGrabbedPart.AssemblyLinearVelocity.X, -160, currentGrabbedPart.AssemblyLinearVelocity.Z)
             end
         else
-            -- Клик оригинальной кнопки Throw броска: связь исчезает — подрываем объект
+            -- Клик оригинальной кнопки броска игры: связь порвалась — даем мега-импульс
             if GlobalTrackedGrab.WasGrabbed and GlobalTrackedGrab.ActiveItem then
                 if Toggles.MaxThrow then
-                    applyMaxThrowPhysics(GlobalTrackedGrab.ActiveItem)
+                    applyMassiveVelocityThrow(GlobalTrackedGrab.ActiveItem)
                 end
-                -- Скрипт мгновенно забывает старый предмет и готов к новой цели
                 GlobalTrackedGrab.ActiveItem = nil
                 GlobalTrackedGrab.WasGrabbed = false
             end
@@ -271,115 +288,145 @@ RunService.Stepped:Connect(function()
 end)
 
 -- -------------------------------------------------------------------------------
--- МОДУЛЬ 3: ИСТИННАЯ ТЕЛЕПОРТ ЧЕРНАЯ ДЫРА СО СПАВНОМ ИЗ ИНВЕНТАРЯ И КИЛЛОМ
+-- МОДУЛЬ 3: ИСТИННАЯ ЧЕРНАЯ ДЫРА (СПАВН ИЗ ИНВЕНТАРЯ И ЗАПИХИВАНИЕ В МИКРОВОЛНОВКУ)
 -- -------------------------------------------------------------------------------
-local OrbitAngle = 0
+local function scanAndSpawnMicrowave()
+    local foundMachine = nil
+    for _, item in pairs(workspace:GetDescendants()) do
+        if item:IsA("Model") and (item.Name:lower():find("microwave") or item.Name:lower():find("machine")) then
+            foundMachine = item
+            break
+        end
+    end
+    -- Нативный форумный Remote-пакет инвентаря игрушек, если ловушки нет на карте
+    if not foundMachine then
+        if not ToyRemoteInstance then
+            ToyRemoteInstance = ReplicatedStorage:FindFirstChild("SpawnToy") or ReplicatedStorage:FindFirstChild("ToysRemote") or (ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("SpawnToy"))
+        end
+        if ToyRemoteInstance then
+            ToyRemoteInstance:FireServer("Microwave") -- Спавним Микроволновку из вашего Toys инвентаря
+        end
+    end
+    return foundMachine
+end
 
 RunService.Heartbeat:Connect(function()
-    if not Toggles.BlackHole then
-        if next(ActiveBlackHoleForces) ~= nil then
-            for part, data in pairs(ActiveBlackHoleForces) do
-                if data.AlignPos then data.AlignPos:Destroy() end
-                if data.Attachment then data.Attachment:Destroy() end
-                if data.CenterAttachment then data.CenterAttachment:Destroy() end
-                if part and part.Parent then part.CanCollide = true end
-            end
-            table.clear(ActiveBlackHoleForces)
-        end
-        if TargetMachineObj then TargetMachineObj = nil end
-        return
-    end
+    if not Toggles.BlackHole then return end
     
     local myChar = LocalPlayer.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myHrp then return end
     
-    -- Поиск стиральной машины в мире. Если её нет — вызываем функцию инвентаря (Toys Remote)
-    if not TargetMachineObj then
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") and (obj.Name:match("Machine") or obj.Name:match("Washing") or obj.Name:match("Microwave")) then
-                TargetMachineObj = obj
-                break
-            end
-        end
-        -- ФОРУМНЫЙ ОБХОД ИНВЕНТАРЯ: если машины нет, шлем пакет на спавн из твоего инвентаря
-        if not TargetMachineObj then
-            local toyEvent = game:GetService("ReplicatedStorage"):FindFirstChild("SpawnToy") or game:GetService("ReplicatedStorage"):FindFirstChild("ToysRemote")
-            if toyEvent and toyEvent:IsA("RemoteEvent") then
-                toyEvent:FireServer("Washing Machine") -- Симулируем спавн из Toys Menu инвентаря
-            end
-        end
-    end
+    local currentMicrowave = scanAndSpawnMicrowave()
     
-    -- Телепортируем машину/ловушку прямо под себя сквозь пол
-    if TargetMachineObj and TargetMachineObj:IsA("Model") and TargetMachineObj.PrimaryPart then
-        TargetMachineObj.PrimaryPart.CanCollide = false
-        TargetMachineObj:SetPrimaryPartCFrame(myHrp.CFrame * CFrame.new(0, -4, -1))
+    -- Телепортируем микроволновку прямо под координаты вашего персонажа
+    if currentMicrowave and currentMicrowave:IsA("Model") then
+        local primary = currentMicrowave.PrimaryPart or currentMicrowave:FindFirstChildOfClass("BasePart")
+        if primary then
+            primary.CanCollide = false
+            currentMicrowave:SetPrimaryPartCFrame(myHrp.CFrame * CFrame.new(0, -3.8, -1.5))
+        end
     end
     
     OrbitAngle = OrbitAngle + math.rad(Config.OrbitSpeed)
-    local totalElements = {}
     
-    -- Сбор всех чужих игроков и свободных вещей
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            table.insert(totalElements, p.Character.HumanoidRootPart)
+    -- Сбор всех игроков и вещей сервера в жесткий принудительный CFrame-круг
+    local index = 0
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            index = index + 1
+            local tHrp = player.Character.HumanoidRootPart
+            tHrp.CanCollide = false
+            local spacing = (math.pi * 2) / #Players:GetPlayers()
+            local offsetX = math.cos(OrbitAngle + (index * spacing)) * Config.HoleRadius
+            local offsetZ = math.sin(OrbitAngle + (index * spacing)) * Config.HoleRadius
+            -- Выстраиваем кольцо удержания и запихиваем глубоко внутрь ловушки
+            tHrp.CFrame = CFrame.new(myHrp.Position + Vector3.new(offsetX, -4.2, offsetZ))
+            tHrp.AssemblyLinearVelocity = Vector3.new(0, -90000, 0) -- Скорость засасывания в Void
         end
     end
     
-    for _, item in pairs(workspace:GetChildren()) do
-        if item:IsA("BasePart") and item.Anchored == false and item.Name ~= "Baseplate" then
-            table.insert(totalElements, item)
-        end
-    end
-    
-    if #totalElements > 0 then
-        for index, element in pairs(totalElements) do
-            local spacing = (math.pi * 2) / #totalElements
-            local elementAngle = OrbitAngle + (index * spacing)
-            local offsetX = math.cos(elementAngle) * Config.HoleRadius
-            local offsetZ = math.sin(elementAngle) * Config.HoleRadius
-            
-            element.CanCollide = false
-            
-            -- Принудительный хват на физических замках AlignPosition
-            if not ActiveBlackHoleForces[element] then
-                local centerAtt = Instance.new("Attachment", myHrp)
-                local targetAtt = Instance.new("Attachment", element)
-                local alignPos = Instance.new("AlignPosition")
-                alignPos.MaxForce = math.huge
-                alignPos.MaxVelocity = math.huge
-                alignPos.Responsiveness = 250
-                alignPos.Attachment0 = targetAtt
-                alignPos.Attachment1 = centerAtt
-                alignPos.Parent = element
-                ActiveBlackHoleForces[element] = { AlignPos = alignPos, Attachment = targetAtt, CenterAttachment = centerAtt }
-            end
-            
-            local data = ActiveBlackHoleForces[element]
-            if data and data.CenterAttachment then
-                -- Выстраиваем всех по кругу и жестко вбиваем внутрь машины со скоростью -45000 до килла
-                data.CenterAttachment.Position = Vector3.new(offsetX, -4, offsetZ)
-            end
-            
-            element.AssemblyLinearVelocity = Vector3.new(0, -45000, 0)
+    for _, part in pairs(workspace:GetChildren()) do
+        if part:IsA("BasePart") and part.Anchored == false and part.Name ~= "Baseplate" then
+            part.CanCollide = false
+            part.CFrame = CFrame.new(myHrp.Position + Vector3.new(0, -4, 0))
+            part.AssemblyLinearVelocity = Vector3.new(0, -60000, 0)
         end
     end
 end)
 
 -- -------------------------------------------------------------------------------
--- МОДУЛЬ 4: НАТИВНЫЙ АНТИ-ГРАБ + АУРА АВТО-ОТКИДЫВАНИЯ ВРАГОВ
+-- МОДУЛЬ 4: СЛЕДЯЩАЯ ПОДСВЕТКА НИКОВ И 3D БОКСЫ СКВОЗЬ СТЕНЫ (ESP)
+-- -------------------------------------------------------------------------------
+local function ApplyVisualEspSystem()
+    local currentAimTarget = GetClosestPlayerToCenter()
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            if root and Toggles.ShowEsp then
+                if not EspVisualObjects[player] then
+                    -- Создание сквозного 3D Бокса
+                    local box = Instance.new("BoxHandleAdornment")
+                    box.Name = "Delta_Esp_Box_V27"
+                    box.Size = player.Character:GetExtentsSize() + Vector3.new(0.4, 0.4, 0.4)
+                    box.Color3 = Color3.fromRGB(255, 0, 0)
+                    box.Transparency = 0.5
+                    box.AlwaysOnTop = true
+                    box.ZIndex = 6
+                    box.Adornee = player.Character
+                    box.Parent = player.Character
+                    
+                    -- Создание сквозного Ника над головой
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Name = "Delta_Esp_Name_V27"
+                    billboard.Size = UDim2.new(0, 150, 0, 40)
+                    billboard.AlwaysOnTop = true
+                    billboard.StudsOffset = Vector3.new(0, 3, 0)
+                    
+                    local label = Instance.new("TextLabel")
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = player.Name
+                    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    label.TextSize = 13
+                    label.Font = Enum.Font.SourceSansBold
+                    label.Parent = billboard
+                    
+                    billboard.Parent = player.Character:FindFirstChild("Head") or root
+                    EspVisualObjects[player] = { Box = box, Gui = billboard }
+                else
+                    -- Если игрок выбран Аимом — бокс становится зеленым
+                    if currentAimTarget == player then
+                        EspVisualObjects[player].Box.Color3 = Color3.fromRGB(0, 255, 0)
+                    else
+                        EspVisualObjects[player].Box.Color3 = Color3.fromRGB(255, 0, 0)
+                    end
+                end
+            else
+                if EspVisualObjects[player] then
+                    if EspVisualObjects[player].Box then EspVisualObjects[player].Box:Destroy() end
+                    if EspVisualObjects[player].Gui then EspVisualObjects[player].Gui:Destroy() end
+                    EspVisualObjects[player] = nil
+                end
+            end
+        end
+    end
+end
+
+-- -------------------------------------------------------------------------------
+-- МОДУЛЬ 5: НАТИВНЫЙ АНТИ-ГРАБ + АУРА ОТКИДЫВАНИЯ НА 14 ЕДИНИЦ
 -- -------------------------------------------------------------------------------
 local function SecureCharacter(char)
     char.DescendantAdded:Connect(function(descendant)
         if Toggles.AntiGrab and (descendant:IsA("Weld") or descendant.Name:lower():find("weld") or descendant:IsA("Constraint") or descendant:IsA("MoverConstraint")) then
-            task.wait(0.01) -- Микротайминг для репликации пакетов на iOS
+            task.wait(0.01)
             if descendant.Parent then
                 local attackerChar = descendant.Parent
                 if attackerChar ~= char and not descendant:IsDescendantOf(char) then
                     local enemyModel = descendant:FindFirstAncestorOfClass("Model")
                     if enemyModel and enemyModel:FindFirstChildOfClass("Humanoid") and enemyModel.Name ~= LocalPlayer.Name then
-                        enemyModel:BreakJoints() -- Тотальный моментальный краш чужих суставов рук
+                        enemyModel:BreakJoints() -- Ломаем суставы врагу при попытке взятия
                         descendant:Destroy()
                     end
                 end
@@ -391,14 +438,13 @@ end
 if LocalPlayer.Character then SecureCharacter(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(SecureCharacter)
 
--- Сверхскоростной цикл работы Ауры откидывания чужих игроков и Флая
 RunService.Heartbeat:Connect(function()
     local myChar = LocalPlayer.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
     if not myHrp then return end
     
-    -- 1. Очистка торса от вражеских сил притяжения
+    ApplyVisualEspSystem()
+    
     if Toggles.AntiGrab then
         for _, force in pairs(myHrp:GetChildren()) do
             if force:IsA("BodyPosition") or force:IsA("AlignPosition") or force:IsA("BodyVelocity") or force:IsA("LinearVelocity") then
@@ -407,40 +453,22 @@ RunService.Heartbeat:Connect(function()
         end
     end
     
-    -- 2. ЛОГИКА АУРЫ ОТКИДЫВАНИЯ: если враг подходит ближе 12 единиц — швыряем его импульсом
+    -- Аура защиты: откидывает чужих игроков, если они подходят ближе 14 единиц
     if Toggles.PushAura then
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local eHrp = player.Character.HumanoidRootPart
                 local distance = (myHrp.Position - eHrp.Position).Magnitude
                 if distance <= Config.PushRadius then
-                    -- Создаем мощный отбрасывающий вектор в противоположную сторону
                     local pushDirection = (eHrp.Position - myHrp.Position).Unit
-                    eHrp.AssemblyLinearVelocity = (pushDirection * 180) + Vector3.new(0, 50, 0)
+                    eHrp.AssemblyLinearVelocity = (pushDirection * 190) + Vector3.new(0, 50, 0)
                 end
             end
         end
     end
-    
-    -- 3. МОБИЛЬНЫЙ ФЛАЙ ПО НАПРАВЛЕНИЮ ВЗГЛЯДА КАМЕРЫ ПЛАНШЕТА
-    if Toggles.Fly and BodyVelocity and BodyGyro then
-        BodyGyro.cframe = Camera.CFrame
-        BodyVelocity.velocity = Camera.CFrame.LookVector * Config.FlySpeed
-    end
 end)
 
--- -------------------------------------------------------------------------------
--- МОДУЛЬ 5: РАСТЯГ ЭКРАНА И КАСТОМНОЕ 3-Е ЛИЦО
--- -------------------------------------------------------------------------------
-RunService.RenderStepped:Connect(function()
-    if Toggles.Stretch then Camera.FieldOfView = 120 else Camera.FieldOfView = 70 end
-    if Toggles.ThirdPerson then
-        LocalPlayer.CameraMaxZoomDistance = 120
-        LocalPlayer.CameraMinZoomDistance = 15
-    end
-end)
-
--- ГЕНЕРАТОР КНОПОК ПЕРЕКЛЮЧЕНИЯ ИНТЕРФЕЙСА МЕНЮ (ПРАВАЯ ПАНЕЛЬ)
+-- ГЕНЕРАТОР КНОПОК ПЕРЕКЛЮЧЕНИЯ ИНТЕРФЕЙСА GUI (ПРАВАЯ ПАНЕЛЬ)
 local function CreateToggle(name, posY, callback)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(0, 230, 0, 36)
@@ -465,24 +493,11 @@ local function CreateToggle(name, posY, callback)
     end)
 end
 
-CreateToggle("1. Сверх-Аим за Ближайшим", 10, function(v) Toggles.SilentAim = v end)
-CreateToggle("2. Мега-Бросок + Вжатие", 52, function(v) Toggles.MaxThrow = v end)
-CreateToggle("3. Истинная Черная Дыра", 94, function(v) Toggles.BlackHole = v end)
-CreateToggle("4. Нативный Анти-Хват", 136, function(v) Toggles.AntiGrab = v end)
-CreateToggle("5. Аура Откидывания Врагов", 178, function(v) Toggles.PushAura = v end)
-CreateToggle("6. Сенсорный Fly Камеры", 220, function(v)
-    Toggles.Fly = v
-    local char = LocalPlayer.Character
-    if v and char then
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hrp then StartMobileFly(hrp, hum) end
-    else
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        EndMobileFly(hum)
-    end
-end)
-CreateToggle("7. Растяг Экрана (120 FOV)", 262, function(v) Toggles.Stretch = v end)
+CreateToggle("1. Сверх-Аим сквозь Текстуры", 10, function(v) Toggles.SilentAim = v end)
+CreateToggle("2. Мега-Бросок + Трамобвка под Пол", 52, function(v) Toggles.MaxThrow = v end)
+CreateToggle("3. Истинная Черная Дыра (Сбор)", 94, function(v) Toggles.BlackHole = v end)
+CreateToggle("4. Нативный Анти-Хват рук", 136, function(v) Toggles.AntiGrab = v end)
+CreateToggle("5. Аура Защитного Откидывания", 178, function(v) Toggles.PushAura = v end)
+CreateToggle("6. Сквозные Ники и 3D Боксы (ESP)", 220, function(v) Toggles.ShowEsp = v end)
 
-print("[Delta iOS Ultimate Setup Complete V25: 100% Uncut Code Loaded]")
+print("[Delta iOS Execution: Финальная сборка V27 успешно загружена!]")
