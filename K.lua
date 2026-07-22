@@ -179,8 +179,8 @@ local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
 ESPToggle.Size = UDim2.new(0, 300, 0, 45)
 ESPToggle.Position = UDim2.new(0.5, -150, 0, 265)
-ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
-ESPToggle.Text = "ESP: ВЫКЛ"
+ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+ESPToggle.Text = "ESP: ВКЛ"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.TextSize = 16
 ESPToggle.Font = Enum.Font.SourceSansBold
@@ -206,14 +206,13 @@ CreditLabel.TextSize = 13
 CreditLabel.Font = Enum.Font.SourceSansItalic
 CreditLabel.Parent = MainMenu
 
-local ESPContainer = Instance.new("Folder")
-ESPContainer.Name = "ESPContainer"
-ESPContainer.Parent = ScreenGui
-
 local fovRadius = 100
 local aimMode = "Выкл"
 local aimTarget = "Head"
-local espEnabled = false
+local espEnabled = true
+
+local colorVisible = Color3.fromRGB(0, 255, 0)
+local colorHidden = Color3.fromRGB(255, 0, 0)
 
 local screenCenter = Vector2.new(0, 0)
 local menuButtonPosition = nil
@@ -347,7 +346,17 @@ ESPToggle.MouseButton1Click:Connect(function()
 	else
 		ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 		ESPToggle.Text = "ESP: ВЫКЛ"
-		ESPContainer:ClearAllChildren()
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player.Character then
+				local head = player.Character:FindFirstChild("Head")
+				if head then
+					local bGui = head:FindFirstChild("CustomEspGui")
+					if bGui then bGui:Destroy() end
+				end
+				local highlight = player.Character:FindFirstChild("EspPlayerHighlight")
+				if highlight then highlight:Destroy() end
+			end
+		end
 	end
 end)
 
@@ -400,44 +409,68 @@ local function getClosestVisibleEnemy()
 	return closestPlayer
 end
 
-local function createESPBoxes(player)
-	local name = player.Name
-	local box = ESPContainer:FindFirstChild(name .. "_Box") or Instance.new("Frame")
-	local stroke = box:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
-	local hpBar = ESPContainer:FindFirstChild(name .. "_HPBar") or Instance.new("Frame")
-	local hpFill = hpBar:FindFirstChild("Fill") or Instance.new("Frame")
-	local distLabel = ESPContainer:FindFirstChild(name .. "_Dist") or Instance.new("TextLabel")
+local function updatePlayerEsp(player, character, enemyVisible)
+	local head = character:FindFirstChild("Head")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not head or not humanoid then return end
 	
-	if not box.Parent then
-		box.Name = name .. "_Box"
-		box.BackgroundTransparency = 1
-		box.Parent = ESPContainer
+	local billboardGui = head:FindFirstChild("CustomEspGui")
+	if not billboardGui then
+		billboardGui = Instance.new("BillboardGui")
+		billboardGui.Name = "CustomEspGui"
+		billboardGui.Size = UDim2.new(0, 140, 0, 45)
+		billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+		billboardGui.AlwaysOnTop = true
 		
-		stroke.Thickness = 1.5
-		stroke.Color = Color3.fromRGB(255, 0, 0)
-		stroke.Parent = box
+		local infoLabel = Instance.new("TextLabel")
+		infoLabel.Name = "InfoLabel"
+		infoLabel.Size = UDim2.new(1, 0, 0, 20)
+		infoLabel.BackgroundTransparency = 1
+		infoLabel.Font = Enum.Font.SourceSansBold
+		infoLabel.TextSize = 13
+		infoLabel.Parent = billboardGui
 		
-		hpBar.Name = name .. "_HPBar"
-		hpBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		local hpBackground = Instance.new("Frame")
+		hpBackground.Name = "HpBackground"
+		hpBackground.Size = UDim2.new(0.8, 0, 0, 4)
+		hpBackground.Position = UDim2.new(0.1, 0, 0, 22)
+		hpBackground.BackgroundColor3 = Color3.fromRGB(60, 10, 10)
+		hpBackground.BorderSizePixel = 0
+		hpBackground.Parent = billboardGui
+		
+		local hpBar = Instance.new("Frame")
+		hpBar.Name = "HpBar"
+		hpBar.Size = UDim2.new(1, 0, 1, 0)
+		hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
 		hpBar.BorderSizePixel = 0
-		hpBar.Parent = ESPContainer
+		hpBar.Parent = hpBackground
 		
-		hpFill.Name = "Fill"
-		hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-		hpFill.BorderSizePixel = 0
-		hpFill.Parent = hpBar
-		
-		distLabel.Name = name .. "_Dist"
-		distLabel.BackgroundTransparency = 1
-		distLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		distLabel.TextSize = 13
-		distLabel.Font = Enum.Font.SourceSansBold
-		distLabel.TextStrokeTransparency = 0
-		distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-		distLabel.Parent = ESPContainer
+		billboardGui.Parent = head
 	end
 	
-	return box, stroke, hpBar, hpFill, distLabel
+	local myHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	local targetHrp = character:FindFirstChild("HumanoidRootPart")
+	local distanceMeters = 0
+	if myHrp and targetHrp then
+		distanceMeters = (targetHrp.Position - myHrp.Position).Magnitude
+	end
+	
+	billboardGui.InfoLabel.Text = string.format("%s [%dм]", player.Name, math.floor(distanceMeters))
+	billboardGui.InfoLabel.TextColor3 = enemyVisible and colorVisible or colorHidden
+	
+	local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+	billboardGui.HpBackground.HpBar.Size = UDim2.new(healthRatio, 0, 1, 0)
+	billboardGui.HpBackground.HpBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+	
+	local highlight = character:FindFirstChild("EspPlayerHighlight")
+	if not highlight then
+		highlight = Instance.new("Highlight")
+		highlight.Name = "EspPlayerHighlight"
+		highlight.FillTransparency = 1
+		highlight.OutlineTransparency = 0
+		highlight.Parent = character
+	end
+	highlight.OutlineColor = enemyVisible and colorVisible or colorHidden
 end
 
 local isHooked = false
@@ -489,70 +522,35 @@ RunService.RenderStepped:Connect(function()
 		FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	end
 	
-	if espEnabled then
-		local currentEnemies = {}
-		
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer and (not player.Team or player.Team ~= LocalPlayer.Team) then
-				local char = player.Character
-				if char then
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			local char = player.Character
+			if char then
+				if espEnabled and (not player.Team or player.Team ~= LocalPlayer.Team) then
 					local humanoid = char:FindFirstChildOfClass("Humanoid")
 					local root = char:FindFirstChild("HumanoidRootPart")
 					if humanoid and humanoid.Health > 0 and root then
-						local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-						if onScreen then
-							currentEnemies[player.Name] = true
-							
-							local box, stroke, hpBar, hpFill, distLabel = createESPBoxes(player)
-							local head = char:FindFirstChild("Head")
-							local headPos = head and Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 2.2, 0)) or Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3.5, 0))
-							local footPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.5, 0))
-							
-							local height = math.abs(headPos.Y - footPos.Y)
-							local width = height * 0.55
-							
-							box.Visible = true
-							box.Size = UDim2.new(0, width, 0, height)
-							box.Position = UDim2.new(0, rPos.X - width / 2, 0, headPos.Y)
-							
-							if targetPlayer == player then
-								stroke.Color = Color3.fromRGB(0, 255, 0)
-							else
-								if isVisible(root) then
-									stroke.Color = Color3.fromRGB(255, 255, 0)
-								else
-									stroke.Color = Color3.fromRGB(255, 0, 0)
-								end
-							end
-							
-							hpBar.Visible = true
-							hpBar.Size = UDim2.new(0, 4, 0, height)
-							hpBar.Position = UDim2.new(0, rPos.X - width / 2 - 7, 0, headPos.Y)
-							
-							local hpPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-							hpFill.Size = UDim2.new(1, 0, hpPercent, 0)
-							hpFill.Position = UDim2.new(0, 0, 1 - hpPercent, 0)
-							hpFill.BackgroundColor3 = Color3.fromHSV(hpPercent * 0.33, 1, 1)
-							
-							local distance = (Camera.CFrame.Position - root.Position).Magnitude
-							distLabel.Visible = true
-							distLabel.Text = tostring(math.round(distance)) .. " studs"
-							distLabel.Position = UDim2.new(0, rPos.X - 50, 0, footPos.Y + 3)
-							distLabel.Size = UDim2.new(0, 100, 0, 15)
+						local enemyVisible = isVisible(root)
+						updatePlayerEsp(player, char, enemyVisible)
+					else
+						local head = char:FindFirstChild("Head")
+						if head then
+							local bGui = head:FindFirstChild("CustomEspGui")
+							if bGui then bGui:Destroy() end
 						end
+						local highlight = char:FindFirstChild("EspPlayerHighlight")
+						if highlight then highlight:Destroy() end
 					end
+				else
+					local head = char:FindFirstChild("Head")
+					if head then
+						local bGui = head:FindFirstChild("CustomEspGui")
+						if bGui then bGui:Destroy() end
+					end
+					local highlight = char:FindFirstChild("EspPlayerHighlight")
+					if highlight then highlight:Destroy() end
 				end
 			end
 		end
-		
-		for _, child in ipairs(ESPContainer:GetChildren()) do
-			local parts = string.split(child.Name, "_")
-			local pName = parts[1]
-			if pName and not currentEnemies[pName] then
-				child.Visible = false
-			end
-		end
-	else
-		ESPContainer:ClearAllChildren()
 	end
 end)
