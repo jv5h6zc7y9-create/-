@@ -33,9 +33,10 @@ local currentKnifeIndex = 1
 -- 2. СОЗДАНИЕ ГЛАВНОГО ИНТЕРФЕЙСА (GUI)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "iPadProPerfectEspHud"
+ScreenGui.Name = "iPadProPerfectEspHudFixed"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true -- Игнорируем стандартный отступ для ручного точного просчета центра
+ScreenGui.DisplayOrder = 100    -- ПРИНУДИТЕЛЬНО ПОВЕРХ ВСЕХ КНОПОК И ИНТЕРФЕЙСОВ ИГРЫ
 ScreenGui.Parent = PlayerGui
 
 -- Верхняя информационная панель со статистикой игроков в матче
@@ -92,16 +93,18 @@ updateCirclePosition()
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateCirclePosition)
 
 -- ==========================================
--- 3. ПЕРЕТАСКИВАЕМАЯ КНОПКА МЕНЮ (ДЛЯ IPAD)
+-- 3. ПЕРЕТАСКИВАЕМАЯ КНОПКА МЕНЮ (ИСПРАВЛЕННАЯ ПОЗИЦИЯ)
 -- ==========================================
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "ToggleMenuButton"
 MenuButton.Size = UDim2.new(0, 55, 0, 55)
-MenuButton.Position = UDim2.new(0, 25, 0, 160) -- Начальная позиция слева на экране
+-- Перенесено в безопасную зону справа, где нет мобильного джойстика движения и чата
+MenuButton.Position = UDim2.new(1, -75, 0, 150) 
 MenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MenuButton.Text = "⚙️"
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuButton.TextSize = 24
+MenuButton.ZIndex = 10 -- Поверх остальных слоев интерфейса
 MenuButton.Parent = ScreenGui
 
 local ButtonCorner = Instance.new("UICorner")
@@ -159,6 +162,7 @@ MainMenu.Size = UDim2.new(0, 300, 0, 280)
 MainMenu.Position = UDim2.new(0.5, -150, 0.5, -140) -- По центру экрана
 MainMenu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainMenu.Visible = false -- Изначально скрыто
+MainMenu.ZIndex = 10
 MainMenu.Parent = ScreenGui
 
 local MenuCorner = Instance.new("UICorner")
@@ -173,6 +177,7 @@ MenuTitle.Text = "Панель Разработчика HUD"
 MenuTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuTitle.TextSize = 16
 MenuTitle.Font = Enum.Font.SourceSansBold
+MenuTitle.ZIndex = 11
 MenuTitle.Parent = MainMenu
 
 local CloseButton = Instance.new("TextButton")
@@ -183,6 +188,7 @@ CloseButton.BackgroundTransparency = 1
 CloseButton.Text = "❌"
 CloseButton.TextColor3 = Color3.fromRGB(255, 90, 90)
 CloseButton.TextSize = 16
+CloseButton.ZIndex = 11
 CloseButton.Parent = MainMenu
 
 -- Открытие и закрытие меню по нажатиям кнопок
@@ -204,6 +210,7 @@ ModeButton.Text = "Режим: Обычный Аим (Голова/Тело)"
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ModeButton.TextSize = 13
 ModeButton.Font = Enum.Font.SourceSansBold
+ModeButton.ZIndex = 11
 ModeButton.Parent = MainMenu
 Instance.new("UICorner", ModeButton).CornerRadius = UDim.new(0, 6)
 
@@ -232,6 +239,7 @@ SliderLabel.BackgroundTransparency = 1
 SliderLabel.Text = "Радиус FOV круга: " .. currentRadius .. "px"
 SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 SliderLabel.TextSize = 13
+SliderLabel.ZIndex = 11
 SliderLabel.Parent = MainMenu
 
 local SliderBar = Instance.new("Frame")
@@ -240,6 +248,7 @@ SliderBar.Size = UDim2.new(0.8, 0, 0, 6)
 SliderBar.Position = UDim2.new(0.1, 0, 0, 135)
 SliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SliderBar.BorderSizePixel = 0
+SliderBar.ZIndex = 11
 SliderBar.Parent = MainMenu
 Instance.new("UICorner", SliderBar).CornerRadius = UDim.new(1, 0)
 
@@ -249,6 +258,7 @@ SliderBtn.Size = UDim2.new(0, 18, 0, 18)
 SliderBtn.Position = UDim2.new(0.4, 0, -1, 0)
 SliderBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 SliderBtn.Text = ""
+SliderBtn.ZIndex = 12
 SliderBtn.Parent = SliderBar
 Instance.new("UICorner", SliderBtn).CornerRadius = UDim.new(1, 0)
 
@@ -271,7 +281,6 @@ UserInputService.InputChanged:Connect(function(input)
         local barAbsPos = SliderBar.AbsolutePosition.X
         local barAbsSize = SliderBar.AbsoluteSize.X
         local touchX = input.Position.X
-        
         local relativeX = math.clamp((touchX - barAbsPos) / barAbsSize, 0, 1)
         SliderBtn.Position = UDim2.new(relativeX, -9, -1, 0)
         
@@ -292,6 +301,7 @@ KnifeButton.Text = "Модель ножа: Стандартный"
 KnifeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 KnifeButton.TextSize = 13
 KnifeButton.Font = Enum.Font.SourceSansBold
+KnifeButton.ZIndex = 11
 KnifeButton.Parent = MainMenu
 Instance.new("UICorner", KnifeButton).CornerRadius = UDim.new(0, 6)
 
@@ -315,6 +325,7 @@ FooterLabel.TextColor3 = Color3.fromRGB(140, 140, 140)
 FooterLabel.TextSize = 11
 FooterLabel.TextWrapped = true
 FooterLabel.Font = Enum.Font.SourceSansItalic
+FooterLabel.ZIndex = 11
 FooterLabel.Parent = MainMenu
 
 -- ==========================================
