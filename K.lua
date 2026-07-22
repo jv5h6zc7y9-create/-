@@ -1,7 +1,6 @@
 -- ============================================================================
 -- ORBITAL STATION "MERIDIAN" // SHIP-BOARD PHYSICS & REPLICATION KERNEL
--- TARGET ENVIRONMENT: Roblox Engine (iOS Mobile Client Executor Simulation)
--- MODULE: Advanced Real-Time Physics Simulation and Network Replication
+-- TARGET: "Fling Things and People" // DELTA MOBILE EXECUTION ENVIRONMENT (iOS)
 -- ============================================================================
 
 local CoreGui = game:GetService("CoreGui")
@@ -10,13 +9,15 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Защита от дублирования интерфейса при перезапуске
-if CoreGui:FindFirstChild("MeridianPhysicsKernelUI") then
-    CoreGui.MeridianPhysicsKernelUI:Destroy()
+if CoreGui:FindFirstChild("MeridianFTAPKernelUI") then
+    CoreGui.MeridianFTAPKernelUI:Destroy()
 end
 
 -- ============================================================================
@@ -24,7 +25,7 @@ end
 -- ============================================================================
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MeridianPhysicsKernelUI"
+ScreenGui.Name = "MeridianFTAPKernelUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = CoreGui
@@ -63,7 +64,7 @@ TitleLabel.Size = UDim2.new(1, -80, 1, 0)
 TitleLabel.Position = UDim2.new(0, 12, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Font = Enum.Font.Code
-TitleLabel.Text = "MERIDIAN // KERNEL v4.1"
+TitleLabel.Text = "FTAP // KERNEL v4.1 (iOS)"
 TitleLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 TitleLabel.TextSize = 14
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -105,7 +106,7 @@ ScrollingFrame.Size = UDim2.new(1, -16, 1, -52)
 ScrollingFrame.Position = UDim2.new(0, 8, 0, 44)
 ScrollingFrame.BackgroundTransparency = 1
 ScrollingFrame.BorderSizePixel = 0
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 680)
 ScrollingFrame.ScrollBarThickness = 4
 ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
 ScrollingFrame.Parent = MainContainer
@@ -126,14 +127,14 @@ TopBar.InputBegan:Connect(function(input)
         startPos = MainContainer.Position
         
         -- Обратная связь при перетаскивании (alpha shift)
-        TweenService:Create(MainContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             GroupTransparency = 0.15
         }):Play()
 
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
-                TweenService:Create(MainContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     GroupTransparency = 0
                 }):Play()
             end
@@ -183,11 +184,11 @@ MinimizeButton.MouseButton1Click:Connect(function()
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
-    TweenService:Create(MainContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+    TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
         Size = UDim2.new(0, 0, 0, 0),
         GroupTransparency = 1
     }):Play()
-    task.wait(0.2)
+    task.wait(0.3)
     ScreenGui:Destroy()
 end)
 
@@ -196,16 +197,16 @@ end)
 -- ============================================================================
 
 local moduleNames = {
-    "1: Мониторинг Жестких Связей",
-    "2: Очистка Векторов Скорости",
-    "3: Импульс Высвобождения (999М сил)",
-    "4: Аннигиляция Плотности и Массы",
-    "5: Сброс Координатного Кэша",
-    "6: Коррекция Траектории Рейкаста",
-    "7: Пространственный Захват Магнитуды",
-    "8: Кластеризация Физических Сборок",
-    "9: Циклический Опрос Координат",
-    "10: Фиксация Вертикальной Оси Персонажа"
+    "Авто Анти-Хват",
+    "Очистка Физики",
+    "Мега-Бросок (999М сил)",
+    "Обнуление Веса Вещей",
+    "Сброс Кеша Целей",
+    "Умный Аимбот (Ближайший)",
+    "Авто-Хват Предметов Рядом",
+    "Черная Дыра (Микроволновка)",
+    "Флинг Всего Сервера",
+    "Анти-Регдолл Джойстика"
 }
 
 local moduleStates = {}
@@ -221,7 +222,8 @@ for i = 1, 10 do
     ToggleButton.Font = Enum.Font.Code
     ToggleButton.Text = "  [" .. i .. "] " .. moduleNames[i] .. "\n  [СТАТУС: ОТКЛЮЧЕН]"
     ToggleButton.TextColor3 = Color3.fromRGB(170, 170, 190)
-    ToggleButton.TextSize, ToggleButton.TextXAlignment = 13, Enum.TextXAlignment.Left
+    ToggleButton.TextSize = 13
+    ToggleButton.TextXAlignment = Enum.TextXAlignment.Left
     ToggleButton.LayoutOrder = i
     ToggleButton.Parent = ScrollingFrame
     
@@ -253,23 +255,15 @@ for i = 1, 10 do
 end
 
 -- ============================================================================
--- 2. РЕАЛИЗАЦИЯ 10 АХИТЕКТУРНЫХ МОДУЛЕЙ ФИЗИЧЕСКИХ O1/O2 ОВЕРРАЙДОВ
+-- 2. РЕАЛИЗАЦИЯ 10 АХИТЕКТУРНЫХ МОДУЛЕЙ ФИЗИЧЕСКИХ ОВЕРРАЙДОВ (FTAP)
 -- ============================================================================
-
--- Подключение к интерфейсу iPad: Нативные компоненты (эмуляция touch-интерфейса)
-local VirtualThumbstickInput = Vector3.new(0, 0, 0)
-UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        VirtualThumbstickInput = Vector3.new(input.Position.X, 0, input.Position.Y).Unit
-    end
-end)
 
 -- Модуль 1: Frame-Perfect Anti-Attachment
 local function initModule1(character)
     character.DescendantAdded:Connect(function(descendant)
         if moduleStates[1] then
             if descendant:IsA("Weld") or descendant:IsA("ManualWeld") or descendant:IsA("WeldConstraint") or descendant:IsA("MoverConstraint") then
-                task.wait(0.01) -- Репликационное окно 0.01с
+                task.wait(0.01) -- Микроинтервал репликации 0.01с
                 local creator = descendant.Parent
                 if creator and creator ~= character then
                     pcall(function()
@@ -294,7 +288,7 @@ RunService.Stepped:Connect(function()
             local rootPart = char:FindFirstChild("HumanoidRootPart")
             if rootPart then
                 for _, obj in ipairs(rootPart:GetChildren()) do
-                    if obj:IsA("BodyPosition") or obj:IsA("AlignPosition") or obj:IsA("BodyVelocity") then
+                    if obj:IsA("BodyPosition") or obj:IsA("AlignPosition") or obj:IsA("VectorVelocity") then
                         obj:Destroy()
                     end
                 end
@@ -304,18 +298,25 @@ RunService.Stepped:Connect(function()
 end)
 
 -- Модуль 3: Extreme Network-Independent Momentum Transfer (999,999,000 Force Vector)
-local releasedJointConnections = {}
+local activeJointTrackingTable = {}
 RunService.Heartbeat:Connect(function()
     if moduleStates[3] then
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    -- Проверка состояния разрыва связей через мониторинг соединений
-                    local currentVel = part.AssemblyLinearVelocity
-                    if currentVel.Magnitude > 800000000 then
-                        local forceVector = (Camera.CFrame.LookVector + Vector3.new(0, 0.15, 0)).Unit * 999999000
-                        part:ApplyImpulse(forceVector)
+                    local existingWeld = part:FindFirstChildWhichIsA("Weld")
+                    if activeJointTrackingTable[part] == nil then
+                        activeJointTrackingTable[part] = existingWeld
+                    else
+                        if activeJointTrackingTable[part] ~= nil and existingWeld == nil then
+                            -- Кадр разрыва сустава! Впрыск экстремального импульса
+                            local forceVector = (Camera.CFrame.LookVector + Vector3.new(0, 0.15, 0)).Unit * 999999000
+                            pcall(function()
+                                part:ApplyImpulse(forceVector)
+                            end)
+                        end
+                        activeJointTrackingTable[part] = existingWeld
                     end
                 end
             end
@@ -339,18 +340,17 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- Модуль 5: Absolute Zero Target-Caching
+local globalTargetRef = nil
+local globalWorkspaceContainer = nil
+local globalCameraMatrix = nil
+
 RunService.RenderStepped:Connect(function()
-    local cachedTargetRef = nil
-    local cachedWorkspaceContainer = nil
-    local cachedCameraMatrix = nil
-    
-    -- Принудительный сброс указателей к концу кадра
-    cachedTargetRef = nil
-    cachedWorkspaceContainer = nil
-    cachedCameraMatrix = nil
+    globalTargetRef = nil
+    globalWorkspaceContainer = nil
+    globalCameraMatrix = nil
 end)
 
--- Модуль 6: Metamethod Spatial Hooking & Projection Correction
+-- Модуль 6: Dynamic Metamethod Spatial Hooking (Smart Silent Aim)
 local originalNamecall
 originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
@@ -358,22 +358,36 @@ originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     
     if moduleStates[6] and (method == "Raycast" or method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList") then
         local viewportCenter = Camera.ViewportSize / 2
+        local closestTargetPart = nil
+        local minDistance = 300 -- Порог в 300 пикселей
+        
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
-                local head = player.Character:FindFirstChild("Head")
-                if head then
-                    local screenPos, onScreen = Camera:WorldToScreenPoint(head.Position)
-                    local screenVector = Vector2.new(screenPos.X, screenPos.Y)
-                    if onScreen and (screenVector - viewportCenter).Magnitude <= 300 then
-                        -- Добавление предиктивного фактора скорости сборки
-                        local velocityOffset = head.AssemblyLinearVelocity * 0.14
-                        if method == "Raycast" then
-                            local origin = args[1]
-                            local direction = args[2]
-                            args[2] = (head.Position + velocityOffset - origin)
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local screenPos, onScreen = Camera:WorldToScreenPoint(hrp.Position)
+                    if onScreen then
+                        local screenVector = Vector2.new(screenPos.X, screenPos.Y)
+                        local dist = (screenVector - viewportCenter).Magnitude
+                        if dist <= minDistance then
+                            minDistance = dist
+                            closestTargetPart = hrp
                         end
                     end
                 end
+            end
+        end
+        
+        if closestTargetPart then
+            local velocityPrediction = closestTargetPart.AssemblyLinearVelocity * 0.14
+            local adjustedPosition = closestTargetPart.Position + velocityPrediction
+            if method == "Raycast" then
+                local origin = args[1]
+                args[2] = (adjustedPosition - origin)
+            elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" then
+                local ray = args[1]
+                local newDirection = (adjustedPosition - ray.Origin)
+                args[1] = Ray.new(ray.Origin, newDirection)
             end
         end
     end
@@ -393,11 +407,10 @@ task.spawn(function()
                     if otherPlayer ~= LocalPlayer and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
                         local targetPart = otherPlayer.Character.HumanoidRootPart
                         if (targetPart.Position - rootPos).Magnitude < 15 then
-                            -- Вызов нативного удаленного интерфейса захвата
-                            local proximityRemote = ReplicatedStorage:FindFirstChild("ProximityRigidGrabRemote", true)
-                            if proximityRemote then
+                            local remote = ReplicatedStorage:FindFirstChild("GrabRemote", true) or ReplicatedStorage:FindFirstChild("InteractionRemote", true)
+                            if remote then
                                 pcall(function()
-                                    proximityRemote:FireServer(targetPart)
+                                    remote:FireServer(targetPart)
                                 end)
                             end
                         end
@@ -413,11 +426,11 @@ task.spawn(function()
     while true do
         task.wait(1)
         if moduleStates[8] then
-            local utilityModel = Workspace:FindFirstChild("MeridianUtilityCluster")
-            if not utilityModel then
-                local deploymentRemote = ReplicatedStorage:FindFirstChild("DeployUtilityModelRemote", true)
-                if deploymentRemote then
-                    pcall(function() deploymentRemote:FireServer() end)
+            local applianceModel = Workspace:FindFirstChild("Microwave") or Workspace:FindFirstChild("Appliance")
+            if not applianceModel then
+                local spawnRemote = ReplicatedStorage:FindFirstChild("SpawnRemote", true) or ReplicatedStorage:FindFirstChild("ToolSpawnRemote", true)
+                if spawnRemote then
+                    pcall(function() spawnRemote:FireServer("Microwave") end)
                 end
             else
                 for _, obj in ipairs(Workspace:GetChildren()) do
@@ -445,6 +458,12 @@ task.spawn(function()
                         local targetHRP = targetPlayer.Character.HumanoidRootPart
                         char.HumanoidRootPart.CFrame = targetHRP.CFrame
                         task.wait(0.01)
+                        
+                        local remote = ReplicatedStorage:FindFirstChild("GrabRemote", true)
+                        if remote then
+                            pcall(function() remote:FireServer(targetHRP) end)
+                        end
+                        
                         targetHRP:ApplyImpulse(Vector3.new(0, 999999000, 0))
                     end
                 end
@@ -461,7 +480,7 @@ local function setupAntiRagdoll(character)
         humanoid.StateChanged:Connect(function(oldState, newState)
             if moduleStates[10] then
                 if newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.FallingDown or newState == Enum.HumanoidStateType.Tripping then
-                    if VirtualThumbstickInput.Magnitude > 0.05 then
+                    if humanoid.MoveDirection.Magnitude > 0 then
                         humanoid:ChangeState(Enum.HumanoidStateType.Running)
                     end
                 end
