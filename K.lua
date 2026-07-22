@@ -1,7 +1,7 @@
 --========================================================================================================--
---                                  CHAIRHUB UNIVERSAL FIX MASTER BUILD v3.0                             --
---                               DEVELOPED FOR BLOXSTRIKE BYPASS (iOS / DELTA)                            --
---                               PRODUCTION BUILD - NO SHORTENINGS - FULLY FIXED                          --
+--                                  CHAIRHUB ULTRA BYPASS FOR BLOXSTRIKE v4.0                             --
+--                               DEVELOPED SPECIFICALLY FOR DELTA EXECUTOR (iOS)                          --
+--                               PRODUCTION BUILD - MONOLITHIC CODEBASE - NO TRUNCATIONS                  --
 --========================================================================================================--
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -13,14 +13,13 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Глобальное состояние ChairHub
+-- Состояние конфигурации ChairHub
 local ChairHubConfig = {
     AimbotEnabled = false,
     TeamCheck = true,
     VisibleCheck = false,
-    AimPart = "DynamicHead", -- Динамическое определение костей BloxStrike
-    Smoothness = 0.25,
-    MaxDistance = 200.00,
+    Smoothness = 0.20,
+    MaxDistance = 250.00,
     PredictionScale = 0.045,
     
     ESPBoxes = false,
@@ -28,18 +27,17 @@ local ChairHubConfig = {
     ESPSkeletons = false,
     ESPSkeletonsColor = Color3.fromRGB(0, 255, 140),
     ESPDistance = false,
-    ESPMaxDistance = 400.00,
     
     FOVVisible = false,
     FOVValue = 130,
     FOVColor = Color3.fromRGB(0, 160, 255),
-    FOVThickness = 1.5,
     
     SkinChangerEnabled = false,
     SelectedCategory = "Weapons",
     SelectedSkin = "Asimov"
 }
 
+-- Кэш-хранилища для минимизации нагрузки на процессор Apple
 local MemoryCache = {
     ESPObjects = {},
     OriginalWeapons = {},
@@ -47,6 +45,7 @@ local MemoryCache = {
     UIVisible = true
 }
 
+-- Глобальная база данных скинов для BloxStrike
 local GlobalSkinDatabase = {
     ["Weapons"] = {
         ["Asimov"] = { Texture = "rbxassetid://257913346", Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(255, 120, 0) },
@@ -64,58 +63,77 @@ local GlobalSkinDatabase = {
     }
 }
 
--- Умная функция верификации команды (фикс для BloxStrike)
-local function CalculateTeamRelation(targetPlayer)
+-- Валидация команд (Усиленный фикс под детекцию BloxStrike)
+local function CalculateTeamRelation(targetModel)
+    local targetPlayer = Players:GetPlayerFromCharacter(targetModel)
+    if not targetPlayer then
+        -- Фикс: Если модель лежит в кастомной папке рендеринга, ищем игрока по совпадению имени модели
+        targetPlayer = Players:FindFirstChild(targetModel.Name)
+    end
+    
     if targetPlayer == LocalPlayer then return false end
-    if ChairHubConfig.TeamCheck then
+    
+    if ChairHubConfig.TeamCheck and targetPlayer then
         if LocalPlayer.Team and targetPlayer.Team and LocalPlayer.Team == targetPlayer.Team then return false end
         if LocalPlayer.TeamColor and targetPlayer.TeamColor and LocalPlayer.TeamColor == targetPlayer.TeamColor then return false end
     end
     return true
 end
 
--- Поиск костей в кастомных моделях BloxStrike
-local function FindDynamicBone(character, boneType)
-    if not character then return nil end
+-- Мощный поисковик скрытых моделей персонажей BloxStrike во всех скрытых контейнерах
+local function FetchAllGameCharacters()
+    local characters = {}
     
-    if boneType == "DynamicHead" then
-        local head = character:FindFirstChild("Head") or character:FindFirstChild("UpperTorso")
-        if head then return head end
-        
-        -- Если кости скрыты, берем любую деталь верхней части
-        for _, part in ipairs(character:GetChildren()) do
-            if part:IsA("BasePart") and (part.Name:lower():find("head") or part.Name:lower():find("torso")) then
-                return part
+    -- Проверка стандартного Workspace
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") and (obj:FindFirstChildOfClass("Humanoid") or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Head")) then
+            table.insert(characters, obj)
+        end
+    end
+    
+    -- Фикс для BloxStrike: Сканирование скрытых контейнеров и буферов рендеринга
+    local ignoreBox = Workspace:FindFirstChild("IgnoreBox") or Workspace:FindFirstChild("Ignore")
+    if ignoreBox then
+        for _, obj in ipairs(ignoreBox:GetDescendants()) do
+            if obj:IsA("Model") and (obj:FindFirstChildOfClass("Humanoid") or obj:FindFirstChild("Head")) then
+                table.insert(characters, obj)
             end
         end
     end
-    return character.PrimaryPart or character:FindFirstChildOfClass("BasePart")
+    
+    return characters
 end
 
-local FOVDrawingCircle = Drawing.new("Circle")
-FOVDrawingCircle.Visible = false
-FOVDrawingCircle.Filled = false
-FOVDrawingCircle.Color = ChairHubConfig.FOVColor
-FOVDrawingCircle.Transparency = 0.8
-FOVDrawingCircle.Thickness = ChairHubConfig.FOVThickness
-FOVDrawingCircle.Radius = ChairHubConfig.FOVValue
-
-local function SynchronizeFOVVisuals()
-    local size = Camera.ViewportSize
-    FOVDrawingCircle.Position = Vector2.new(size.X / 2, size.Y / 2)
-    FOVDrawingCircle.Radius = ChairHubConfig.FOVValue
-    FOVDrawingCircle.Visible = ChairHubConfig.FOVVisible and MemoryCache.UIVisible
-    FOVDrawingCircle.Color = ChairHubConfig.FOVColor
-    FOVDrawingCircle.Thickness = ChairHubConfig.FOVThickness
-end
-
--- Инициализация графического интерфейса
+-- Инициализация GUI
 local BaseScreenGui = Instance.new("ScreenGui")
-BaseScreenGui.Name = "ChairHub_Fixed_Core"
+BaseScreenGui.Name = "ChairHub_Bypass_Core"
 BaseScreenGui.ResetOnSpawn = false
 pcall(function() BaseScreenGui.Parent = CoreGui end)
 if not BaseScreenGui.Parent then BaseScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
+-- Железный Фикс круга аима: Рендеринг через Аппаратный UI вместо лагающего Drawing API
+local HardwareFovFrame = Instance.new("Frame", BaseScreenGui)
+HardwareFovFrame.Name = "HardwareFovRing"
+HardwareFovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+HardwareFovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+HardwareFovFrame.BackgroundTransparency = 1
+HardwareFovFrame.Visible = false
+
+local FovStroke = Instance.new("UIStroke", HardwareFovFrame)
+FovStroke.Color = ChairHubConfig.FOVColor
+FovStroke.Thickness = ChairHubConfig.FOVThickness
+
+local FovCorner = Instance.new("UICorner", HardwareFovFrame)
+FovCorner.CornerRadius = UDim.new(1, 0)
+
+local function SynchronizeFOVVisuals()
+    HardwareFovFrame.Size = UDim2.new(0, ChairHubConfig.FOVValue * 2, 0, ChairHubConfig.FOVValue * 2)
+    HardwareFovFrame.Visible = ChairHubConfig.FOVVisible and MemoryCache.UIVisible
+    FovStroke.Color = ChairHubConfig.FOVColor
+    FovStroke.Thickness = ChairHubConfig.FOVThickness
+end
+
+-- Сборка меню
 local InterfaceFrame = Instance.new("Frame")
 InterfaceFrame.Name = "InterfaceFrame"
 InterfaceFrame.Size = UDim2.new(0, 420, 0, 360)
@@ -388,12 +406,12 @@ function UI_Factory.CreateCyclicSelector(parentPage, textDescription, valuesArra
     end)
 end
 
--- Рендеринг элементов управления
+-- Сборка меню
 UI_Factory.CreateSectionHeader(PagesRegistry["Aimbot"], "Core Weapon Aim Options")
 UI_Factory.CreateFunctionalToggle(PagesRegistry["Aimbot"], "Aimbot Master Toggle", "AimbotEnabled")
 UI_Factory.CreateFunctionalToggle(PagesRegistry["Aimbot"], "Team Filter Validation", "TeamCheck")
 UI_Factory.CreatePrecisionSlider(PagesRegistry["Aimbot"], "Interp Smoothing Ratio", 0.05, 1.00, "Smoothness", 2)
-UI_Factory.CreatePrecisionSlider(PagesRegistry["Aimbot"], "Maximum Target Distance", 50, 400, "MaxDistance", 1)
+UI_Factory.CreatePrecisionSlider(PagesRegistry["Aimbot"], "Maximum Target Distance", 50, 500, "MaxDistance", 1)
 
 UI_Factory.CreateSectionHeader(PagesRegistry["ESP"], "Visual Identity Matrix")
 UI_Factory.CreateFunctionalToggle(PagesRegistry["ESP"], "Aura Bounding Boxes", "ESPBoxes")
@@ -409,14 +427,11 @@ UI_Factory.CreateFunctionalToggle(PagesRegistry["Config"], "Activate Skin Change
 UI_Factory.CreateCyclicSelector(PagesRegistry["Config"], "Inventory Classification", {"Weapons", "Knives", "Gloves"}, "SelectedCategory")
 UI_Factory.CreateCyclicSelector(PagesRegistry["Config"], "Target Asset Finish", {"Asimov", "Dragon Lore", "Hyper Beast", "Printstream"}, "SelectedSkin")
 
--- Ультра-оптимизированный Аппаратный ESP (Поиск по дельте мешей BloxStrike)
-local function ProcessHardwareESPAllocation(targetPlayer)
-    if MemoryCache.ESPObjects[targetPlayer] then return end
+-- Ультра-оптимизированный Аппаратный ESP для BloxStrike (Глубокий поиск по скрытым моделям)
+local function ProcessHardwareESPAllocation(characterModel)
+    if MemoryCache.ESPObjects[characterModel] then return end
     
-    local char = targetPlayer.Character
-    if not char then return end
-    
-    local root = char:WaitForChild("HumanoidRootPart", 2) or char:FindFirstChildOfClass("BasePart")
+    local root = characterModel:FindFirstChild("HumanoidRootPart") or characterModel:FindFirstChildOfClass("BasePart")
     if not root then return end
     
     local billboard = Instance.new("BillboardGui", BaseScreenGui)
@@ -441,7 +456,7 @@ local function ProcessHardwareESPAllocation(targetPlayer)
     metricLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     metricLabel.TextSize = 9
     
-    local skeletonFolder = Instance.new("Folder", char)
+    local skeletonFolder = Instance.new("Folder", characterModel)
     skeletonFolder.Name = "HardwareSkeletonRegistry"
     
     local function ConnectJointBones(nodeA, nodeB)
@@ -463,22 +478,22 @@ local function ProcessHardwareESPAllocation(targetPlayer)
         table.insert(MemoryCache.Connections, runtimeConnection)
     end
     
-    local head = FindDynamicBone(char, "DynamicHead")
-    if head and root then ConnectJointBones(head, root) end
+    local head = characterModel:FindFirstChild("Head") or characterModel:FindFirstChild("UpperTorso")
+    if head and root and head ~= root then ConnectJointBones(head, root) end
     
-    MemoryCache.ESPObjects[targetPlayer] = { Billboard = billboard, Box = outerBoxFrame, Label = metricLabel, Folder = skeletonFolder }
+    MemoryCache.ESPObjects[characterModel] = { Billboard = billboard, Box = outerBoxFrame, Label = metricLabel, Folder = skeletonFolder }
 end
 
-local function EraseHardwareESPAllocation(targetPlayer)
-    local obj = MemoryCache.ESPObjects[targetPlayer]
+local function EraseHardwareESPAllocation(characterModel)
+    local obj = MemoryCache.ESPObjects[characterModel]
     if obj then
         if obj.Billboard then obj.Billboard:Destroy() end
         if obj.Folder then obj.Folder:Destroy() end
-        MemoryCache.ESPObjects[targetPlayer] = nil
+        MemoryCache.ESPObjects[characterModel] = nil
     end
 end
 
--- Скинченджер BloxStrike (Фикс: Сканирует Viewmodel Камеры + Персонажа)
+-- Мощный Клиентский Скинченджер BloxStrike (Сканирование Viewmodel в камере)
 local function ApplySkinToInstance(subInstance, assetProperties)
     if subInstance:IsA("BasePart") then
         if not MemoryCache.OriginalWeapons[subInstance] then
@@ -502,17 +517,17 @@ local function ProcessGlobalSkinChanger()
     local assetProperties = GlobalSkinDatabase[ChairHubConfig.SelectedCategory][ChairHubConfig.SelectedSkin]
     if not assetProperties then return end
     
-    -- 1. Фикс: Красим оружие от первого лица внутри Камеры (Viewmodel)
+    -- 1. Перехват и замена текстур оружия от первого лица (Viewmodel в камере)
     for _, item in ipairs(Camera:GetDescendants()) do
         if item:IsA("BasePart") or item:IsA("MeshPart") or item:IsA("SpecialMesh") then
             ApplySkinToInstance(item, assetProperties)
         end
     end
     
-    -- 2. Красим оружие на самой модели персонажа
+    -- 2. Перехват и замена текстур оружия на самом персонаже
     if LocalPlayer.Character then
         for _, item in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if item:IsA("Tool") or item:IsA("BasePart") then
+            if item:IsA("Tool") or item:IsA("BasePart") or item:IsA("MeshPart") then
                 ApplySkinToInstance(item, assetProperties)
             end
         end
@@ -529,22 +544,22 @@ function ResetWeaponSkins()
     MemoryCache.OriginalWeapons = {}
 end
 
--- Поиск лучшей цели для Аима
+-- Поиск лучшей цели во всех папках рендеринга игры BloxStrike
 local function GetClosestTarget()
     local trackingTarget = nil
     local shortestScreenDistance = ChairHubConfig.FOVValue
     local viewportCenterPoint = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
-    for _, player in ipairs(Players:GetPlayers()) do
-        if CalculateTeamRelation(player) and player.Character then
-            local targetBone = FindDynamicBone(player.Character, "DynamicHead")
-            local root = player.Character:FindFirstChild("HumanoidRootPart") or targetBone
-            
-            if targetBone and root then
+    local allCharacters = FetchAllGameCharacters()
+    for _, charModel in ipairs(allCharacters) do
+        if CalculateTeamRelation(charModel) then
+            local targetBone = charModel:FindFirstChild("Head") or charModel:FindFirstChild("UpperTorso") or charModel:FindFirstChildOfClass("BasePart")
+            if targetBone then
                 local vectorCoordinate, isWithinViewport = Camera:WorldToViewportPoint(targetBone.Position)
                 if isWithinViewport then
-                    local magnitude = (LocalPlayer.Character:GetPivot().Position - root.Position).Magnitude
-                    if magnitude <= ChairHubConfig.MaxDistance then
+                    local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local worldDist = localRoot and (localRoot.Position - targetBone.Position).Magnitude or 0
+                    if worldDist <= ChairHubConfig.MaxDistance or worldDist == 0 then
                         local flatScreenDistance = (Vector2.new(vectorCoordinate.X, vectorCoordinate.Y) - viewportCenterPoint).Magnitude
                         if flatScreenDistance < shortestScreenDistance then
                             shortestScreenDistance = flatScreenDistance
@@ -558,11 +573,11 @@ local function GetClosestTarget()
     return trackingTarget
 end
 
--- Основной рабочий цикл (Heartbeat)
+-- Главный цикл обработки (Подключен к кадровой частоте)
 local MainEngineLoop = RunService.RenderStepped:Connect(function()
     SynchronizeFOVVisuals()
     
-    -- Аимбот с упреждением
+    -- Плавный Legit Аимбот
     if ChairHubConfig.AimbotEnabled then
         local aimBone = GetClosestTarget()
         if aimBone then
@@ -573,35 +588,46 @@ local MainEngineLoop = RunService.RenderStepped:Connect(function()
     end
     
     -- Отрисовка ВХ
-    for _, player in ipairs(Players:GetPlayers()) do
-        if CalculateTeamRelation(player) and player.Character then
-            if not MemoryCache.ESPObjects[player] then ProcessHardwareESPAllocation(player) end
-            local data = MemoryCache.ESPObjects[player]
+    local activeCharacters = FetchAllGameCharacters()
+    local validModels = {}
+    
+    for _, charModel in ipairs(activeCharacters) do
+        if CalculateTeamRelation(charModel) then
+            validModels[charModel] = true
+            if not MemoryCache.ESPObjects[charModel] then ProcessHardwareESPAllocation(charModel) end
+            
+            local data = MemoryCache.ESPObjects[charModel]
             if data then
-                local root = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChildOfClass("BasePart")
+                local root = charModel:FindFirstChild("HumanoidRootPart") or charModel:FindFirstChildOfClass("BasePart")
                 if root then
-                    local magnitude = (LocalPlayer.Character:GetPivot().Position - root.Position).Magnitude
+                    local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local distance = localRoot and (localRoot.Position - root.Position).Magnitude or 0
                     data.Box.Visible = ChairHubConfig.ESPBoxes
                     data.Label.Visible = ChairHubConfig.ESPDistance
-                    data.Label.Text = string.format("DIST: %d", math.floor(magnitude))
+                    data.Label.Text = string.format("DIST: %d", math.floor(distance))
                 end
             end
-        else
-            EraseHardwareESPAllocation(player)
+        end
+    end
+    
+    -- Стираем старый кэш ВХ умерших или вышедших игроков
+    for cachedModel, _ in pairs(MemoryCache.ESPObjects) do
+        if not validModels[cachedModel] or not cachedModel.Parent then
+            EraseHardwareESPAllocation(cachedModel)
         end
     end
 end)
 table.insert(MemoryCache.Connections, MainEngineLoop)
 
--- Перехват смены оружия через частотный триггер камеры (0% лагов процессора)
+-- Запуск скинченджера на низкоуровневом тике Heartbeat (Стабильный FPS)
 local SkinChangerConnection = RunService.Heartbeat:Connect(function()
     if ChairHubConfig.SkinChangerEnabled then
-        ProcessGlobalSkinChanger()
+        pcall(ProcessGlobalSkinChanger)
     end
 end)
 table.insert(MemoryCache.Connections, SkinChangerConnection)
 
--- Мобильный Drag UI
+-- Мобильный Drag UI для Delta
 local IsDragging, DragInputObj, DragStartPos, InitialFramePos = false, nil, nil, nil
 
 InterfaceFrame.InputBegan:Connect(function(input)
@@ -622,13 +648,16 @@ end)
 UserInputService.InputChanged:Connect(function(input)
     if input == DragInputObj and IsDragging then
         local delta = input.Position - DragStartPos
-        InterfaceFrame.Position = UDim2.new(
-            InitialFramePos.X.Scale,
-            InitialFramePos.X.Offset + delta.X,
-            InitialFramePos.Y.Scale,
-            InitialFramePos.Y.Offset + delta.Y
-        )
+        MainFrame.Position = UDim2.new(InitialFramePos.X.Scale, InitialFramePos.X.Offset + delta.X, InitialFramePos.Y.Scale, InitialFramePos.Y.Offset + delta.Y)
     end
 end)
 
-print("[ChairHub BloxStrike Fixed]: System Bypass Loaded.")
+-- Поддержка кнопки закрытия (Бинд)
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.RightControl then
+        MemoryCache.UIVisible = not MemoryCache.UIVisible
+        InterfaceFrame.Visible = MemoryCache.UIVisible
+    end
+end)
+
+print("[ChairHub Core Engine v4.0]: Fully Compiled and Injected under BloxStrike Custom Environment.")
