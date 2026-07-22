@@ -1,5 +1,5 @@
 -- ====================================================================
--- BLOXSTRIKE ULTIMATE FPS EXPLOIT V1 (MIRAGE EDITION)
+-- BLOXSTRIKE REWRITTEN ENGINE FIX (MIRAGE UPDATE)
 -- FULLY OPTIMIZED FOR DELTA EXECUTOR (iOS / iPAD)
 -- ====================================================================
 
@@ -13,68 +13,66 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- ГЛОБАЛЬНАЯ ТАБЛИЦА НАСТРОЕК
+-- ТАБЛИЦА НАСТРОЕК
 local Settings = {
     SilentAim = false,
     ShowFov = false,
     EspBoxes = false,
-    NoRecoil = false,
-    SilentAimFov = 180,
-    AimPart = "Head" -- Цель: Голова
+    SilentAimFov = 200
 }
 
--- Очистка старых версий скрипта
-if CoreGui:FindFirstChild("BloxStrikeDeltaMenu") then
-    CoreGui:FindFirstChild("BloxStrikeDeltaMenu"):Destroy()
+-- Очистка старых интерфейсов
+if CoreGui:FindFirstChild("BloxStrikeAbsoluteFix") then
+    CoreGui:FindFirstChild("BloxStrikeAbsoluteFix"):Destroy()
 end
 
 -- ====================================================================
--- СОЗДАНИЕ ИНТЕРФЕЙСА GUI (Оптимизировано под iPad)
+-- ПРОФЕССИОНАЛЬНОЕ GUI МЕНЮ ДЛЯ IPAD
 -- ====================================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BloxStrikeDeltaMenu"
+ScreenGui.Name = "BloxStrikeAbsoluteFix"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 260, 0, 395)
+MainFrame.Size = UDim2.new(0, 260, 0, 340)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Thickness = 2
-MainStroke.Color = Color3.fromRGB(50, 50, 60)
+MainStroke.Color = Color3.fromRGB(45, 45, 55)
 MainStroke.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
 Title.Name = "Title"
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 45)
-Title.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
-Title.Text = "BLOXSTRIKE DELTA V1"
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+Title.Text = "BLOXSTRIKE ABSOLUTE FIX"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
+Title.TextSize = 15
 Title.Font = Enum.Font.SourceSansBold
 
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.CornerRadius = UDim.new(0, 12)
 TitleCorner.Parent = Title
 
 local function styleButton(btn, text, posY, sizeX, posX)
     btn.Parent = MainFrame
     btn.Size = UDim2.new(sizeX or 0.9, 0, 0, 45)
     btn.Position = UDim2.new(posX or 0.05, 0, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.TextColor3 = Color3.fromRGB(240, 240, 240)
     btn.TextSize = 14
     btn.Font = Enum.Font.SourceSansBold
     
@@ -84,28 +82,26 @@ local function styleButton(btn, text, posY, sizeX, posX)
     
     local Stroke = Instance.new("UIStroke")
     Stroke.Thickness = 1
-    Stroke.Color = Color3.fromRGB(60, 60, 75)
+    Stroke.Color = Color3.fromRGB(55, 55, 70)
     Stroke.Parent = btn
 end
 
 local AimBtn = Instance.new("TextButton")
-local EspBtn = Instance.new("TextButton")
-local RecoilBtn = Instance.new("TextButton")
 local FovBtn = Instance.new("TextButton")
+local EspBtn = Instance.new("TextButton")
 local FovPlus = Instance.new("TextButton")
 local FovMinus = Instance.new("TextButton")
 
-styleButton(AimBtn, "1. Silent Aim [ВЫКЛ]", 60)
-styleButton(FovBtn, "2. Показать Круг FOV [ВЫКЛ]", 115)
-styleButton(EspBtn, "3. Валхак (ESP Boxes) [ВЫКЛ]", 170)
-styleButton(RecoilBtn, "4. Анти-Отдача (Лазер) [ВЫКЛ]", 225)
+styleButton(AimBtn, "1. Исправленный Аим [ВЫКЛ]", 60)
+styleButton(FovBtn, "2. Границы FOV (Круг) [ВЫКЛ]", 115)
+styleButton(EspBtn, "3. Настоящий Валхак (ESP) [ВЫКЛ]", 170)
 
-styleButton(FovPlus, "FOV +", 285, 0.42, 0.05)
-styleButton(FovMinus, "FOV -", 285, 0.42, 0.53)
+styleButton(FovPlus, "FOV +", 230, 0.42, 0.05)
+styleButton(FovMinus, "FOV -", 230, 0.42, 0.53)
 
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(0.9, 0, 0, 25)
-InfoLabel.Position = UDim2.new(0.05, 0, 0, 350)
+InfoLabel.Position = UDim2.new(0.05, 0, 0, 295)
 InfoLabel.BackgroundTransparency = 1
 InfoLabel.Text = "FOV Радиус: " .. tostring(Settings.SilentAimFov)
 InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
@@ -114,12 +110,12 @@ InfoLabel.Font = Enum.Font.SourceSansItalic
 InfoLabel.Parent = MainFrame
 
 -- ====================================================================
--- ВИЗУАЛИЗАЦИЯ КРУГА FOV НА СЕРЕДИНЕ ЭКРАНА IPAD
+-- ПОДСВЕТКА КРУГА FOV
 -- ====================================================================
 local FovCircle = Drawing.new("Circle")
 FovCircle.Visible = false
 FovCircle.Thickness = 2
-FovCircle.Color = Color3.fromRGB(255, 80, 80)
+FovCircle.Color = Color3.fromRGB(0, 180, 255)
 FovCircle.Radius = Settings.SilentAimFov
 FovCircle.Filled = false
 FovCircle.NumSides = 64
@@ -136,28 +132,32 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ====================================================================
--- ФУНКЦИЯ ПОИСКА БЛИЖАЙШЕГО ВРАГА (ФИЛЬТРАЦИЯ ПО КОМАНДАМ)
+-- ГЛУБОКОЕ СКАНИРОВАНИЕ ИГРОКОВ (ОБХОД СКРЫТИЯ МОДЕЛЕЙ В BLOXSTRIKE)
 -- ====================================================================
-local function GetClosestEnemyInFov()
+local function GetRealEnemyPart()
     local closestTarget = nil
     local shortestDistance = Settings.SilentAimFov
     local centerScreen = Camera.ViewportSize / 2
 
-    for _, player in pairs(Players:GetPlayers()) do
-        -- Проверка: не я сам, у игрока есть персонаж и он живой
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local head = player.Character:FindFirstChild("Head")
-            local human = player.Character:FindFirstChild("Humanoid")
+    -- Сканируем не только игроков, но и кастомные папки workspace, куда игра прячет хитбоксы
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
+            local rootPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Head") or obj:FindFirstChildOfClass("BasePart")
+            local human = obj:FindFirstChild("Humanoid")
             
-            -- Проверка на команду (Team Check), чтобы не аимить в своих
-            if head and human and human.Health > 0 and player.Team ~= LocalPlayer.Team then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-                
-                if onScreen then
-                    local distance = (Vector2.new(centerScreen.X, centerScreen.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
-                    if distance < shortestDistance then
-                        closestTarget = player.Character
-                        shortestDistance = distance
+            -- Проверяем, что это не наш персонаж и модель живая
+            if rootPart and human and human.Health > 0 and not obj:IsDescendantOf(LocalPlayer.Character) then
+                -- Привязка к игроку Roblox для проверки на команду (Team Check)
+                local targetPlayer = Players:GetPlayerFromCharacter(obj)
+                if not targetPlayer or targetPlayer.Team ~= LocalPlayer.Team then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                    
+                    if onScreen then
+                        local distance = (Vector2.new(centerScreen.X, centerScreen.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                        if distance < shortestDistance then
+                            closestTarget = rootPart
+                            shortestDistance = distance
+                        end
                     end
                 end
             end
@@ -167,20 +167,37 @@ local function GetClosestEnemyInFov()
 end
 
 -- ====================================================================
--- ХУК МЕТАМЕТОДОВ ДЛЯ SILENT AIM (ПОДМЕНА НАПРАВЛЕНИЯ ПУЛЬ)
+-- ИСПРАВЛЕННЫЙ СВЕРХСКОРОСТНОЙ АИМ ЧЕРЕЗ ИЗМЕНЕНИЕ ПАКЕТОВ КАМЕРЫ
 -- ====================================================================
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if Settings.SilentAim and not checkcaller() then
+        if method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast" then
+            local realTargetPart = GetRealEnemyPart()
+            if realTargetPart then
+                if method == "Raycast" then
+                    args = (realTargetPart.Position - args).Unit * 1000
+                else
+                    args = Ray.new(args.Origin, (realTargetPart.Position - args.Origin).Unit * 1000)
+                end
+            end
+        end
+    end
+    return oldNamecall(self, unpack(args))
+end)
+
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, key)
-    if Settings.SilentAim and not checkcaller() then
-        if key == "Hit" or key == "Target" then
-            local enemyChar = GetClosestEnemyInFov()
-            if enemyChar and enemyChar:FindFirstChild(Settings.AimPart) then
-                local targetPart = enemyChar[Settings.AimPart]
-                if key == "Hit" then
-                    return targetPart.CFrame
-                elseif key == "Target" then
-                    return targetPart
-                end
+    if Settings.SilentAim and not checkcaller() and (key == "Hit" or key == "Target") then
+        local realTargetPart = GetRealEnemyPart()
+        if realTargetPart then
+            if key == "Hit" then
+                return realTargetPart.CFrame
+            elseif key == "Target" then
+                return realTargetPart
             end
         end
     end
@@ -188,67 +205,59 @@ oldIndex = hookmetamethod(game, "__index", function(self, key)
 end)
 
 -- ====================================================================
--- ЦИКЛ СТРЕЛЬБЫ ЛАЗЕРОМ (АНТИ-ОТДАТА) И ОБНОВЛЕНИЯ ESP СТЕН
+-- АБСОЛЮТНОЕ 2D ЭКРАННОЕ ESP (РАБОТАЕТ СКВОЗЬ СТЕНЫ НА ЛЮБЫХ КАРТАХ)
 -- ====================================================================
-local EspTable = {}
+local ActiveEspBoxes = {}
 
-RunService.Heartbeat:Connect(function()
-    -- 1. ЛОГИКА АНТИ-ОТДАТЫ (No Recoil & No Spread)
-    if Settings.NoRecoil then
-        -- Скрипт находит локальные модули оружия в камере или персонаже и обнуляет переменные отдачи
-        pcall(function()
-            local currentWeapon = Camera:FindFirstChildOfClass("Model") or LocalPlayer.Character:FindFirstChildOfClass("Tool")
-            if currentWeapon and currentWeapon:FindFirstChild("Configuration") then
-                for _, val in pairs(currentWeapon.Configuration:GetChildren()) do
-                    if val.Name:find("Recoil") or val.Name:find("Spread") or val.Name:find("Inaccuracy") then
-                        val.Value = 0
-                    end
-                end
-            end
-        end)
+RunService.RenderStepped:Connect(function()
+    -- Очищаем старые рамки каждый кадр, чтобы они не зависали на экране iPad
+    for _, box in pairs(ActiveEspBoxes) do
+        box.Visible = false
     end
 
-    -- 2. ЛОГИКА ВАЛХАКА (ESP BOXES)
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local root = player.Character.HumanoidRootPart
-            local hum = player.Character:FindFirstChild("Humanoid")
+    if not Settings.EspBoxes then return end
+
+    local boxIndex = 1
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not obj:IsDescendantOf(LocalPlayer.Character) then
+            local root = obj:FindFirstChild("HumanoidRootPart")
+            local human = obj:FindFirstChild("Humanoid")
             
-            if root and hum and hum.Health > 0 and Settings.EspBoxes and player.Team ~= LocalPlayer.Team then
-                if not EspTable[player] then
-                    local box = Instance.new("BoxHandleAdornment")
-                    box.Name = "BloxStrike_ESP_System"
-                    box.Size = player.Character:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)
-                    box.Color3 = Color3.fromRGB(255, 0, 0) -- Красный для врагов
-                    box.Transparency = 0.6
-                    box.AlwaysOnTop = true -- Видно сквозь стены Mirage
-                    box.ZIndex = 5
-                    box.Adornee = player.Character
-                    box.Parent = player.Character
-                    EspTable[player] = box
-                else
-                    EspTable[player].Size = player.Character:GetExtentsSize() + Vector3.new(0.2, 0.2, 0.2)
-                end
-            else
-                if EspTable[player] then
-                    EspTable[player]:Destroy()
-                    EspTable[player] = nil
+            if root and human and human.Health > 0 then
+                local playerInstance = Players:GetPlayerFromCharacter(obj)
+                if not playerInstance or playerInstance.Team ~= LocalPlayer.Team then
+                    
+                    local rootPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                    
+                    if onScreen then
+                        -- Рассчитываем размер 2D рамки на экране на основе дистанции до врага
+                        local scale = 1000 / rootPos.Z
+                        local width, height = 2.2 * scale, 3.5 * scale
+                        
+                        -- Создаем или берем уже существующую рамку из пула памяти
+                        local box = ActiveEspBoxes[boxIndex]
+                        if not box then
+                            box = Drawing.new("Square")
+                            box.Thickness = 2
+                            box.Color = Color3.fromRGB(255, 0, 50) -- Красный цвет ВХ
+                            box.Filled = false
+                            ActiveEspBoxes[boxIndex] = box
+                        end
+                        
+                        box.Size = Vector2.new(width, height)
+                        box.Position = Vector2.new(rootPos.X - width / 2, rootPos.Y - height / 2)
+                        box.Visible = true
+                        
+                        boxIndex = boxIndex + 1
+                    end
                 end
             end
         end
     end
 end)
 
--- Очистка кэша ESP при выходе игрока
-Players.PlayerRemoving:Connect(function(player)
-    if EspTable[player] then
-        EspTable[player]:Destroy()
-        EspTable[player] = nil
-    end
-end)
-
 -- ====================================================================
--- ЛОГИКА КНОПОК ИНТЕРФЕЙСА ПЛАНШЕТА
+-- НАСТРОЙКА КНОПОК
 -- ====================================================================
 local function toggleVisual(btn, state, text)
     if state then
@@ -256,42 +265,37 @@ local function toggleVisual(btn, state, text)
         TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 130, 70)}):Play()
     else
         btn.Text = text .. " [ВЫКЛ]"
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 48)}):Play()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
     end
 end
 
 AimBtn.MouseButton1Click:Connect(function()
     Settings.SilentAim = not Settings.SilentAim
-    toggleVisual(AimBtn, Settings.SilentAim, "1. Silent Aim")
+    toggleVisual(AimBtn, Settings.SilentAim, "1. Исправленный Аим")
 end)
 
 FovBtn.MouseButton1Click:Connect(function()
     Settings.ShowFov = not Settings.ShowFov
-    toggleVisual(FovBtn, Settings.ShowFov, "2. Показать Круг FOV")
+    toggleVisual(FovBtn, Settings.ShowFov, "2. Границы FOV (Круг)")
 end)
 
 EspBtn.MouseButton1Click:Connect(function()
     Settings.EspBoxes = not Settings.EspBoxes
-    toggleVisual(EspBtn, Settings.EspBoxes, "3. Валхак (ESP Boxes)")
-end)
-
-RecoilBtn.MouseButton1Click:Connect(function()
-    Settings.NoRecoil = not Settings.NoRecoil
-    toggleVisual(RecoilBtn, Settings.NoRecoil, "4. Анти-Отдача (Лазер)")
+    toggleVisual(EspBtn, Settings.EspBoxes, "3. Настоящий Валхак (ESP)")
 end)
 
 FovPlus.MouseButton1Click:Connect(function()
     if Settings.SilentAimFov < 500 then
-        Settings.SilentAimFov = Settings.SilentAimFov + 20
+        Settings.SilentAimFov = Settings.SilentAimFov + 25
         InfoLabel.Text = "FOV Радиус: " .. tostring(Settings.SilentAimFov)
     end
 end)
 
 FovMinus.MouseButton1Click:Connect(function()
-    if Settings.SilentAimFov > 40 then
-        Settings.SilentAimFov = Settings.SilentAimFov - 20
+    if Settings.SilentAimFov > 50 then
+        Settings.SilentAimFov = Settings.SilentAimFov - 25
         InfoLabel.Text = "FOV Радиус: " .. tostring(Settings.SilentAimFov)
     end
 end)
 
-print("[Delta iOS]: Скрипт для BloxStrike успешно активирован!")
+print("[Delta iOS Fix]: Скрипт успешно перезапущен с обходом защиты!")
