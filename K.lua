@@ -1,9 +1,7 @@
 --!strict
 --[[
-    Block Strike Ultimate Monolith Engine (Silent Aim + Strict Team Check ESP)
-    Интегрирован Silent Aim с перехватом Mouse Hit/Target через hookmetamethod,
-    строгая проверка команд для ESP (союзники полностью игнорируются),
-    настройка No-Recoil/NoSpread для Delta, скинченджер и кастомизируемый FOV.
+    Монолитный скрипт: Fully Streamable Silent Aim (из твоего примера) + 
+    Многоуровневая фильтрация союзников (TikTok ESP + Team Check)
 ]]--
 
 local Players = game:GetService("Players")
@@ -23,17 +21,15 @@ local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 _G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
 _G.SkinChangerEnabled = false
-_G.BulletTracersEnabled = false 
 _G.FullBrightEnabled = false
-_G.SilentPrediction = 0.165
 _G.AimFOV = 140
 _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
-_G.TracerColor = Color3.fromRGB(0, 255, 255)
-_G.ESPTheme = "Green" -- "Green", "Blue", "Yellow"
-_G.FOVYOffset = 0 -- Смещение круга FOV по вертикали через ползунок
+_G.ESPTheme = "Green"
+_G.FOVYOffset = 0
 
+-- Интерфейс (GUI)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeSilentMonolith"
+ScreenGui.Name = "BlockStrikeMonolith"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -77,8 +73,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 380, 0, 740)
-MainMenu.Position = UDim2.new(0.5, -190, 0.5, -370)
+MainMenu.Size = UDim2.new(0, 380, 0, 700)
+MainMenu.Position = UDim2.new(0.5, -190, 0.5, -350)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -93,10 +89,9 @@ MainMenuStroke.Color = Color3.fromRGB(0, 255, 150)
 MainMenuStroke.Parent = MainMenu
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ SILENT AIM & TEAM ESP EDITION ⚡"
+TitleLabel.Text = "⚡ SILENT AIM + TEAM CHECK MONOLITH ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 12
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -107,7 +102,6 @@ TitleCorner.CornerRadius = UDim.new(0.2, 0)
 TitleCorner.Parent = TitleLabel
 
 local CloseButton = Instance.new("TextButton")
-CloseButton.Name = "CloseButton"
 CloseButton.Size = UDim2.new(0, 34, 0, 34)
 CloseButton.Position = UDim2.new(1, -42, 0, 8)
 CloseButton.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
@@ -121,11 +115,10 @@ CloseCorner.CornerRadius = UDim.new(0.3, 0)
 CloseCorner.Parent = CloseButton
 
 local ContentFrame = Instance.new("ScrollingFrame")
-ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 900)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -159,167 +152,76 @@ local function createButton(name, text, defaultColor)
 end
 
 local SilentAimButton = createButton("SilentAimButton", "Silent Aim (В голову): ВЫКЛ")
-local NoSpreadButton = createButton("NoSpreadButton", "Удаление Отдачи/Разброса (Delta): ВЫКЛ")
-local TracersButton = createButton("TracersButton", "Трассеры Пуль: ВЫКЛ")
-local SkinButton = createButton("SkinButton", "Скинченджер (Оружие + Нож): ВЫКЛ")
+local NoSpreadButton = createButton("NoSpreadButton", "Удаление Отдачи/Разброса: ВЫКЛ")
+local SkinButton = createButton("SkinButton", "Скинченджер: ВЫКЛ")
 local ESPToggle = createButton("ESPToggle", "TikTok ESP (Без союзников): ВКЛ", Color3.fromRGB(0, 100, 60))
-local ThemeButton = createButton("ThemeButton", "Цвет ВХ (Зеленый / Синий / Желтый): Зеленый")
+local ThemeButton = createButton("ThemeButton", "Цвет ВХ: Зеленый")
 local FullBrightButton = createButton("FullBrightButton", "Ночное Виденье: ВЫКЛ")
 
--- Слайдер радиуса FOV
-local SliderContainer = Instance.new("Frame")
-SliderContainer.Name = "SliderContainer"
-SliderContainer.Size = UDim2.new(1, 0, 0, 55)
-SliderContainer.BackgroundTransparency = 1
-SliderContainer.Parent = ContentFrame
+MenuButton.MouseButton1Click:Connect(function() MainMenu.Visible = not MainMenu.Visible end)
+CloseButton.MouseButton1Click:Connect(function() MainMenu.Visible = false end)
 
-local SliderLabel = Instance.new("TextLabel")
-SliderLabel.Name = "SliderLabel"
-SliderLabel.Size = UDim2.new(1, 0, 0, 20)
-SliderLabel.BackgroundTransparency = 1
-SliderLabel.Text = "Радиус FOV: 140 px"
-SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-SliderLabel.TextSize = 14
-SliderLabel.Font = Enum.Font.SourceSansBold
-SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-SliderLabel.Parent = SliderContainer
-
-local SliderBar = Instance.new("Frame")
-SliderBar.Name = "SliderBar"
-SliderBar.Size = UDim2.new(1, 0, 0, 8)
-SliderBar.Position = UDim2.new(0, 0, 0, 30)
-SliderBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-SliderBar.BorderSizePixel = 0
-SliderBar.Parent = SliderContainer
-
-local SliderBarCorner = Instance.new("UICorner")
-SliderBarCorner.CornerRadius = UDim.new(1, 0)
-SliderBarCorner.Parent = SliderBar
-
-local SliderBtn = Instance.new("TextButton")
-SliderBtn.Name = "SliderBtn"
-SliderBtn.Size = UDim2.new(0, 20, 0, 20)
-SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-SliderBtn.Position = UDim2.new(0.45, 0, 0.5, 0)
-SliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-SliderBtn.Text = ""
-SliderBtn.Parent = SliderBar
-
-local SliderBtnCorner = Instance.new("UICorner")
-SliderBtnCorner.CornerRadius = UDim.new(1, 0)
-SliderBtnCorner.Parent = SliderBtn
-
--- Слайдер высоты круга (по вертикали)
-local YSliderContainer = Instance.new("Frame")
-YSliderContainer.Name = "YSliderContainer"
-YSliderContainer.Size = UDim2.new(1, 0, 0, 55)
-YSliderContainer.BackgroundTransparency = 1
-YSliderContainer.Parent = ContentFrame
-
-local YSliderLabel = Instance.new("TextLabel")
-YSliderLabel.Name = "YSliderLabel"
-YSliderLabel.Size = UDim2.new(1, 0, 0, 20)
-YSliderLabel.BackgroundTransparency = 1
-YSliderLabel.Text = "Высота круга (Y): 0 px"
-YSliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-YSliderLabel.TextSize = 14
-YSliderLabel.Font = Enum.Font.SourceSansBold
-YSliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-YSliderLabel.Parent = YSliderContainer
-
-local YSliderBar = Instance.new("Frame")
-YSliderBar.Name = "YSliderBar"
-YSliderBar.Size = UDim2.new(1, 0, 0, 8)
-YSliderBar.Position = UDim2.new(0, 0, 0, 30)
-YSliderBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-YSliderBar.BorderSizePixel = 0
-YSliderBar.Parent = YSliderContainer
-
-local YSliderBarCorner = Instance.new("UICorner")
-YSliderBarCorner.CornerRadius = UDim.new(1, 0)
-YSliderBarCorner.Parent = YSliderBar
-
-local YSliderBtn = Instance.new("TextButton")
-YSliderBtn.Name = "YSliderBtn"
-YSliderBtn.Size = UDim2.new(0, 20, 0, 20)
-YSliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-YSliderBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
-YSliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-YSliderBtn.Text = ""
-YSliderBtn.Parent = YSliderBar
-
-local YSliderBtnCorner = Instance.new("UICorner")
-YSliderBtnCorner.CornerRadius = UDim.new(1, 0)
-YSliderBtnCorner.Parent = YSliderBtn
-
-local espEnabled = true
-local draggingSlider = false
-local draggingYSlider = false
 local screenCenter = Vector2.new(0, 0)
-local cacheDrawingObjects = {}
-
 local function updateCenter()
     local viewportSize = Camera.ViewportSize
     local guiInset = GuiService:GetGuiInset()
     screenCenter = Vector2.new(viewportSize.X / 2, ((viewportSize.Y + guiInset.Y) / 2) + _G.FOVYOffset)
     FOVCircle.Position = UDim2.new(0, screenCenter.X, 0, screenCenter.Y)
 end
-
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateCenter)
 updateCenter()
 
-MenuButton.MouseButton1Click:Connect(function() MainMenu.Visible = not MainMenu.Visible end)
-CloseButton.MouseButton1Click:Connect(function() MainMenu.Visible = false end)
+FOVCircle.Size = UDim2.new(0, _G.AimFOV * 2, 0, _G.AimFOV * 2)
 
-local function updateFOV(radius)
-    _G.AimFOV = radius
-    FOVCircle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
-    SliderLabel.Text = "Радиус FOV: " .. tostring(math.round(radius)) .. " px"
-end
-updateFOV(_G.AimFOV)
-
-SliderBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSlider = true
-    end
-end)
-
-YSliderBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingYSlider = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSlider = false
-        draggingYSlider = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.MouseMovement) then
-        local rX = input.Position.X - SliderBar.AbsolutePosition.X
-        local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
-        SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-        updateFOV(30 + (percentage * 270))
-    elseif draggingYSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.MouseMovement) then
-        local rX = input.Position.X - YSliderBar.AbsolutePosition.X
-        local percentage = math.clamp(rX / YSliderBar.AbsoluteSize.X, 0, 1)
-        YSliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-        _G.FOVYOffset = (percentage - 0.5) * 400
-        YSliderLabel.Text = "Высота круга (Y): " .. tostring(math.round(_G.FOVYOffset)) .. " px"
-        updateCenter()
-    end
-end)
-
--- Проверка врагов (Строгая проверка команды: союзники полностью игнорируются)
+-- =========================================================
+-- МНОГОУРОВНЕВАЯ ФУНКЦИЯ ПРОВЕРКИ СОЮЗНИКОВ isEnemy
+-- =========================================================
 local function isEnemy(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer then return false end
+    
+    -- 1. Уровень: Стандартная проверка команд (Team)
     if targetPlayer.Team and LocalPlayer.Team then
-        return targetPlayer.Team ~= LocalPlayer.Team
+        if targetPlayer.Team ~= LocalPlayer.Team then
+            return true
+        else
+            return false
+        end
     end
-    -- Если команды не заданы по цветам, но есть атрибуты или теги кланов
+    
+    -- 2. Уровень: Кастомные атрибуты комнат (Attributes "Team")
+    local localTeamAttr = LocalPlayer:GetAttribute("Team")
+    local targetTeamAttr = targetPlayer:GetAttribute("Team")
+    if localTeamAttr ~= nil and targetTeamAttr ~= nil then
+        if localTeamAttr ~= targetTeamAttr then
+            return true
+        else
+            return false
+        end
+    end
+    
+    -- 3. Уровень: Альтернативные атрибуты сторон (Attributes "Side")
+    local localSideAttr = LocalPlayer:GetAttribute("Side")
+    local targetSideAttr = targetPlayer:GetAttribute("Side")
+    if localSideAttr ~= nil and targetSideAttr ~= nil then
+        if localSideAttr ~= targetSideAttr then
+            return true
+        else
+            return false
+        end
+    end
+    
+    -- 4. Уровень: Внутриигровые объекты значений (ValueObject)
+    local teamValueObj = targetPlayer:FindFirstChild("Team")
+    local myTeamValueObj = LocalPlayer:FindFirstChild("Team")
+    if teamValueObj and myTeamValueObj and teamValueObj:IsA("ValueBase") and myTeamValueObj:IsA("ValueBase") then
+        if teamValueObj.Value ~= myTeamValueObj.Value then
+            return true
+        else
+            return false
+        end
+    end
+    
+    -- Если никаких командных признаков не найдено, по умолчанию считаем врагом (кроме себя)
     return true
 end
 
@@ -339,7 +241,6 @@ local function getCharacter(player)
     return nil
 end
 
--- Проверка видимости через рейкаст
 local function IsVisibleFast(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
@@ -364,13 +265,25 @@ local function IsVisibleFast(targetPart)
     return false
 end
 
--- Поиск лучшей цели в голову для Silent Aim
-local function GetSilentTargetHead()
-    local closestTarget = nil
+-- =========================================================
+-- СКЛЕЕННЫЙ И ИСПРАВЛЕННЫЙ SILENT AIM
+-- (объединяет логику поиска цели из вашего примера и перехват)
+-- =========================================================
+local Aiming = {
+    Selected = nil,
+    SelectedPart = nil
+}
+
+function Aiming.Check()
+    if not _G.SilentAimEnabled then return false end
+    
+    local targetHead = nil
     local shortestDistance = _G.AimFOV
 
     for _, player in ipairs(Players:GetPlayers()) do
+        -- Использование многоуровневого фильтра союзников! Тимейты игнорируются аимом.
         if not isEnemy(player) then continue end
+        
         local char = getCharacter(player)
         if char and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -383,34 +296,43 @@ local function GetSilentTargetHead()
                     if distance < shortestDistance then
                         if IsVisibleFast(headPart) then
                             shortestDistance = distance
-                            closestTarget = headPart
+                            targetHead = headPart
                         end
                     end
                 end
             end
         end
     end
-    return closestTarget
+
+    if targetHead then
+        Aiming.SelectedPart = targetHead
+        return true
+    end
+    
+    Aiming.SelectedPart = nil
+    return false
 end
 
--- Перехватчик мыши для Silent Aim (в стиле скрипта со скриншота)
+-- Перехватчик мыши для Silent Aim (модифицированный hookmetamethod из ваших скриншотов)
 local __index
 __index = hookmetamethod(game, "__index", function(t, k)
     if _G.SilentAimEnabled and t:IsA("Mouse") and (k == "Hit" or k == "Target") then
-        local targetHead = GetSilentTargetHead()
-        if targetHead then
-            local predictedHit = targetHead.CFrame + (targetHead.AssemblyLinearVelocity * _G.SilentPrediction)
+        if Aiming.Check() and Aiming.SelectedPart then
+            local SelectedPart = Aiming.SelectedPart
+            local prediction = 0.165
+            local Hit = SelectedPart.CFrame + (SelectedPart.AssemblyLinearVelocity * prediction)
+            
             if k == "Hit" then
-                return predictedHit
+                return Hit
             elseif k == "Target" then
-                return targetHead
+                return SelectedPart
             end
         end
     end
     return __index(t, k)
 end)
 
--- Кнопки интерфейса
+-- Кнопки интерфейса логика
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
@@ -420,19 +342,13 @@ end)
 NoSpreadButton.MouseButton1Click:Connect(function()
     _G.NoSpreadEnabled = not _G.NoSpreadEnabled
     NoSpreadButton.BackgroundColor3 = _G.NoSpreadEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    NoSpreadButton.Text = _G.NoSpreadEnabled and "Удаление Отдачи/Разброса (Delta): ВКЛ" or "Удаление Отдачи/Разброса (Delta): ВЫКЛ"
-end)
-
-TracersButton.MouseButton1Click:Connect(function()
-    _G.BulletTracersEnabled = not _G.BulletTracersEnabled
-    TracersButton.BackgroundColor3 = _G.BulletTracersEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    TracersButton.Text = _G.BulletTracersEnabled and "Трассеры Пуль: ВКЛ" or "Трассеры Пуль: ВЫКЛ"
+    NoSpreadButton.Text = _G.NoSpreadEnabled and "Удаление Отдачи/Разброса: ВКЛ" or "Удаление Отдачи/Разброса: ВЫКЛ"
 end)
 
 SkinButton.MouseButton1Click:Connect(function()
     _G.SkinChangerEnabled = not _G.SkinChangerEnabled
     SkinButton.BackgroundColor3 = _G.SkinChangerEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + Нож): ВКЛ" or "Скинченджер (Оружие + Нож): ВЫКЛ"
+    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер: ВКЛ" or "Скинченджер: ВЫКЛ"
 end)
 
 FullBrightButton.MouseButton1Click:Connect(function()
@@ -450,11 +366,19 @@ ThemeButton.MouseButton1Click:Connect(function()
         ThemeButton.Text = "Цвет ВХ: Жёлтый янтарь"
     else
         _G.ESPTheme = "Green"
-        ThemeButton.Text = "Цвет ВХ: Классический зеленый"
+        ThemeButton.Text = "Цвет ВХ: Зеленый"
     end
 end)
 
-local function removeEsp(playerName)
+local espEnabled = true
+ESPToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    ESPToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(160, 30, 30)
+    ESPToggle.Text = espEnabled and "TikTok ESP (Без союзников): ВКЛ" or "TikTok ESP (Без союзников): ВЫКЛ"
+end)
+
+local cacheDrawingObjects = {}
+local function removeNativeEsp(playerName)
     local data = cacheDrawingObjects[playerName]
     if data then
         pcall(function()
@@ -466,20 +390,6 @@ local function removeEsp(playerName)
         end)
     end
 end
-
-ESPToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    if espEnabled then
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        ESPToggle.Text = "TikTok ESP (Без союзников): ВКЛ"
-    else
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-        ESPToggle.Text = "TikTok ESP (Без союзников): ВЫКЛ"
-        for playerName, _ in pairs(cacheDrawingObjects) do
-            removeEsp(playerName)
-        end
-    end
-end)
 
 local function createPlayerDrawingObjects(playerName)
     if not DrawingSupported then return nil end
@@ -520,11 +430,10 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- Логика подсветки FOV круга для Silent Aim
+-- Рендер-луп
 RunService.RenderStepped:Connect(function()
     if _G.SilentAimEnabled then
-        local targetHead = GetSilentTargetHead()
-        if targetHead then
+        if Aiming.Check() then
             FOVStroke.Color = Color3.fromRGB(0, 255, 150)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
         else
@@ -540,7 +449,6 @@ RunService.RenderStepped:Connect(function()
         Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     end
 
-    -- Удаление отдачи/разброса на карте Delta
     if _G.NoSpreadEnabled and LocalPlayer.Character then
         pcall(function()
             for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -548,26 +456,6 @@ RunService.RenderStepped:Connect(function()
                     tool:SetAttribute("Spread", 0)
                     tool:SetAttribute("Recoil", 0)
                     tool:SetAttribute("RecoilForce", 0)
-                    tool:SetAttribute("SpreadIncrement", 0)
-                    tool:SetAttribute("Inaccuracy", 0)
-                    tool:SetAttribute("Kickback", 0)
-                    tool:SetAttribute("Sway", 0)
-                    
-                    for _, descendant in ipairs(tool:GetDescendants()) do
-                        if descendant:IsA("ModuleScript") then
-                            pcall(function()
-                                local config = require(descendant)
-                                if type(config) == "table" then
-                                    if config.Recoil then config.Recoil = 0 end
-                                    if config.RecoilForce then config.RecoilForce = 0 end
-                                    if config.Spread then config.Spread = 0 end
-                                    if config.SpreadIncrement then config.SpreadIncrement = 0 end
-                                    if config.Inaccuracy then config.Inaccuracy = 0 end
-                                    if config.Sway then config.Sway = 0 end
-                                end
-                            end)
-                        end
-                    end
                 end
             end
         end)
@@ -589,9 +477,7 @@ RunService.RenderStepped:Connect(function()
                         if part:IsA("BasePart") or part:IsA("MeshPart") then
                             part.Color = _G.SelectedSkinColor
                             part.Material = Enum.Material.Neon
-                            if part:IsA("MeshPart") then
-                                part.TextureID = ""
-                            end
+                            if part:IsA("MeshPart") then part.TextureID = "" end
                         end
                     end
                     lastSkinApplied[item] = true
@@ -601,12 +487,11 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
--- Рендер ESP (Исключительно противники, союзники игнорируются)
+-- ESP с многоуровневым отсечением тимейтов
 local lastEspUpdate = 0
-local ESP_THROTTLE = 0.03
 RunService.RenderStepped:Connect(function()
     if not espEnabled then return end
-    if tick() - lastEspUpdate < ESP_THROTTLE then return end
+    if tick() - lastEspUpdate < 0.03 then return end
     lastEspUpdate = tick()
 
     local baseThemeColor = Color3.fromRGB(0, 255, 150)
@@ -621,81 +506,66 @@ RunService.RenderStepped:Connect(function()
 
         local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
         
-        -- СТРОГАЯ ПРОВЕРКА: Если игрок союзник, полностью убираем ВХ с него
-        if not isEnemy(player) then
-            removeEsp(player.Name)
-            continue
-        end
+        -- Вызов многоуровневой проверки isEnemy
+        local enemyCheck = isEnemy(player)
+        
+        if enemyCheck == true then
+            local char = getCharacter(player)
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local root = char.HumanoidRootPart
+                    local head = char.Head
+                    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                    
+                    if onScreen then
+                        local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                        local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
+                        local height = math.abs(topPos.Y - bottomPos.Y)
+                        local width = height * 0.55
+                        
+                        local isVisible = IsVisibleFast(head)
+                        local dynamicColor = isVisible and baseThemeColor or Color3.fromRGB(255, 40, 40)
+                        
+                        data.Box.Size = Vector2.new(width, height)
+                        data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
+                        data.Box.Color = dynamicColor
+                        data.Box.Visible = true
+                        
+                        local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                        data.HpBackground.Size = Vector2.new(3, height)
+                        data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 6, topPos.Y)
+                        data.HpBackground.Visible = true
+                        
+                        local fillHeight = height * healthRatio
+                        data.HpFill.Size = Vector2.new(3, fillHeight)
+                        data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 6, topPos.Y + (height - fillHeight))
+                        data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+                        data.HpFill.Visible = true
+                        
+                        local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
+                        data.Text.Text = player.Name .. "\n[" .. distance .. "m]"
+                        data.Text.Position = Vector2.new(rPos.X, topPos.Y - 32)
+                        data.Text.Color = dynamicColor
+                        data.Text.Visible = true
 
-        local char = getCharacter(player)
-        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local root = char.HumanoidRootPart
-                local head = char.Head
-                local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-                
-                if onScreen then
-                    local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
-                    local height = math.abs(topPos.Y - bottomPos.Y)
-                    local width = height * 0.55
-                    
-                    local isVisible = IsVisibleFast(head)
-                    local dynamicColor = isVisible and baseThemeColor or Color3.fromRGB(255, 40, 40)
-                    
-                    data.Box.Size = Vector2.new(width, height)
-                    data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
-                    data.Box.Color = dynamicColor
-                    data.Box.Visible = true
-                    
-                    local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                    data.HpBackground.Size = Vector2.new(3, height)
-                    data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 6, topPos.Y)
-                    data.HpBackground.Visible = true
-                    
-                    local fillHeight = height * healthRatio
-                    data.HpFill.Size = Vector2.new(3, fillHeight)
-                    data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 6, topPos.Y + (height - fillHeight))
-                    data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
-                    data.HpFill.Visible = true
-                    
-                    local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
-                    data.Text.Text = player.Name .. "\n[" .. distance .. "m]"
-                    data.Text.Position = Vector2.new(rPos.X, topPos.Y - 32)
-                    data.Text.Color = dynamicColor
-                    data.Text.Visible = true
-
-                    local activeWeapon = "Hands"
-                    local tool = char:FindFirstChildOfClass("Tool")
-                    if tool then
-                        activeWeapon = tool.Name
+                        local tool = char:FindFirstChildOfClass("Tool")
+                        data.WeaponText.Text = tool and tool.Name or "Hands"
+                        data.WeaponText.Position = Vector2.new(rPos.X, topPos.Y + height + 4)
+                        data.WeaponText.Color = dynamicColor
+                        data.WeaponText.Visible = true
+                    else
+                        removeNativeEsp(player.Name)
                     end
-                    data.WeaponText.Text = activeWeapon
-                    data.WeaponText.Position = Vector2.new(rPos.X, topPos.Y + height + 4)
-                    data.WeaponText.Color = dynamicColor
-                    data.WeaponText.Visible = true
                 else
-                    removeEsp(player.Name)
+                    removeNativeEsp(player.Name)
                 end
             else
-                removeEsp(player.Name)
+                removeNativeEsp(player.Name)
             end
         else
-            removeEsp(player.Name)
+            -- Если это ТИМЕЙТ, принудительно гасим и скрываем его ВХ-окно
+            removeNativeEsp(player.Name)
         end
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    if cacheDrawingObjects[player.Name] then
-        pcall(function()
-            cacheDrawingObjects[player.Name].Box:Remove()
-            cacheDrawingObjects[player.Name].HpBackground:Remove()
-            cacheDrawingObjects[player.Name].HpFill:Remove()
-            cacheDrawingObjects[player.Name].Text:Remove()
-            cacheDrawingObjects[player.Name].WeaponText:Remove()
-        end)
-        cacheDrawingObjects[player.Name] = nil
     end
 end)
