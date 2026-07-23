@@ -1,7 +1,6 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Ultimate Optimized Edition)
-    Все функции сохранены полностью. Исправлены: Touch-конфликт, проверка GUI, защита хука.
+    Block Strike Ultimate Engine - Head-Only Aim + Anti-Recoil + Anti-Smoke + Fast AWP
 ]]--
 
 local Players = game:GetService("Players")
@@ -15,15 +14,17 @@ local Camera = workspace.CurrentCamera
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Глобальные настройки читов
+-- Глобальные настройки
 _G.AimAssistEnabled = false
 _G.SilentAimEnabled = false
+_G.NoRecoilEnabled = false -- Мощная анти-отдача (компенсация камеры)
 _G.NoSpreadEnabled = false
+_G.AntiSmokeEnabled = false -- Удаление дымов
 _G.SkinChangerEnabled = false
 _G.BulletTracersEnabled = false 
-_G.AimSmoothness = 0.18
-_G.AimFOV = 140
-_G.TargetPart = "Head"
+_G.AimSmoothness = 0.25 -- Сделано мягче, чтобы аим не дергался
+_G.AimFOV = 120
+_G.TargetPart = "Head" -- Строго в голову
 _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.TracerColor = Color3.fromRGB(0, 255, 255)
 
@@ -72,8 +73,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 360, 0, 680)
-MainMenu.Position = UDim2.new(0.5, -180, 0.5, -340)
+MainMenu.Size = UDim2.new(0, 360, 0, 720)
+MainMenu.Position = UDim2.new(0.5, -180, 0.5, -360)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -91,9 +92,10 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ ULTIMATE OPTIMIZED ENGINE ⚡"
+TitleLabel.Text = "⚡ HEAD AIME + ANTI-RECOIL + AWP ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-TitleLabel.TextSize = 14
+TitleLabel.TextSize: 13
+TitleLabel.TextSize = 13
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainMenu
 
@@ -120,23 +122,23 @@ ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 12)
+UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.Parent = ContentFrame
 
 local AimButton = Instance.new("TextButton")
 AimButton.Name = "AimButton"
 AimButton.Size = UDim2.new(1, 0, 0, 45)
 AimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-AimButton.Text = "Простой Aim Assist: ВЫКЛ"
+AimButton.Text = "Aim Assist (Строго в голову, мягкий): ВЫКЛ"
 AimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AimButton.TextSize = 15
+AimButton.TextSize = 14
 AimButton.Font = Enum.Font.SourceSansBold
 local AimCorner = Instance.new("UICorner")
 AimCorner.CornerRadius = UDim.new(0.2, 0)
@@ -147,13 +149,30 @@ AimStroke.Color = Color3.fromRGB(40, 40, 45)
 AimStroke.Parent = AimButton
 AimButton.Parent = ContentFrame
 
+local NoRecoilButton = Instance.new("TextButton")
+NoRecoilButton.Name = "NoRecoilButton"
+NoRecoilButton.Size = UDim2.new(1, 0, 0, 45)
+NoRecoilButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+NoRecoilButton.Text = "Анти-Отдача (Камера стоит на месте): ВЫКЛ"
+NoRecoilButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoRecoilButton.TextSize = 14
+NoRecoilButton.Font = Enum.Font.SourceSansBold
+local NoRecoilCorner = Instance.new("UICorner")
+NoRecoilCorner.CornerRadius = UDim.new(0.2, 0)
+NoRecoilCorner.Parent = NoRecoilButton
+local NoRecoilStroke = Instance.new("UIStroke")
+NoRecoilStroke.Thickness = 1
+NoRecoilStroke.Color = Color3.fromRGB(40, 40, 45)
+NoRecoilStroke.Parent = NoRecoilButton
+NoRecoilButton.Parent = ContentFrame
+
 local SilentAimButton = Instance.new("TextButton")
 SilentAimButton.Name = "SilentAimButton"
 SilentAimButton.Size = UDim2.new(1, 0, 0, 45)
 SilentAimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SilentAimButton.Text = "Namecall Silent Aim (В голову): ВЫКЛ"
+SilentAimButton.Text = "Namecall Silent Aim (AWP / Лучи в голову): ВЫКЛ"
 SilentAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-SilentAimButton.TextSize = 15
+SilentAimButton.TextSize = 14
 SilentAimButton.Font = Enum.Font.SourceSansBold
 local SilentCorner = Instance.new("UICorner")
 SilentCorner.CornerRadius = UDim.new(0.2, 0)
@@ -164,13 +183,30 @@ SilentStroke.Color = Color3.fromRGB(40, 40, 45)
 SilentStroke.Parent = SilentAimButton
 SilentAimButton.Parent = ContentFrame
 
+local AntiSmokeButton = Instance.new("TextButton")
+AntiSmokeButton.Name = "AntiSmokeButton"
+AntiSmokeButton.Size = UDim2.new(1, 0, 0, 45)
+AntiSmokeButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+AntiSmokeButton.Text = "Анти-Смолк (Удаление дыма): ВЫКЛ"
+AntiSmokeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AntiSmokeButton.TextSize = 14
+AntiSmokeButton.Font = Enum.Font.SourceSansBold
+local AntiSmokeCorner = Instance.new("UICorner")
+AntiSmokeCorner.CornerRadius = UDim.new(0.2, 0)
+AntiSmokeCorner.Parent = AntiSmokeButton
+local AntiSmokeStroke = Instance.new("UIStroke")
+AntiSmokeStroke.Thickness = 1
+AntiSmokeStroke.Color = Color3.fromRGB(40, 40, 45)
+AntiSmokeStroke.Parent = AntiSmokeButton
+AntiSmokeButton.Parent = ContentFrame
+
 local NoSpreadButton = Instance.new("TextButton")
 NoSpreadButton.Name = "NoSpreadButton"
 NoSpreadButton.Size = UDim2.new(1, 0, 0, 45)
 NoSpreadButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-NoSpreadButton.Text = "Анти-Отдача / Разброс: ВЫКЛ"
+NoSpreadButton.Text = "Анти-Разброс (Атрибуты оружия): ВЫКЛ"
 NoSpreadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-NoSpreadButton.TextSize = 15
+NoSpreadButton.TextSize = 14
 NoSpreadButton.Font = Enum.Font.SourceSansBold
 local NoSpreadCorner = Instance.new("UICorner")
 NoSpreadCorner.CornerRadius = UDim.new(0.2, 0)
@@ -185,9 +221,9 @@ local TracersButton = Instance.new("TextButton")
 TracersButton.Name = "TracersButton"
 TracersButton.Size = UDim2.new(1, 0, 0, 45)
 TracersButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-TracersButton.Text = "Трассеры Пуль (Текстуры/Лучи): ВЫКЛ"
+TracersButton.Text = "Трассеры Пуль: ВЫКЛ"
 TracersButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TracersButton.TextSize = 15
+TracersButton.TextSize = 14
 TracersButton.Font = Enum.Font.SourceSansBold
 local TracersCorner = Instance.new("UICorner")
 TracersCorner.CornerRadius = UDim.new(0.2, 0)
@@ -202,9 +238,9 @@ local SkinButton = Instance.new("TextButton")
 SkinButton.Name = "SkinButton"
 SkinButton.Size = UDim2.new(1, 0, 0, 45)
 SkinButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SkinButton.Text = "Скинченджер (Оружие + Нож): ВЫКЛ"
+SkinButton.Text = "Скинченджер (Оружие + USP + Нож): ВЫКЛ"
 SkinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-SkinButton.TextSize = 15
+SkinButton.TextSize = 14
 SkinButton.Font = Enum.Font.SourceSansBold
 local SkinCorner = Instance.new("UICorner")
 SkinCorner.CornerRadius = UDim.new(0.2, 0)
@@ -221,7 +257,7 @@ ESPToggle.Size = UDim2.new(1, 0, 0, 45)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
 ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВКЛ"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-ESPToggle.TextSize = 15
+ESPToggle.TextSize = 14
 ESPToggle.Font = Enum.Font.SourceSansBold
 local ESPCorner = Instance.new("UICorner")
 ESPCorner.CornerRadius = UDim.new(0.2, 0)
@@ -242,7 +278,7 @@ local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Name = "SliderLabel"
 SliderLabel.Size = UDim2.new(1, 0, 0, 20)
 SliderLabel.BackgroundTransparency = 1
-SliderLabel.Text = "Радиус FOV: 140 px"
+SliderLabel.Text = "Радиус FOV: 120 px"
 SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 SliderLabel.TextSize = 14
 SliderLabel.Font = Enum.Font.SourceSansBold
@@ -265,7 +301,7 @@ local SliderBtn = Instance.new("TextButton")
 SliderBtn.Name = "SliderBtn"
 SliderBtn.Size = UDim2.new(0, 20, 0, 20)
 SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-SliderBtn.Position = UDim2.new(0.45, 0, 0.5, 0)
+SliderBtn.Position = UDim2.new(0.35, 0, 0.5, 0)
 SliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
 SliderBtn.Text = ""
 SliderBtn.Parent = SliderBar
@@ -314,7 +350,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+    if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.MouseMovement) then
         local rX = input.Position.X - SliderBar.AbsolutePosition.X
         local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
         SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
@@ -325,31 +361,43 @@ end)
 AimButton.MouseButton1Click:Connect(function()
     _G.AimAssistEnabled = not _G.AimAssistEnabled
     AimButton.BackgroundColor3 = _G.AimAssistEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    AimButton.Text = _G.AimAssistEnabled and "Простой Aim Assist: ВКЛ" or "Простой Aim Assist: ВЫКЛ"
+    AimButton.Text = _G.AimAssistEnabled and "Aim Assist (Строго в голову, мягкий): ВКЛ" or "Aim Assist (Строго в голову, мягкий): ВЫКЛ"
+end)
+
+NoRecoilButton.MouseButton1Click:Connect(function()
+    _G.NoRecoilEnabled = not _G.NoRecoilEnabled
+    NoRecoilButton.BackgroundColor3 = _G.NoRecoilEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    NoRecoilButton.Text = _G.NoRecoilEnabled and "Анти-Отдача (Камера стоит на месте): ВКЛ" or "Анти-Отдача (Камера стоит на месте): ВЫКЛ"
 end)
 
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SilentAimButton.Text = _G.SilentAimEnabled and "Namecall Silent Aim (В голову): ВКЛ" or "Namecall Silent Aim (В голову): ВЫКЛ"
+    SilentAimButton.Text = _G.SilentAimEnabled and "Namecall Silent Aim (AWP / Лучи в голову): ВКЛ" or "Namecall Silent Aim (AWP / Лучи в голову): ВЫКЛ"
+end)
+
+AntiSmokeButton.MouseButton1Click:Connect(function()
+    _G.AntiSmokeEnabled = not _G.AntiSmokeEnabled
+    AntiSmokeButton.BackgroundColor3 = _G.AntiSmokeEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    AntiSmokeButton.Text = _G.AntiSmokeEnabled and "Анти-Смолк (Удаление дыма): ВКЛ" or "Анти-Смолк (Удаление дыма): ВЫКЛ"
 end)
 
 NoSpreadButton.MouseButton1Click:Connect(function()
     _G.NoSpreadEnabled = not _G.NoSpreadEnabled
     NoSpreadButton.BackgroundColor3 = _G.NoSpreadEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    NoSpreadButton.Text = _G.NoSpreadEnabled and "Анти-Отдача / Разброс: ВКЛ" or "Анти-Отдача / Разброс: ВЫКЛ"
+    NoSpreadButton.Text = _G.NoSpreadEnabled and "Анти-Разброс (Атрибуты оружия): ВКЛ" or "Анти-Разброс (Атрибуты оружия): ВЫКЛ"
 end)
 
 TracersButton.MouseButton1Click:Connect(function()
     _G.BulletTracersEnabled = not _G.BulletTracersEnabled
     TracersButton.BackgroundColor3 = _G.BulletTracersEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    TracersButton.Text = _G.BulletTracersEnabled and "Трассеры Пуль (Текстуры/Лучи): ВКЛ" or "Трассеры Пуль (Текстуры/Лучи): ВЫКЛ"
+    TracersButton.Text = _G.BulletTracersEnabled and "Трассеры Пуль: ВКЛ" or "Трассеры Пуль: ВЫКЛ"
 end)
 
 SkinButton.MouseButton1Click:Connect(function()
     _G.SkinChangerEnabled = not _G.SkinChangerEnabled
     SkinButton.BackgroundColor3 = _G.SkinChangerEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + Нож): ВКЛ" or "Скинченджер (Оружие + Нож): ВЫКЛ"
+    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + USP + Нож): ВКЛ" or "Скинченджер (Оружие + USP + Нож): ВЫКЛ"
 end)
 
 ESPToggle.MouseButton1Click:Connect(function()
@@ -428,7 +476,6 @@ local function isEnemy(targetPlayer)
     return true
 end
 
--- Безопасный поиск персонажа БЕЗ Workspace:GetDescendants()
 local function getCharacter(player)
     if player == LocalPlayer then 
         return player.Character 
@@ -450,13 +497,11 @@ local function getCharacter(player)
     return nil
 end
 
--- Упрощенная проверка видимости для ESP БЕЗ тяжелых raycast-запросов
 local function IsVisibleForESP(head)
     local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
     return onScreen
 end
 
--- Отдельная легкая проверка для аима (только если действительно нужна)
 local function IsVisibleFast(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
@@ -485,9 +530,10 @@ end
 
 local cachedTarget = nil
 local lastTargetUpdate = 0
-local TARGET_UPDATE_INTERVAL = 0.1
+local TARGET_UPDATE_INTERVAL = 0.05
 
-local function GetUnifiedTarget()
+-- Функция выбора цели СТРОГО В ГОЛОВУ
+local function GetHeadTarget()
     if tick() - lastTargetUpdate > TARGET_UPDATE_INTERVAL then
         cachedTarget = nil
         local closestTarget = nil
@@ -499,10 +545,11 @@ local function GetUnifiedTarget()
             end
 
             local char = getCharacter(player)
-            if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
+            -- Обязательно ищем только Голову (Head)
+            if char and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") then
                 local humanoid = char:FindFirstChildOfClass("Humanoid")
                 if humanoid.Health > 0 then
-                    local targetPart = char[_G.TargetPart]
+                    local targetPart = char.Head
                     local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                     
                     if onScreen then
@@ -555,7 +602,6 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- Пул объектов для трассеров (предотвращает спам уничтожения/создания партов)
 local tracerPool = {}
 local MAX_TRACERS = 5
 
@@ -618,59 +664,26 @@ local function CreateBulletTracerOptimized(originPos, targetPos)
     end)
 end
 
--- ИСПРАВЛЕНО: isShooting теперь управляется корректно без конфликта таймаута
 local isShooting = false
-local shootingTouchConnections = {}
 
--- Вспомогательная функция для проверки, находится ли касание над GUI меню
-local function isTouchOnGui(input)
-    if not input or not input.Position then
-        return false
-    end
-    
-    local guiObjects = GuiService:GetGuiObjectsAtPosition(input.Position.X, input.Position.Y)
-    for _, obj in ipairs(guiObjects) do
-        if obj:IsDescendantOf(ScreenGui) then
-            return true
-        end
-    end
-    
-    return false
-end
-
--- ИСПРАВЛЕНО: Полностью переработанная обработка ввода без конфликтов
 UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then 
-        return 
-    end
-    
-    -- Проверяем, не нажато ли меню (чтобы стрельба не активировалась при нажатии кнопок)
-    if isTouchOnGui(input) then
-        return
-    end
-    
+    if processed then return end
     local inputType = input.UserInputType
     
     if inputType == Enum.UserInputType.MouseButton1 then
         isShooting = true
     elseif inputType == Enum.UserInputType.Touch then
         isShooting = true
-        -- На мобильных устройствах не используем таймаут,
-        -- полагаемся на InputEnded для сброса флага
+        task.delay(0.1, function()
+            isShooting = false
+        end)
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
     local inputType = input.UserInputType
-    
-    if inputType == Enum.UserInputType.MouseButton1 then
+    if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
         isShooting = false
-    elseif inputType == Enum.UserInputType.Touch then
-        -- Сбрасываем флаг только если нет других активных касаний
-        local activeTouches = UserInputService:GetTouches()
-        if #activeTouches <= 1 then
-            isShooting = false
-        end
     end
 end)
 
@@ -680,7 +693,7 @@ local validMethods = {
     ["FindPartOnRayWithWhitelist"] = true
 }
 
--- ИСПРАВЛЕНО: Добавлена защита от ошибок в хуке и правильный вызов unpack
+-- Namecall перехват для мгновенного попадания (включая AWP) в голову
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
@@ -689,33 +702,24 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
         return oldNamecall(self, ...)
     end
     
-    local success, result = pcall(function()
-        local Arguments = {...}
-        local target = GetUnifiedTarget()
-        
-        if target and target.Position then
-            local rayIndex = (Method == "FindPartOnRay") and 1 or 2
-            local originalRay = Arguments[rayIndex]
-            
-            if originalRay then
-                local origin = originalRay.Origin
-                local direction = (target.Position - origin).Unit * originalRay.Direction.Magnitude
-                
-                Arguments[rayIndex] = Ray.new(origin, direction)
-                
-                return oldNamecall(self, unpack(Arguments))
-            end
-        end
-        
-        return oldNamecall(self, ...)
-    end)
+    local Arguments = {...}
+    local target = GetHeadTarget()
     
-    if success then
-        return result
-    else
-        -- В случае ошибки в хуке, возвращаем оригинальный вызов
-        return oldNamecall(self, ...)
+    if target and target.Position then
+        local rayIndex = (Method == "FindPartOnRay") and 1 or 2
+        local originalRay = Arguments[rayIndex]
+        
+        if originalRay then
+            local origin = originalRay.Origin
+            local direction = (target.Position - origin).Unit * originalRay.Direction.Magnitude
+            
+            Arguments[rayIndex] = Ray.new(origin, direction)
+            
+            return oldNamecall(self, table.unpack(Arguments))
+        end
     end
+    
+    return oldNamecall(self, ...)
 end)
 
 local lastShotTick = 0
@@ -723,9 +727,13 @@ local lastEspUpdate = 0
 local ESP_THROTTLE = 0.1
 local lastSkinApplied = {}
 
-RunService.RenderStepped:Connect(function()
+-- Переменные для компенсации отдачи камеры
+local lastCameraCFrame = Camera.CFrame
+
+RunService.RenderStepped:Connect(function(dt)
+    -- 1. Мягкий Aim Assist строго в голову
     if _G.AimAssistEnabled then
-        local target = GetUnifiedTarget()
+        local target = GetHeadTarget()
         if target then
             FOVStroke.Color = Color3.fromRGB(0, 255, 150)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
@@ -737,6 +745,34 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
+    -- 2. Анти-Отдача (компенсация подъема камеры вверх при стрельбе)
+    if _G.NoRecoilEnabled and isShooting then
+        local currentCFrame = Camera.CFrame
+        local _, currentPitch, _ = currentCFrame:ToOrientation()
+        local _, lastPitch, _ = lastCameraCFrame:ToOrientation()
+        
+        -- Если камера пошла вверх (отдача), опускаем её обратно на месте
+        if currentPitch > lastPitch then
+            local pitchDiff = currentPitch - lastPitch
+            Camera.CFrame = Camera.CFrame * CFrame.Angles(-pitchDiff, 0, 0)
+        end
+    end
+    lastCameraCFrame = Camera.CFrame
+
+    -- 3. Анти-Смолк (удаление дымов на карте для чистой видимости)
+    if _G.AntiSmokeEnabled then
+        pcall(function()
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") and (string.find(string.lower(obj.Name), "smoke") or string.find(string.lower(obj.Parent.Name), "smoke")) then
+                    obj.Enabled = false
+                elseif obj:IsA("Model") and string.find(string.lower(obj.Name), "smoke") then
+                    obj:Destroy()
+                end
+            end
+        end)
+    end
+
+    -- 4. Трассеры пуль
     if _G.BulletTracersEnabled then
         if isShooting and (tick() - lastShotTick > 0.08) then
             lastShotTick = tick()
@@ -747,13 +783,14 @@ RunService.RenderStepped:Connect(function()
                     local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
                     if handle then gunOrigin = handle.Position end
                 end
-                local target = GetUnifiedTarget()
+                local target = GetHeadTarget()
                 local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
                 CreateBulletTracerOptimized(gunOrigin, targetPos)
             end)
         end
     end
 
+    -- 5. Анти-разброс атрибутов
     if _G.NoSpreadEnabled and LocalPlayer.Character then
         pcall(function()
             for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -778,7 +815,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- Кэширование применения скинов, чтобы не перебирать GetDescendants каждый кадр
+    -- 6. Скинченджер (Оружие + USP + Нож)
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -802,6 +839,7 @@ RunService.RenderStepped:Connect(function()
         lastSkinApplied = {}
     end
 
+    -- 7. ESP отрисовка
     if tick() - lastEspUpdate >= ESP_THROTTLE then
         lastEspUpdate = tick()
         for _, player in ipairs(Players:GetPlayers()) do
@@ -831,7 +869,6 @@ RunService.RenderStepped:Connect(function()
                         local height = math.abs(topPos.Y - bottomPos.Y)
                         local width = height * 0.55
                         
-                        -- Используем легкую проверку без raycast для отрисовки боксов
                         local isVis = IsVisibleForESP(head)
                         local boxColor = isVis and colorVisible or colorHidden
                         
