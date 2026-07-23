@@ -1,6 +1,7 @@
+--!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Bullet Tracers via Textures/Beams, Knife & Weapon SkinChanger, Silent Aim, Aim Assist, NoSpread & TikTok ESP)
-    Для Delta / iPad без сокращений и пропусков.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Complete Version with Texture Tracers, ESP, Silent Aim, Aim Assist, NoSpread & SkinChanger)
+    Без сокращений и пропусков функций. Для Delta / iPad.
 ]]--
 
 local Players = game:GetService("Players")
@@ -14,12 +15,12 @@ local Camera = workspace.CurrentCamera
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Глобальные настройки читов
+-- Глобальные настройки читов и функций
 _G.AimAssistEnabled = false
 _G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
 _G.SkinChangerEnabled = false
-_G.BulletTracersEnabled = false -- Трассеры пуль через текстуры/лучи
+_G.BulletTracersEnabled = false 
 _G.AimSmoothness = 0.18
 _G.AimFOV = 140
 _G.TargetPart = "Head"
@@ -27,7 +28,7 @@ _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.TracerColor = Color3.fromRGB(0, 255, 255)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeUltimateMonolithTracer"
+ScreenGui.Name = "BlockStrikeUltimateCompleteMonolith"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -90,7 +91,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ BLOCK STRIKE TRACER ENGINE ⚡"
+TitleLabel.Text = "⚡ BLOCK STRIKE FULL ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -150,7 +151,7 @@ local SilentAimButton = Instance.new("TextButton")
 SilentAimButton.Name = "SilentAimButton"
 SilentAimButton.Size = UDim2.new(1, 0, 0, 45)
 SilentAimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SilentAimButton.Text = "Silent Aim (Сайленд): ВЫКЛ"
+SilentAimButton.Text = "Silent Aim + Team Check: ВЫКЛ"
 SilentAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SilentAimButton.TextSize = 15
 SilentAimButton.Font = Enum.Font.SourceSansBold
@@ -218,7 +219,7 @@ local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
 ESPToggle.Size = UDim2.new(1, 0, 0, 45)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-ESPToggle.Text = "TikTok ESP: ВКЛ"
+ESPToggle.Text = "TikTok ESP (Без тиммейтов): ВКЛ"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.TextSize = 15
 ESPToggle.Font = Enum.Font.SourceSansBold
@@ -330,7 +331,7 @@ end)
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim (Сайленд): ВКЛ" or "Silent Aim (Сайленд): ВЫКЛ"
+    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim + Team Check: ВКЛ" or "Silent Aim + Team Check: ВЫКЛ"
 end)
 
 NoSpreadButton.MouseButton1Click:Connect(function()
@@ -355,10 +356,10 @@ ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
         ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        ESPToggle.Text = "TikTok ESP: ВКЛ"
+        ESPToggle.Text = "TikTok ESP (Без тиммейтов): ВКЛ"
     else
         ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-        ESPToggle.Text = "TikTok ESP: ВЫКЛ"
+        ESPToggle.Text = "TikTok ESP (Без тиммейтов): ВЫКЛ"
         for _, data in pairs(cacheDrawingObjects) do
             if data.Box then data.Box.Visible = false end
             if data.HpBackground then data.HpBackground.Visible = false end
@@ -403,8 +404,8 @@ local function IsVisible(target)
     return raycastResult == nil
 end
 
-local function GetClosestPlayer()
-    local closestPlayer = nil
+local function GetClosestEnemy()
+    local closestEnemy = nil
     local shortestDistance = _G.AimFOV
     for _, player in pairs(Players:GetPlayers()) do
         if isEnemy(player) then
@@ -419,7 +420,7 @@ local function GetClosestPlayer()
                         if distance < shortestDistance then
                             if IsVisible(targetPart) then
                                 shortestDistance = distance
-                                closestPlayer = targetPart
+                                closestEnemy = targetPart
                             end
                         end
                     end
@@ -427,7 +428,7 @@ local function GetClosestPlayer()
             end
         end
     end
-    return closestPlayer
+    return closestEnemy
 end
 
 local function createPlayerDrawingObjects(playerName)
@@ -462,7 +463,6 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- Функция создания красивого светового луча/трассера пули на базе текстурных Beam-ов
 local function CreateBulletTracer(originPos, targetPos)
     pcall(function()
         local partA = Instance.new("Part")
@@ -490,7 +490,7 @@ local function CreateBulletTracer(originPos, targetPos)
         beam.Color = ColorSequence.new(_G.TracerColor)
         beam.Width0 = 0.12
         beam.Width1 = 0.12
-        beam.Texture = "rbxassetid://6079958617" -- Текстура неонового светового луча
+        beam.Texture = "rbxassetid://6079958617" 
         beam.TextureMode = Enum.TextureMode.Wrap
         beam.TextureSpeed = 5
         beam.LightEmission = 1
@@ -508,11 +508,9 @@ end
 
 local lastShotTick = 0
 
--- Монитор кадров и всех логических функций
 RunService.RenderStepped:Connect(function()
-    -- 1. Простой Aim Assist
     if _G.AimAssistEnabled then
-        local target = GetClosestPlayer()
+        local target = GetClosestEnemy()
         if target then
             FOVStroke.Color = Color3.fromRGB(0, 255, 150)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
@@ -524,9 +522,8 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. Silent Aim (Сайленд аим) + Генерация трассеров пуль
     if _G.SilentAimEnabled then
-        local target = GetClosestPlayer()
+        local target = GetClosestEnemy()
         local isShooting = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled
         if target and isShooting then
             pcall(function()
@@ -537,8 +534,6 @@ RunService.RenderStepped:Connect(function()
                     if handle then gunOrigin = handle.Position end
                 end
 
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-
                 if _G.BulletTracersEnabled and (tick() - lastShotTick > 0.08) then
                     lastShotTick = tick()
                     CreateBulletTracer(gunOrigin, target.Position)
@@ -546,7 +541,6 @@ RunService.RenderStepped:Connect(function()
             end)
         end
     elseif _G.BulletTracersEnabled then
-        -- Трассеры при обычном выстреле/клике
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) and (tick() - lastShotTick > 0.15) then
             lastShotTick = tick()
             pcall(function()
@@ -562,7 +556,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 3. Анти-отдача и Анти-разброс (NoSpread / NoRecoil)
     if _G.NoSpreadEnabled and LocalPlayer.Character then
         pcall(function()
             for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -587,7 +580,6 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 4. Скинченджер (Оружие + Ножи: перекраска и замена под нож)
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -606,7 +598,6 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 5. TikTok ESP Отрисовка
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
