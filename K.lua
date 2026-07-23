@@ -1,7 +1,7 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Optimized Complete Version with Cached Namecall Silent Aim & Multi-Layer Team Check)
-    Без сокращений и пропусков. Полный монолитный оптимизированный скрипт для Delta / iPad.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Fixed Safe Version for Mobile/Delta)
+    Исправлены зависания GUI и оптимизирован хук Namecall под мобильные устройства.
 ]]--
 
 local Players = game:GetService("Players")
@@ -15,7 +15,7 @@ local Camera = workspace.CurrentCamera
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Глобальные настройки читов и функций
+-- Глобальные настройки читов
 _G.AimAssistEnabled = false
 _G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
@@ -381,7 +381,6 @@ local function removeEsp(playerName)
     end
 end
 
--- Многоуровневая функция проверки команд (гарантирует отсутствие тиммейтов)
 local function isEnemy(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer then 
         return false 
@@ -450,20 +449,6 @@ local function getCharacter(player)
     return nil
 end
 
-local function IsVisible(targetPart)
-    local character = LocalPlayer.Character
-    if not character then return false end
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {character, targetPart.Parent}
-    raycastParams.IgnoreWater = true
-    local origin = Camera.CFrame.Position
-    local direction = targetPart.Position - origin
-    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
-    return raycastResult == nil
-end
-
--- Оптимизированная проверка видимости с лимитом дистанции
 local function IsVisibleFast(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
@@ -490,10 +475,10 @@ local function IsVisibleFast(targetPart)
     return true
 end
 
--- Кэшированная функция выбора цели (интервал 50мс для устранения лагов)
+-- Строгое кэширование цели с интервалом 0.1 сек (снимает нагрузку с процессора)
 local cachedTarget = nil
 local lastTargetUpdate = 0
-local TARGET_UPDATE_INTERVAL = 0.05
+local TARGET_UPDATE_INTERVAL = 0.1
 
 local function GetUnifiedTarget()
     if tick() - lastTargetUpdate > TARGET_UPDATE_INTERVAL then
@@ -606,7 +591,7 @@ local function CreateBulletTracer(originPos, targetPos)
     end)
 end
 
--- Отслеживание выстрелов для оптимизированного хука Namecall
+-- Отслеживание состояния стрельбы (Мышь + Тачскрин мобильных устройств)
 local isShooting = false
 
 UserInputService.InputBegan:Connect(function(input)
@@ -621,41 +606,26 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Оптимизированный хук Namecall для перехвата лучей строго во время выстрела
+-- Абсолютно безопасный Namecall хук: работает ИСКЛЮЧИТЕЛЬНО в момент нажатия на стрельбу
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
     local Arguments = {...}
     
     if _G.SilentAimEnabled and isShooting and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FindPartOnRayWithWhitelist") then
-        local caller = self
-        local isValidCaller = false
-        
-        if caller and caller.Parent then
-            local char = LocalPlayer.Character
-            if char then
-                local tool = caller.Parent
-                if (tool:IsA("Tool") and tool.Parent == char) or (caller.Parent == char) then
-                    isValidCaller = true
-                end
+        local target = GetUnifiedTarget()
+        if target then
+            local origin = Arguments[1].Origin
+            local direction = (target.Position - origin)
+            
+            if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRayWithWhitelist" then
+                local unitLength = Arguments[2].Direction.Magnitude
+                Arguments[2] = Ray.new(origin, direction.Unit * unitLength)
+            elseif Method == "FindPartOnRay" then
+                Arguments[1] = Ray.new(origin, direction)
             end
-        end
-        
-        if isValidCaller then
-            local target = GetUnifiedTarget()
-            if target then
-                local origin = Arguments[1].Origin
-                local direction = (target.Position - origin)
-                
-                if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRayWithWhitelist" then
-                    local unitLength = Arguments[2].Direction.Magnitude
-                    Arguments[2] = Ray.new(origin, direction.Unit * unitLength)
-                elseif Method == "FindPartOnRay" then
-                    Arguments[1] = Ray.new(origin, direction)
-                end
-                
-                return oldNamecall(self, unpack(Arguments))
-            end
+            
+            return oldNamecall(self, unpack(Arguments))
         end
     end
     
@@ -768,7 +738,7 @@ RunService.RenderStepped:Connect(function()
                     local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
                     local height = math.abs(topPos.Y - bottomPos.Y)
                     local width = height * 0.55
-                    local isVis = IsVisible(head)
+                    local isVis = IsVisibleFast(head)
                     local boxColor = isVis and colorVisible or colorHidden
                     
                     data.Box.Size = Vector2.new(width, height)
