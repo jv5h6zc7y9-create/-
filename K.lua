@@ -14,38 +14,17 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local TopBarPatch = Instance.new("Frame")
-TopBarPatch.Name = "TopBarPatch"
-TopBarPatch.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-TopBarPatch.BorderSizePixel = 0
-TopBarPatch.Position = UDim2.new(0, 0, 0, 0)
-TopBarPatch.Size = UDim2.new(1, 0, 0, 0)
-TopBarPatch.Visible = false
-TopBarPatch.ZIndex = 10
-TopBarPatch.Parent = ScreenGui
-
-local BottomBarPatch = Instance.new("Frame")
-BottomBarPatch.Name = "BottomBarPatch"
-BottomBarPatch.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BottomBarPatch.BorderSizePixel = 0
-BottomBarPatch.Position = UDim2.new(0, 0, 1, 0)
-BottomBarPatch.AnchorPoint = Vector2.new(0, 1)
-BottomBarPatch.Size = UDim2.new(1, 0, 0, 0)
-BottomBarPatch.Visible = false
-BottomBarPatch.ZIndex = 10
-BottomBarPatch.Parent = ScreenGui
-
 local FOVCircle = Instance.new("Frame")
 FOVCircle.Name = "FOVCircle"
 FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-FOVCircle.BackgroundTransparency = 0.8
+FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+FOVCircle.BackgroundTransparency = 0.95
 FOVCircle.BorderSizePixel = 0
 FOVCircle.Visible = true
 FOVCircle.Parent = ScreenGui
 
 local FOVStroke = Instance.new("UIStroke")
-FOVStroke.Thickness = 2
+FOVStroke.Thickness = 1.5
 FOVStroke.Color = Color3.fromRGB(255, 0, 0)
 FOVStroke.Parent = FOVCircle
 
@@ -61,7 +40,6 @@ MenuButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MenuButton.Text = "⚙️"
 MenuButton.TextSize = 28
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MenuButton.ZIndex = 100
 MenuButton.Parent = ScreenGui
 
 local MenuButtonCorner = Instance.new("UICorner")
@@ -79,7 +57,6 @@ MainMenu.Size = UDim2.new(0, 350, 0, 640)
 MainMenu.Position = UDim2.new(0.5, -175, 0.5, -320)
 MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainMenu.Visible = false
-MainMenu.ZIndex = 101
 MainMenu.Parent = ScreenGui
 
 local MainMenuCorner = Instance.new("UICorner")
@@ -122,7 +99,7 @@ CloseCorner.Parent = CloseButton
 local ModeButton = Instance.new("TextButton")
 ModeButton.Name = "ModeButton"
 ModeButton.Size = UDim2.new(0, 310, 0, 45)
-ModeButton.Position = UDim2.new(0.5, -155, 0, 60)
+ModeButton.Position = UDim2.new(0.5, -155, 0, 70)
 ModeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 ModeButton.Text = "Режим: Выкл"
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -142,7 +119,7 @@ ModeStroke.Parent = ModeButton
 local TargetButton = Instance.new("TextButton")
 TargetButton.Name = "TargetButton"
 TargetButton.Size = UDim2.new(0, 310, 0, 45)
-TargetButton.Position = UDim2.new(0.5, -155, 0, 110)
+TargetButton.Position = UDim2.new(0.5, -155, 0, 130)
 TargetButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 TargetButton.Text = "Цель: Head"
 TargetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -161,19 +138,19 @@ TargetStroke.Parent = TargetButton
 
 local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Name = "SliderLabel"
-SliderLabel.Size = UDim2.new(0, 310, 0, 20)
-SliderLabel.Position = UDim2.new(0.5, -155, 0, 160)
+SliderLabel.Size = UDim2.new(0, 310, 0, 25)
+SliderLabel.Position = UDim2.new(0.5, -155, 0, 195)
 SliderLabel.BackgroundTransparency = 1
 SliderLabel.Text = "Радиус FOV: 100 px"
 SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SliderLabel.TextSize = 15
+SliderLabel.TextSize = 16
 SliderLabel.Font = Enum.Font.SourceSansBold
 SliderLabel.Parent = MainMenu
 
 local SliderBar = Instance.new("Frame")
 SliderBar.Name = "SliderBar"
-SliderBar.Size = UDim2.new(0, 310, 0, 10)
-SliderBar.Position = UDim2.new(0.5, -155, 0, 185)
+SliderBar.Size = UDim2.new(0, 310, 0, 12)
+SliderBar.Position = UDim2.new(0.5, -155, 0, 230)
 SliderBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 SliderBar.BorderSizePixel = 0
 SliderBar.Parent = MainMenu
@@ -200,51 +177,10 @@ SliderBtnStroke.Thickness = 1
 SliderBtnStroke.Color = Color3.fromRGB(0, 0, 0)
 SliderBtnStroke.Parent = SliderBtn
 
-local YSliderLabel = Instance.new("TextLabel")
-YSliderLabel.Name = "YSliderLabel"
-YSliderLabel.Size = UDim2.new(0, 310, 0, 20)
-YSliderLabel.Position = UDim2.new(0.5, -155, 0, 205)
-YSliderLabel.BackgroundTransparency = 1
-YSliderLabel.Text = "Смещение круга Y: 0 px"
-YSliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-YSliderLabel.TextSize = 15
-YSliderLabel.Font = Enum.Font.SourceSansBold
-YSliderLabel.Parent = MainMenu
-
-local YSliderBar = Instance.new("Frame")
-YSliderBar.Name = "YSliderBar"
-YSliderBar.Size = UDim2.new(0, 310, 0, 10)
-YSliderBar.Position = UDim2.new(0.5, -155, 0, 230)
-YSliderBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
-YSliderBar.BorderSizePixel = 0
-YSliderBar.Parent = MainMenu
-
-local YSliderBarCorner = Instance.new("UICorner")
-YSliderBarCorner.CornerRadius = UDim.new(1, 0)
-YSliderBarCorner.Parent = YSliderBar
-
-local YSliderBtn = Instance.new("TextButton")
-YSliderBtn.Name = "YSliderBtn"
-YSliderBtn.Size = UDim2.new(0, 22, 0, 22)
-YSliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-YSliderBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
-YSliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-YSliderBtn.Text = ""
-YSliderBtn.Parent = YSliderBar
-
-local YSliderBtnCorner = Instance.new("UICorner")
-YSliderBtnCorner.CornerRadius = UDim.new(1, 0)
-YSliderBtnCorner.Parent = YSliderBtn
-
-local YSliderBtnStroke = Instance.new("UIStroke")
-YSliderBtnStroke.Thickness = 1
-YSliderBtnStroke.Color = Color3.fromRGB(0, 0, 0)
-YSliderBtnStroke.Parent = YSliderBtn
-
 local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
 ESPToggle.Size = UDim2.new(0, 310, 0, 45)
-ESPToggle.Position = UDim2.new(0.5, -155, 0, 255)
+ESPToggle.Position = UDim2.new(0.5, -155, 0, 270)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
 ESPToggle.Text = "ESP (ВХ): ВКЛУЧЕНО"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -264,7 +200,7 @@ ESPToggleStroke.Parent = ESPToggle
 local BHopToggle = Instance.new("TextButton")
 BHopToggle.Name = "BHopToggle"
 BHopToggle.Size = UDim2.new(0, 310, 0, 45)
-BHopToggle.Position = UDim2.new(0.5, -155, 0, 310)
+BHopToggle.Position = UDim2.new(0.5, -155, 0, 330)
 BHopToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
 BHopToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -284,7 +220,7 @@ BHopToggleStroke.Parent = BHopToggle
 local ThirdPersonToggle = Instance.new("TextButton")
 ThirdPersonToggle.Name = "ThirdPersonToggle"
 ThirdPersonToggle.Size = UDim2.new(0, 310, 0, 45)
-ThirdPersonToggle.Position = UDim2.new(0.5, -155, 0, 365)
+ThirdPersonToggle.Position = UDim2.new(0.5, -155, 0, 390)
 ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 ThirdPersonToggle.Text = "ТРЕТЬЕ ЛИЦО: ВЫКЛ"
 ThirdPersonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -303,8 +239,8 @@ ThirdPersonStroke.Parent = ThirdPersonToggle
 
 local SpeedLabel = Instance.new("TextLabel")
 SpeedLabel.Name = "SpeedLabel"
-SpeedLabel.Size = UDim2.new(0, 310, 0, 20)
-SpeedLabel.Position = UDim2.new(0.5, -155, 0, 420)
+SpeedLabel.Size = UDim2.new(0, 310, 0, 25)
+SpeedLabel.Position = UDim2.new(0.5, -155, 0, 450)
 SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Text = "Скорость бега: x1.0"
 SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -314,8 +250,8 @@ SpeedLabel.Parent = MainMenu
 
 local SpeedBar = Instance.new("Frame")
 SpeedBar.Name = "SpeedBar"
-SpeedBar.Size = UDim2.new(0, 310, 0, 10)
-SpeedBar.Position = UDim2.new(0.5, -155, 0, 445)
+SpeedBar.Size = UDim2.new(0, 310, 0, 12)
+SpeedBar.Position = UDim2.new(0.5, -155, 0, 485)
 SpeedBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 SpeedBar.BorderSizePixel = 0
 SpeedBar.Parent = MainMenu
@@ -345,7 +281,7 @@ SpeedBtnStroke.Parent = SpeedBtn
 local EnvironmentButton = Instance.new("TextButton")
 EnvironmentButton.Name = "EnvironmentButton"
 EnvironmentButton.Size = UDim2.new(0, 310, 0, 45)
-EnvironmentButton.Position = UDim2.new(0.5, -155, 0, 465)
+EnvironmentButton.Position = UDim2.new(0.5, -155, 0, 520)
 EnvironmentButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 EnvironmentButton.Text = "Небо и Гамма: Стандарт"
 EnvironmentButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -362,26 +298,6 @@ EnvironmentStroke.Thickness = 1
 EnvironmentStroke.Color = Color3.fromRGB(75, 75, 90)
 EnvironmentStroke.Parent = EnvironmentButton
 
-local StretchButton = Instance.new("TextButton")
-StretchButton.Name = "StretchButton"
-StretchButton.Size = UDim2.new(0, 310, 0, 45)
-StretchButton.Position = UDim2.new(0.5, -155, 0, 520)
-StretchButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-StretchButton.Text = "Растяг: 16:9 (Стандарт)"
-StretchButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-StretchButton.TextSize = 16
-StretchButton.Font = Enum.Font.SourceSansBold
-StretchButton.Parent = MainMenu
-
-local StretchCorner = Instance.new("UICorner")
-StretchCorner.CornerRadius = UDim.new(0.2, 0)
-StretchCorner.Parent = StretchButton
-
-local StretchStroke = Instance.new("UIStroke")
-StretchStroke.Thickness = 1
-StretchStroke.Color = Color3.fromRGB(75, 75, 90)
-StretchStroke.Parent = StretchButton
-
 local CreditLabel = Instance.new("TextLabel")
 CreditLabel.Name = "CreditLabel"
 CreditLabel.Size = UDim2.new(1, 0, 0, 30)
@@ -392,10 +308,6 @@ CreditLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
 CreditLabel.TextSize = 13
 CreditLabel.Font = Enum.Font.SourceSansItalic
 CreditLabel.Parent = MainMenu
-
-local DrawingContainer = Instance.new("Folder")
-DrawingContainer.Name = "DrawingContainer"
-DrawingContainer.Parent = ScreenGui
 
 local AttachmentOrigin = Instance.new("Attachment")
 AttachmentOrigin.Name = "DeltaLocalOriginAttachment"
@@ -418,15 +330,17 @@ local bHopEnabled = false
 local thirdPersonActive = false
 local currentEnvironmentState = 1
 local speedMultiplier = 1
-local currentRatioIndex = 1
-local aspectRatios = {0, 4/3, 5/4}
-local aspectRatioTexts = {"16:9 (Стандарт)", "4:3 (Растянуто)", "5:4 (Ультра-растянуто)"}
-local circleOffsetY = 0
 
 local colorVisible = Color3.fromRGB(30, 255, 30)
 local colorHidden = Color3.fromRGB(255, 30, 30)
 
 local menuButtonPosition = nil
+
+local ColorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+if not ColorCorrection then
+    ColorCorrection = Instance.new("ColorCorrectionEffect")
+    ColorCorrection.Parent = Lighting
+end
 
 local function getCharactersFolder()
     local checkPlayers = Workspace:FindFirstChild("Players")
@@ -440,44 +354,21 @@ local function getCharactersFolder()
     return Workspace
 end
 
-local function EnforceAspectRatio(ratio)
-    if ratio == 0 then
-        TopBarPatch.Visible = false
-        BottomBarPatch.Visible = false
-        return
-    end
-    local width = Camera.ViewportSize.X
-    local height = Camera.ViewportSize.Y
-    local targetHeight = width / ratio
-    if targetHeight < height then
-        local delta = (height - targetHeight) / 2
-        TopBarPatch.Size = UDim2.new(1, 0, 0, delta)
-        TopBarPatch.Visible = true
-        BottomBarPatch.Size = UDim2.new(1, 0, 0, delta)
-        BottomBarPatch.Position = UDim2.new(0, 0, 1, 0)
-        BottomBarPatch.Visible = true
-    else
-        TopBarPatch.Visible = false
-        BottomBarPatch.Visible = false
-    end
-end
-
 local function UpdateViewportCenter()
     local insetTop, insetBottom = GuiService:GetGuiInset()
     ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, (Camera.ViewportSize.Y - (insetTop + insetBottom)) / 2)
     if FOVCircle then
-        FOVCircle.Position = UDim2.new(0, ScreenCenter.X, 0, ScreenCenter.Y + circleOffsetY)
+        FOVCircle.Position = UDim2.new(0, ScreenCenter.X, 0, ScreenCenter.Y)
     end
     if not menuButtonPosition then
         MenuButton.Position = UDim2.new(0, ScreenCenter.X, 0, ScreenCenter.Y)
     end
-    EnforceAspectRatio(aspectRatios[currentRatioIndex])
 end
 
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateViewportCenter)
 UpdateViewportCenter()
 
-local Dragging, DragInput, DragStart, StartPos
+local Dragging, DragInputStart, DragStart, StartPos
 
 MenuButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -492,8 +383,14 @@ MenuButton.InputBegan:Connect(function(input)
     end
 end)
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if Dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+MenuButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+        DragInputStart = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == DragInputStart and Dragging then
         local delta = input.Position - DragStart
         local newPos = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
         MenuButton.Position = newPos
@@ -540,31 +437,6 @@ UserInputService.InputChanged:Connect(function(input)
         SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
         local newRadius = 30 + (percentage * 220)
         updateFOV(newRadius)
-    end
-end)
-
-local draggingYSlider = false
-
-YSliderBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingYSlider = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingYSlider = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if draggingYSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local rX = input.Position.X - YSliderBar.AbsolutePosition.X
-        local percentage = math.clamp(rX / YSliderBar.AbsoluteSize.X, 0, 1)
-        YSliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-        circleOffsetY = -150 + (percentage * 300)
-        YSliderLabel.Text = "Смещение круга Y: " .. tostring(math.round(circleOffsetY)) .. " px"
-        FOVCircle.Position = UDim2.new(0, ScreenCenter.X, 0, ScreenCenter.Y + circleOffsetY)
     end
 end)
 
@@ -662,7 +534,7 @@ BHopToggle.MouseButton1Click:Connect(function()
     bHopEnabled = not bHopEnabled
     if bHopEnabled then
         BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛЮЧЕН"
+        BHopToggle.Text = "BUNNYHOP: ВКЛУЧЕН"
     else
         BHopToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
         BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
@@ -688,29 +560,29 @@ EnvironmentButton.MouseButton1Click:Connect(function()
         Lighting.TimeOfDay = "00:00:00"
         Lighting.Brightness = 0
         Lighting.OutdoorAmbient = Color3.fromRGB(15, 15, 35)
+        ColorCorrection.Saturation = 0.6
+        ColorCorrection.Contrast = 0.3
+        ColorCorrection.Brightness = 0.05
         EnvironmentButton.Text = "Небо и Гамма: Полночь"
     elseif currentEnvironmentState == 2 then
         currentEnvironmentState = 3
         Lighting.TimeOfDay = "18:20:00"
         Lighting.Brightness = 1.5
         Lighting.OutdoorAmbient = Color3.fromRGB(100, 50, 40)
+        ColorCorrection.Saturation = -0.1
+        ColorCorrection.Contrast = 0.4
+        ColorCorrection.Brightness = -0.05
         EnvironmentButton.Text = "Небо и Гамма: Закат"
     else
         currentEnvironmentState = 1
         Lighting.TimeOfDay = "14:00:00"
         Lighting.Brightness = 3
         Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        ColorCorrection.Saturation = 0
+        ColorCorrection.Contrast = 0
+        ColorCorrection.Brightness = 0
         EnvironmentButton.Text = "Небо и Гамма: Стандарт"
     end
-end)
-
-StretchButton.MouseButton1Click:Connect(function()
-    currentRatioIndex = currentRatioIndex + 1
-    if currentRatioIndex > #aspectRatios then
-        currentRatioIndex = 1
-    end
-    StretchButton.Text = "Растяг: " .. aspectRatioTexts[currentRatioIndex]
-    EnforceAspectRatio(aspectRatios[currentRatioIndex])
 end)
 
 local function IsEnemy(targetPlayer)
@@ -883,7 +755,7 @@ local function getClosestVisibleEnemy()
                         local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                         if onScreen then
                             local mousePos = Vector2.new(screenPos.X, screenPos.Y)
-                            local actualFovCenter = Vector2.new(ScreenCenter.X, ScreenCenter.Y + circleOffsetY)
+                            local actualFovCenter = Vector2.new(ScreenCenter.X, ScreenCenter.Y)
                             local distance = (mousePos - actualFovCenter).Magnitude
                             if distance <= FOV_RADIUS and distance < shortestDistance then
                                 if IsVisibleCheck(targetPart) then
@@ -913,13 +785,13 @@ RunService.RenderStepped:Connect(function()
         FOVCircle = Instance.new("Frame")
         FOVCircle.Name = "FOVCircle"
         FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        FOVCircle.BackgroundTransparency = 0.8
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        FOVCircle.BackgroundTransparency = 0.95
         FOVCircle.BorderSizePixel = 0
         FOVCircle.Visible = true
         FOVCircle.Parent = ScreenGui
         FOVStroke = Instance.new("UIStroke")
-        FOVStroke.Thickness = 2
+        FOVStroke.Thickness = 1.5
         FOVStroke.Color = Color3.fromRGB(255, 0, 0)
         FOVStroke.Parent = FOVCircle
         FOVCorner = Instance.new("UICorner")
@@ -936,12 +808,7 @@ RunService.RenderStepped:Connect(function()
         MenuButton.Text = "⚙️"
         MenuButton.TextSize = 28
         MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        MenuButton.ZIndex = 100
         MenuButton.Parent = ScreenGui
-        MenuButtonStroke = Instance.new("UIStroke")
-        MenuButtonStroke.Thickness = 2
-        MenuButtonStroke.Color = Color3.fromRGB(0, 150, 255)
-        MenuButtonStroke.Parent = MenuButton
     end
     
     local targetPlayer = getClosestVisibleEnemy()
@@ -1004,8 +871,8 @@ RunService.RenderStepped:Connect(function()
     end
     
     if aimMode ~= "Выкл" and targetPlayer then
-        FOVStroke.Color = Color3.fromRGB(30, 255, 30)
-        FOVCircle.BackgroundColor3 = Color3.fromRGB(30, 255, 30)
+        FOVStroke.Color = Color3.fromRGB(0, 255, 0)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
         
         local currentTargetPartName = aimTarget
         if aimMode == "Сайлент Аим" then
@@ -1035,8 +902,8 @@ RunService.RenderStepped:Connect(function()
             end
         end
     else
-        FOVStroke.Color = Color3.fromRGB(255, 30, 30)
-        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
+        FOVStroke.Color = Color3.fromRGB(255, 0, 0)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     end
     
     for k = 1, #allPlayers do
