@@ -332,7 +332,6 @@ end
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateViewportCenter)
 UpdateViewportCenter()
 
--- Улучшенная логика перетаскивания и нажатия кнопки меню
 local draggingMenu = false
 local dragStartPos = nil
 local menuStartPos = nil
@@ -450,6 +449,31 @@ TargetButton.MouseButton1Click:Connect(function()
     TargetButton.Text = "Цель: " .. aimTarget
 end)
 
+local function removePlayerEsp(player)
+    local folder = getCharactersFolder()
+    local char = folder:FindFirstChild(player.Name)
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local bb = root:FindFirstChild("DeltaBillboard")
+            if bb then bb:Destroy() end
+            local tAtt = root:FindFirstChild("DeltaTracerAttachment")
+            if tAtt then tAtt:Destroy() end
+            local beam = root:FindFirstChild("DeltaTracerBeam")
+            if beam then beam:Destroy() end
+        end
+        local hl = char:FindFirstChild("DeltaHighlight")
+        if hl then hl:Destroy() end
+    end
+end
+
+local function cleanAllVisuals()
+    local currentPlayers = Players:GetPlayers()
+    for index = 1, #currentPlayers do
+        removePlayerEsp(currentPlayers[index])
+    end
+end
+
 ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
@@ -458,6 +482,7 @@ ESPToggle.MouseButton1Click:Connect(function()
     else
         ESPToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
         ESPToggle.Text = "ESP (ВХ): ВЫКЛЮЧЕНО"
+        cleanAllVisuals()
     end
 end)
 
@@ -551,6 +576,7 @@ end
 
 local function ApplyVisuals(target, occluded, dist)
     local visibilityColor = occluded and Color3.fromRGB(255, 30, 30) or Color3.fromRGB(30, 255, 30)
+    
     local hl = target.Char:FindFirstChild("DeltaHighlight") or Instance.new("Highlight")
     if not hl.Parent then
         hl.Name = "DeltaHighlight"
@@ -561,13 +587,100 @@ local function ApplyVisuals(target, occluded, dist)
     end
     hl.FillColor = visibilityColor
     hl.OutlineColor = visibilityColor
+    
+    local bb = target.Root:FindFirstChild("DeltaBillboard") or Instance.new("BillboardGui")
+    if not bb.Parent then
+        bb.Name = "DeltaBillboard"
+        bb.AlwaysOnTop = true
+        bb.Size = UDim2.new(0, 130, 0, 150)
+        bb.Adornee = target.Root
+        bb.Parent = target.Root
+    end
+    
+    local box = bb:FindFirstChild("BoundingBox") or Instance.new("Frame")
+    if not box.Parent then
+        box.Name = "BoundingBox"
+        box.Size = UDim2.new(0, 65, 0, 95)
+        box.Position = UDim2.new(0.5, -32, 0.5, -47)
+        box.BackgroundTransparency = 1
+        box.Parent = bb
+    end
+    
+    local stroke = box:FindFirstChild("UIStroke") or Instance.new("UIStroke")
+    if not stroke.Parent then
+        stroke.Thickness = 1.5
+        stroke.Parent = box
+    end
+    stroke.Color = visibilityColor
+    
+    local track = box:FindFirstChild("HealthTrack") or Instance.new("Frame")
+    if not track.Parent then
+        track.Name = "HealthTrack"
+        track.Size = UDim2.new(0, 4, 0, 95)
+        track.Position = UDim2.new(1, 4, 0, 0)
+        track.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+        track.BorderSizePixel = 0
+        track.Parent = box
+    end
+    
+    local fill = track:FindFirstChild("HealthFill") or Instance.new("Frame")
+    if not fill.Parent then
+        fill.Name = "HealthFill"
+        fill.AnchorPoint = Vector2.new(0, 1)
+        fill.Position = UDim2.new(0, 0, 1, 0)
+        fill.BorderSizePixel = 0
+        fill.Parent = track
+    end
+    
+    local hpPct = math.clamp(target.Hum.Health / target.Hum.MaxHealth, 0, 1)
+    fill.Size = UDim2.new(1, 0, hpPct, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(255 * (1 - hpPct), hpPct * 255, 0)
+    
+    local lbl = box:FindFirstChild("InfoLabel") or Instance.new("TextLabel")
+    if not lbl.Parent then
+        lbl.Name = "InfoLabel"
+        lbl.Size = UDim2.new(2, 0, 0, 18)
+        lbl.Position = UDim2.new(-0.5, 0, 0, -22)
+        lbl.BackgroundTransparency = 1
+        lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        lbl.TextStrokeTransparency = 0
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 10
+        lbl.Parent = box
+    end
+    lbl.Text = string.format("%s [%dm]", target.Player and target.Player.Name or target.Char.Name, math.floor(dist))
+    
+    local tAtt = target.Root:FindFirstChild("DeltaTracerAttachment") or Instance.new("Attachment")
+    if not tAtt.Parent then
+        tAtt.Name = "DeltaTracerAttachment"
+        tAtt.Parent = target.Root
+    end
+    
+    local beam = target.Root:FindFirstChild("DeltaTracerBeam") or Instance.new("Beam")
+    if not beam.Parent then
+        beam.Name = "DeltaTracerBeam"
+        beam.Attachment0 = AttachmentOrigin
+        beam.Attachment1 = tAtt
+        beam.Width0 = 0.04
+        beam.Width1 = 0.04
+        beam.FaceCamera = true
+        beam.LightInfluence = 0
+        beam.Parent = target.Root
+    end
+    beam.Color = ColorSequence.new(visibilityColor)
 end
 
 local function getClosestVisibleEnemy()
     local closestPlayer = nil
     local shortestDistance = math.huge
+    local currentTargetPartName = aimTarget
+    if aimMode == "Сайлент Аим" then
+        currentTargetPartName = "Head"
+    end
+    
     local folder = getCharactersFolder()
     local playerList = Players:GetPlayers()
+    
     for i = 1, #playerList do
         local player = playerList[i]
         if IsEnemy(player) then
@@ -575,7 +688,7 @@ local function getClosestVisibleEnemy()
             if char then
                 local hum, head, root = ValidatedTarget(char)
                 if hum and head and root then
-                    local targetPart = char:FindFirstChild(aimTarget)
+                    local targetPart = char:FindFirstChild(currentTargetPartName)
                     if targetPart then
                         local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                         if onScreen then
@@ -619,18 +732,23 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
+    local activeScreenPlayers = {}
     local folder = getCharactersFolder()
     local allPlayers = Players:GetPlayers()
+    
     for j = 1, #allPlayers do
         local player = allPlayers[j]
         if IsEnemy(player) then
             local char = folder:FindFirstChild(player.Name)
             if char then
                 local hum, head, root = ValidatedTarget(char)
-                if hum and head and root and espEnabled then
-                    local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                    local dist = myHrp and (root.Position - myHrp.Position).Magnitude or 0
-                    ApplyVisuals({Char = char, Root = root, Hum = hum}, not IsVisibleCheck(root), dist)
+                if hum and head and root then
+                    if espEnabled then
+                        activeScreenPlayers[player.Name] = true
+                        local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                        local dist = myHrp and (root.Position - myHrp.Position).Magnitude or 0
+                        ApplyVisuals({Char = char, Root = root, Hum = hum, Player = player}, not IsVisibleCheck(root), dist)
+                    end
                 end
             end
         end
@@ -639,10 +757,15 @@ RunService.RenderStepped:Connect(function()
     local targetPlayer = getClosestVisibleEnemy()
     if aimMode ~= "Выкл" and targetPlayer then
         FOVStroke.Color = Color3.fromRGB(0, 255, 0)
+        local currentTargetPartName = aimTarget
+        if aimMode == "Сайлент Аим" then
+            currentTargetPartName = "Head"
+        end
+        
         local char = folder:FindFirstChild(targetPlayer.Name)
         if char then
             local _, _, root = ValidatedTarget(char)
-            local targetPart = char:FindFirstChild(aimTarget)
+            local targetPart = char:FindFirstChild(currentTargetPartName)
             if targetPart then
                 if aimMode == "Обычный Аим" then
                     if UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetTouches() > 0 then
@@ -657,4 +780,15 @@ RunService.RenderStepped:Connect(function()
     else
         FOVStroke.Color = Color3.fromRGB(255, 0, 0)
     end
+    
+    for k = 1, #allPlayers do
+        local player = allPlayers[k]
+        if not activeScreenPlayers[player.Name] then
+            removePlayerEsp(player)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removePlayerEsp(player)
 end)
