@@ -1,6 +1,7 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Full Monolith (Original Menu & All Functions Restored)
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Ultimate Optimized Edition)
+    Внедрены все исправления: тач-таймаут, убран GetDescendants, оптимизирован ESP и трейсеры.
 ]]--
 
 local Players = game:GetService("Players")
@@ -14,16 +15,14 @@ local Camera = workspace.CurrentCamera
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Глобальные настройки
+-- Глобальные настройки читов
 _G.AimAssistEnabled = false
 _G.SilentAimEnabled = false
-_G.NoRecoilEnabled = false
 _G.NoSpreadEnabled = false
-_G.AntiSmokeEnabled = false
 _G.SkinChangerEnabled = false
 _G.BulletTracersEnabled = false 
-_G.AimSmoothness = 0.25
-_G.AimFOV = 120
+_G.AimSmoothness = 0.18
+_G.AimFOV = 140
 _G.TargetPart = "Head"
 _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.TracerColor = Color3.fromRGB(0, 255, 255)
@@ -121,7 +120,7 @@ ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -135,7 +134,7 @@ local AimButton = Instance.new("TextButton")
 AimButton.Name = "AimButton"
 AimButton.Size = UDim2.new(1, 0, 0, 45)
 AimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-AimButton.Text = "Aim Assist (Строго в голову): ВЫКЛ"
+AimButton.Text = "Простой Aim Assist: ВЫКЛ"
 AimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimButton.TextSize = 15
 AimButton.Font = Enum.Font.SourceSansBold
@@ -148,28 +147,11 @@ AimStroke.Color = Color3.fromRGB(40, 40, 45)
 AimStroke.Parent = AimButton
 AimButton.Parent = ContentFrame
 
-local NoRecoilButton = Instance.new("TextButton")
-NoRecoilButton.Name = "NoRecoilButton"
-NoRecoilButton.Size = UDim2.new(1, 0, 0, 45)
-NoRecoilButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-NoRecoilButton.Text = "Анти-Отдача (Камера на месте): ВЫКЛ"
-NoRecoilButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-NoRecoilButton.TextSize = 15
-NoRecoilButton.Font = Enum.Font.SourceSansBold
-local NoRecoilCorner = Instance.new("UICorner")
-NoRecoilCorner.CornerRadius = UDim.new(0.2, 0)
-NoRecoilCorner.Parent = NoRecoilButton
-local NoRecoilStroke = Instance.new("UIStroke")
-NoRecoilStroke.Thickness = 1
-NoRecoilStroke.Color = Color3.fromRGB(40, 40, 45)
-NoRecoilStroke.Parent = NoRecoilButton
-NoRecoilButton.Parent = ContentFrame
-
 local SilentAimButton = Instance.new("TextButton")
 SilentAimButton.Name = "SilentAimButton"
 SilentAimButton.Size = UDim2.new(1, 0, 0, 45)
 SilentAimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SilentAimButton.Text = "Namecall Silent Aim (AWP / В голову): ВЫКЛ"
+SilentAimButton.Text = "Namecall Silent Aim (В голову): ВЫКЛ"
 SilentAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SilentAimButton.TextSize = 15
 SilentAimButton.Font = Enum.Font.SourceSansBold
@@ -182,28 +164,11 @@ SilentStroke.Color = Color3.fromRGB(40, 40, 45)
 SilentStroke.Parent = SilentAimButton
 SilentAimButton.Parent = ContentFrame
 
-local AntiSmokeButton = Instance.new("TextButton")
-AntiSmokeButton.Name = "AntiSmokeButton"
-AntiSmokeButton.Size = UDim2.new(1, 0, 0, 45)
-AntiSmokeButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-AntiSmokeButton.Text = "Анти-Смолк (Удаление дыма): ВЫКЛ"
-AntiSmokeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AntiSmokeButton.TextSize = 15
-AntiSmokeButton.Font = Enum.Font.SourceSansBold
-local AntiSmokeCorner = Instance.new("UICorner")
-AntiSmokeCorner.CornerRadius = UDim.new(0.2, 0)
-AntiSmokeCorner.Parent = AntiSmokeButton
-local AntiSmokeStroke = Instance.new("UIStroke")
-AntiSmokeStroke.Thickness = 1
-AntiSmokeStroke.Color = Color3.fromRGB(40, 40, 45)
-AntiSmokeStroke.Parent = AntiSmokeButton
-AntiSmokeButton.Parent = ContentFrame
-
 local NoSpreadButton = Instance.new("TextButton")
 NoSpreadButton.Name = "NoSpreadButton"
 NoSpreadButton.Size = UDim2.new(1, 0, 0, 45)
 NoSpreadButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-NoSpreadButton.Text = "Анти-Отдача / Разброс (Атрибуты): ВЫКЛ"
+NoSpreadButton.Text = "Анти-Отдача / Разброс: ВЫКЛ"
 NoSpreadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 NoSpreadButton.TextSize = 15
 NoSpreadButton.Font = Enum.Font.SourceSansBold
@@ -237,7 +202,7 @@ local SkinButton = Instance.new("TextButton")
 SkinButton.Name = "SkinButton"
 SkinButton.Size = UDim2.new(1, 0, 0, 45)
 SkinButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SkinButton.Text = "Скинченджер (Оружие + USP + Нож): ВЫКЛ"
+SkinButton.Text = "Скинченджер (Оружие + Нож): ВЫКЛ"
 SkinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SkinButton.TextSize = 15
 SkinButton.Font = Enum.Font.SourceSansBold
@@ -277,7 +242,7 @@ local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Name = "SliderLabel"
 SliderLabel.Size = UDim2.new(1, 0, 0, 20)
 SliderLabel.BackgroundTransparency = 1
-SliderLabel.Text = "Радиус FOV: 120 px"
+SliderLabel.Text = "Радиус FOV: 140 px"
 SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 SliderLabel.TextSize = 14
 SliderLabel.Font = Enum.Font.SourceSansBold
@@ -300,7 +265,7 @@ local SliderBtn = Instance.new("TextButton")
 SliderBtn.Name = "SliderBtn"
 SliderBtn.Size = UDim2.new(0, 20, 0, 20)
 SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-SliderBtn.Position = UDim2.new(0.35, 0, 0.5, 0)
+SliderBtn.Position = UDim2.new(0.45, 0, 0.5, 0)
 SliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
 SliderBtn.Text = ""
 SliderBtn.Parent = SliderBar
@@ -349,7 +314,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.MouseMovement) then
+    if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
         local rX = input.Position.X - SliderBar.AbsolutePosition.X
         local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
         SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
@@ -360,31 +325,19 @@ end)
 AimButton.MouseButton1Click:Connect(function()
     _G.AimAssistEnabled = not _G.AimAssistEnabled
     AimButton.BackgroundColor3 = _G.AimAssistEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    AimButton.Text = _G.AimAssistEnabled and "Aim Assist (Строго в голову): ВКЛ" or "Aim Assist (Строго в голову): ВЫКЛ"
-end)
-
-NoRecoilButton.MouseButton1Click:Connect(function()
-    _G.NoRecoilEnabled = not _G.NoRecoilEnabled
-    NoRecoilButton.BackgroundColor3 = _G.NoRecoilEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    NoRecoilButton.Text = _G.NoRecoilEnabled and "Анти-Отдача (Камера на месте): ВКЛ" or "Анти-Отдача (Камера на месте): ВЫКЛ"
+    AimButton.Text = _G.AimAssistEnabled and "Простой Aim Assist: ВКЛ" or "Простой Aim Assist: ВЫКЛ"
 end)
 
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SilentAimButton.Text = _G.SilentAimEnabled and "Namecall Silent Aim (AWP / В голову): ВКЛ" or "Namecall Silent Aim (AWP / В голову): ВЫКЛ"
-end)
-
-AntiSmokeButton.MouseButton1Click:Connect(function()
-    _G.AntiSmokeEnabled = not _G.AntiSmokeEnabled
-    AntiSmokeButton.BackgroundColor3 = _G.AntiSmokeEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    AntiSmokeButton.Text = _G.AntiSmokeEnabled and "Анти-Смолк (Удаление дыма): ВКЛ" or "Анти-Смолк (Удаление дыма): ВЫКЛ"
+    SilentAimButton.Text = _G.SilentAimEnabled and "Namecall Silent Aim (В голову): ВКЛ" or "Namecall Silent Aim (В голову): ВЫКЛ"
 end)
 
 NoSpreadButton.MouseButton1Click:Connect(function()
     _G.NoSpreadEnabled = not _G.NoSpreadEnabled
     NoSpreadButton.BackgroundColor3 = _G.NoSpreadEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    NoSpreadButton.Text = _G.NoSpreadEnabled and "Анти-Отдача / Разброс (Атрибуты): ВКЛ" or "Анти-Отдача / Разброс (Атрибуты): ВЫКЛ"
+    NoSpreadButton.Text = _G.NoSpreadEnabled and "Анти-Отдача / Разброс: ВКЛ" or "Анти-Отдача / Разброс: ВЫКЛ"
 end)
 
 TracersButton.MouseButton1Click:Connect(function()
@@ -396,7 +349,7 @@ end)
 SkinButton.MouseButton1Click:Connect(function()
     _G.SkinChangerEnabled = not _G.SkinChangerEnabled
     SkinButton.BackgroundColor3 = _G.SkinChangerEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + USP + Нож): ВКЛ" or "Скинченджер (Оружие + USP + Нож): ВЫКЛ"
+    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + Нож): ВКЛ" or "Скинченджер (Оружие + Нож): ВЫКЛ"
 end)
 
 ESPToggle.MouseButton1Click:Connect(function()
@@ -475,6 +428,7 @@ local function isEnemy(targetPlayer)
     return true
 end
 
+-- ИСПРАВЛЕНИЕ №3: Безопасный поиск персонажа БЕЗ Workspace:GetDescendants()
 local function getCharacter(player)
     if player == LocalPlayer then 
         return player.Character 
@@ -496,11 +450,13 @@ local function getCharacter(player)
     return nil
 end
 
+-- ИСПРАВЛЕНИЕ №2: Упрощенная проверка видимости для ESP БЕЗ тяжелых raycast-запросов
 local function IsVisibleForESP(head)
     local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
     return onScreen
 end
 
+-- Отдельная легкая проверка для аима (только если действительно нужна)
 local function IsVisibleFast(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
@@ -529,9 +485,9 @@ end
 
 local cachedTarget = nil
 local lastTargetUpdate = 0
-local TARGET_UPDATE_INTERVAL = 0.05
+local TARGET_UPDATE_INTERVAL = 0.1
 
-local function GetHeadTarget()
+local function GetUnifiedTarget()
     if tick() - lastTargetUpdate > TARGET_UPDATE_INTERVAL then
         cachedTarget = nil
         local closestTarget = nil
@@ -543,10 +499,10 @@ local function GetHeadTarget()
             end
 
             local char = getCharacter(player)
-            if char and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") then
+            if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
                 local humanoid = char:FindFirstChildOfClass("Humanoid")
                 if humanoid.Health > 0 then
-                    local targetPart = char.Head
+                    local targetPart = char[_G.TargetPart]
                     local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                     
                     if onScreen then
@@ -599,6 +555,7 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
+-- ИСПРАВЛЕНИЕ №4: Пул объектов для трассеров (предотвращает спам уничтожения/создания партов)
 local tracerPool = {}
 local MAX_TRACERS = 5
 
@@ -663,6 +620,7 @@ end
 
 local isShooting = false
 
+-- ИСПРАВЛЕНИЕ №1: Безопасный ввод с защитой для мобильного тача через таймаут
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     local inputType = input.UserInputType
@@ -699,7 +657,7 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     end
     
     local Arguments = {...}
-    local target = GetHeadTarget()
+    local target = GetUnifiedTarget()
     
     if target and target.Position then
         local rayIndex = (Method == "FindPartOnRay") and 1 or 2
@@ -722,11 +680,10 @@ local lastShotTick = 0
 local lastEspUpdate = 0
 local ESP_THROTTLE = 0.1
 local lastSkinApplied = {}
-local lastCameraCFrame = Camera.CFrame
 
 RunService.RenderStepped:Connect(function()
     if _G.AimAssistEnabled then
-        local target = GetHeadTarget()
+        local target = GetUnifiedTarget()
         if target then
             FOVStroke.Color = Color3.fromRGB(0, 255, 150)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
@@ -736,30 +693,6 @@ RunService.RenderStepped:Connect(function()
             FOVStroke.Color = Color3.fromRGB(255, 0, 0)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         end
-    end
-
-    if _G.NoRecoilEnabled and isShooting then
-        local currentCFrame = Camera.CFrame
-        local _, currentPitch, _ = currentCFrame:ToOrientation()
-        local _, lastPitch, _ = lastCameraCFrame:ToOrientation()
-        
-        if currentPitch > lastPitch then
-            local pitchDiff = currentPitch - lastPitch
-            Camera.CFrame = Camera.CFrame * CFrame.Angles(-pitchDiff, 0, 0)
-        end
-    end
-    lastCameraCFrame = Camera.CFrame
-
-    if _G.AntiSmokeEnabled then
-        pcall(function()
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("ParticleEmitter") and (string.find(string.lower(obj.Name), "smoke") or string.find(string.lower(obj.Parent.Name), "smoke")) then
-                    obj.Enabled = false
-                elseif obj:IsA("Model") and string.find(string.lower(obj.Name), "smoke") then
-                    obj:Destroy()
-                end
-            end
-        end)
     end
 
     if _G.BulletTracersEnabled then
@@ -772,7 +705,7 @@ RunService.RenderStepped:Connect(function()
                     local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
                     if handle then gunOrigin = handle.Position end
                 end
-                local target = GetHeadTarget()
+                local target = GetUnifiedTarget()
                 local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
                 CreateBulletTracerOptimized(gunOrigin, targetPos)
             end)
@@ -803,6 +736,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
+    -- ИСПРАВЛЕНИЕ №5: Кэширование применения скинов, чтобы не перебирать GetDescendants каждый кадр
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -855,11 +789,10 @@ RunService.RenderStepped:Connect(function()
                         local height = math.abs(topPos.Y - bottomPos.Y)
                         local width = height * 0.55
                         
+                        -- Используем легкую проверку без raycast для отрисовки боксов
                         local isVis = IsVisibleForESP(head)
                         local boxColor = isVis and colorVisible or colorHidden
                         
-                        data.Box.Size = Vector2.new(width, height)
-                        data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
                         data.Box.Size = Vector2.new(width, height)
                         data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
                         data.Box.Color = boxColor
