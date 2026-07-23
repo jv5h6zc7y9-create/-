@@ -1,6 +1,6 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Complete Version with Multi-Layer Team Check, Robust ESP & Unified Head-Lock Silent Aim)
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Complete Version with Namecall Silent Aim & Multi-Layer Team Check)
     Без сокращений и пропусков. Полный монолитный скрипт для Delta / iPad.
 ]]--
 
@@ -28,7 +28,7 @@ _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.TracerColor = Color3.fromRGB(0, 255, 255)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeUltimateMonolithUnified"
+ScreenGui.Name = "BlockStrikeUltimateMonolithNamecall"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -91,9 +91,9 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ BLOCK STRIKE UNIFIED ENGINE ⚡"
+TitleLabel.Text = "⚡ NAMECALL SILENT AIM ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-TitleLabel.TextSize = 15
+TitleLabel.TextSize = 14
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainMenu
 
@@ -151,7 +151,7 @@ local SilentAimButton = Instance.new("TextButton")
 SilentAimButton.Name = "SilentAimButton"
 SilentAimButton.Size = UDim2.new(1, 0, 0, 45)
 SilentAimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SilentAimButton.Text = "Silent Aim (В голову + Обход): ВЫКЛ"
+SilentAimButton.Text = "Namecall Silent Aim (В голову): ВЫКЛ"
 SilentAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SilentAimButton.TextSize = 15
 SilentAimButton.Font = Enum.Font.SourceSansBold
@@ -331,7 +331,7 @@ end)
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim (В голову + Обход): ВКЛ" or "Silent Aim (В голову + Обход): ВЫКЛ"
+    SilentAimButton.Text = _G.SilentAimEnabled and "Namecall Silent Aim (В голову): ВКЛ" or "Namecall Silent Aim (В голову): ВЫКЛ"
 end)
 
 NoSpreadButton.MouseButton1Click:Connect(function()
@@ -369,7 +369,6 @@ ESPToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Улучшенная функция скрытия ESP для конкретного игрока (мгновенная очистка призрачных боксов)
 local function removeEsp(playerName)
     local data = cacheDrawingObjects[playerName]
     if data then
@@ -382,13 +381,12 @@ local function removeEsp(playerName)
     end
 end
 
--- Единая многоуровневая функция проверки на врага (исключает союзников со 100% гарантией)
+-- Многоуровневая функция проверки команд (гарантирует отсутствие тиммейтов)
 local function isEnemy(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer then 
         return false 
     end
 
-    -- 1. Стандартная проверка по Team
     if targetPlayer.Team and LocalPlayer.Team then
         if targetPlayer.Team == LocalPlayer.Team then
             return false
@@ -397,7 +395,6 @@ local function isEnemy(targetPlayer)
         end
     end
 
-    -- 2. Проверка кастомных строковых или числовых атрибутов ("Team" или "Side")
     local attrTeam = targetPlayer:GetAttribute("Team") or targetPlayer:GetAttribute("Side")
     local localAttrTeam = LocalPlayer:GetAttribute("Team") or LocalPlayer:GetAttribute("Side")
     if attrTeam ~= nil and localAttrTeam ~= nil then
@@ -408,7 +405,6 @@ local function isEnemy(targetPlayer)
         end
     end
 
-    -- 3. Проверка наличия объектов ValueObject (StringValue / IntValue с именем "Team") внутри папки игрока
     local teamObj = targetPlayer:FindFirstChild("Team")
     local localTeamObj = LocalPlayer:FindFirstChild("Team")
     if teamObj and localTeamObj and (teamObj:IsA("StringValue") or teamObj:IsA("IntValue")) and (localTeamObj:IsA("StringValue") or localTeamObj:IsA("IntValue")) then
@@ -419,10 +415,8 @@ local function isEnemy(targetPlayer)
         end
     end
 
-    -- 4. Финальная проверка по TeamColor с исключением нейтрального белого цвета "White"
     if targetPlayer.TeamColor and LocalPlayer.TeamColor then
         if targetPlayer.TeamColor == BrickColor.new("White") or LocalPlayer.TeamColor == BrickColor.new("White") then
-            -- Если цвет белый (нейтрал), считаем за врага / свободный режим
             return true
         end
         if targetPlayer.TeamColor == LocalPlayer.TeamColor then
@@ -432,11 +426,9 @@ local function isEnemy(targetPlayer)
         end
     end
 
-    -- Если все проверки не выявили явного союзника, по умолчанию считаем противником
     return true
 end
 
--- Динамический поиск персонажа с учетом кастомных папок через Workspace:GetDescendants()
 local function getCharacter(player)
     if player == LocalPlayer then 
         return player.Character 
@@ -471,13 +463,12 @@ local function IsVisible(targetPart)
     return raycastResult == nil
 end
 
--- Единая функция выбора цели (используется и для Aim Assist, и для Silent Aim в голову)
-local function GetUnifiedTarget(): Part?
+-- Единый выбор цели (строго по хедшотам внутри FOV и с проверкой isEnemy)
+local function GetUnifiedTarget()
     local closestTarget = nil
     local shortestDistance = _G.AimFOV
 
     for _, player in ipairs(Players:GetPlayers()) do
-        -- Жесткая фильтрация: если не враг, пропускаем
         if not isEnemy(player) then
             continue
         end
@@ -486,7 +477,7 @@ local function GetUnifiedTarget(): Part?
         if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             if humanoid.Health > 0 then
-                local targetPart = char[_G.TargetPart] -- Всегда "Head", гарантируя хедшот
+                local targetPart = char[_G.TargetPart]
                 local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                 
                 if onScreen then
@@ -579,10 +570,37 @@ local function CreateBulletTracer(originPos, targetPos)
     end)
 end
 
+-- Хук Namecall для перехвата лучей (FindPartOnRayWithIgnoreList и им подобных) под Silent Aim
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local Method = getnamecallmethod()
+    local Arguments = {...}
+    
+    if _G.SilentAimEnabled and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FindPartOnRayWithWhitelist") then
+        local target = GetUnifiedTarget()
+        if target then
+            local origin = Arguments[1].Origin
+            local direction = (target.Position - origin)
+            
+            if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRayWithWhitelist" then
+                -- Аргумент 2 = Ray.new(Origin, Direction * UnitLength)
+                local unitLength = Arguments[2].Direction.Magnitude
+                Arguments[2] = Ray.new(origin, direction.Unit * unitLength)
+            elseif Method == "FindPartOnRay" then
+                Arguments[1] = Ray.new(origin, direction)
+            end
+            
+            return oldNamecall(self, unpack(Arguments))
+        end
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
 local lastShotTick = 0
 
 RunService.RenderStepped:Connect(function()
-    -- 1. Простой Aim Assist (использует единую функцию выбора хедшота/цели с правильным Team Check)
+    -- 1. Простой Aim Assist
     if _G.AimAssistEnabled then
         local target = GetUnifiedTarget()
         if target then
@@ -596,11 +614,11 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. Полноценный Silent Aim (бьет в голову врага при выстреле, куда бы вы ни целились) + Трассеры
-    if _G.SilentAimEnabled then
-        local target = GetUnifiedTarget()
+    -- 2. Визуализация трассеров пуль при выстреле
+    if _G.BulletTracersEnabled then
         local isShooting = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled
-        if target and isShooting then
+        if isShooting and (tick() - lastShotTick > 0.08) then
+            lastShotTick = tick()
             pcall(function()
                 local gunOrigin = Camera.CFrame.Position
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool") then
@@ -608,25 +626,9 @@ RunService.RenderStepped:Connect(function()
                     local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
                     if handle then gunOrigin = handle.Position end
                 end
-
-                if _G.BulletTracersEnabled and (tick() - lastShotTick > 0.08) then
-                    lastShotTick = tick()
-                    CreateBulletTracer(gunOrigin, target.Position)
-                end
-            end)
-        end
-    elseif _G.BulletTracersEnabled then
-        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) and (tick() - lastShotTick > 0.15) then
-            lastShotTick = tick()
-            pcall(function()
-                local gunOrigin = Camera.CFrame.Position
-                local targetRayPos = gunOrigin + (Camera.CFrame.LookVector * 300)
-                local rayParams = RaycastParams.new()
-                rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
-                local res = Workspace:Raycast(gunOrigin, Camera.CFrame.LookVector * 300, rayParams)
-                if res then targetRayPos = res.Position end
-                CreateBulletTracer(gunOrigin, targetRayPos)
+                local target = GetUnifiedTarget()
+                local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
+                CreateBulletTracer(gunOrigin, targetPos)
             end)
         end
     end
@@ -683,7 +685,7 @@ RunService.RenderStepped:Connect(function()
 
         local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
 
-        -- Главное условие: если игрок не прошел проверку на врага, мгновенно скрываем ESP и пропускаем итерацию
+        -- Строгая проверка: если игрок — союзник, мгновенно убираем бокс и пропускаем
         if not isEnemy(player) then
             removeEsp(player.Name)
             continue
