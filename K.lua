@@ -1,7 +1,8 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Ultimate Optimized Edition)
-    Внедрены все исправления: тач-таймаут, убран GetDescendants, оптимизирован ESP и трейсеры.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Ultimate Optimized & Refactored Edition)
+    Исправлены все узкие места производительности: убран лишний перебор в RenderStepped, 
+    оптимизированы ESP и Raycast, создан пул для графических Drawing-объектов и трассеров.
 ]]--
 
 local Players = game:GetService("Players")
@@ -428,7 +429,6 @@ local function isEnemy(targetPlayer)
     return true
 end
 
--- ИСПРАВЛЕНИЕ №3: Безопасный поиск персонажа БЕЗ Workspace:GetDescendants()
 local function getCharacter(player)
     if player == LocalPlayer then 
         return player.Character 
@@ -450,13 +450,11 @@ local function getCharacter(player)
     return nil
 end
 
--- ИСПРАВЛЕНИЕ №2: Упрощенная проверка видимости для ESP БЕЗ тяжелых raycast-запросов
 local function IsVisibleForESP(head)
-    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+    local _, onScreen = Camera:WorldToViewportPoint(head.Position)
     return onScreen
 end
 
--- Отдельная легкая проверка для аима (только если действительно нужна)
 local function IsVisibleFast(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
@@ -464,7 +462,7 @@ local function IsVisibleFast(targetPart)
     local head = character:FindFirstChild("Head")
     if not head then return false end
     
-    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+    local _, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
     if not onScreen then return false end
     
     local distance = (targetPart.Position - head.Position).Magnitude
@@ -555,7 +553,6 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- ИСПРАВЛЕНИЕ №4: Пул объектов для трассеров (предотвращает спам уничтожения/создания партов)
 local tracerPool = {}
 local MAX_TRACERS = 5
 
@@ -620,7 +617,6 @@ end
 
 local isShooting = false
 
--- ИСПРАВЛЕНИЕ №1: Безопасный ввод с защитой для мобильного тача через таймаут
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     local inputType = input.UserInputType
@@ -682,6 +678,11 @@ local ESP_THROTTLE = 0.1
 local lastSkinApplied = {}
 
 RunService.RenderStepped:Connect(function()
+    -- Полная проверка состояния: если весь функционал отключен, цикл ничего не выполняет (сохранение FPS)
+    if not (_G.AimAssistEnabled or _G.BulletTracersEnabled or _G.NoSpreadEnabled or _G.SkinChangerEnabled or espEnabled) then
+        return
+    end
+
     if _G.AimAssistEnabled then
         local target = GetUnifiedTarget()
         if target then
@@ -736,7 +737,6 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- ИСПРАВЛЕНИЕ №5: Кэширование применения скинов, чтобы не перебирать GetDescendants каждый кадр
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -760,7 +760,7 @@ RunService.RenderStepped:Connect(function()
         lastSkinApplied = {}
     end
 
-    if tick() - lastEspUpdate >= ESP_THROTTLE then
+    if espEnabled and (tick() - lastEspUpdate >= ESP_THROTTLE) then
         lastEspUpdate = tick()
         for _, player in ipairs(Players:GetPlayers()) do
             if player == LocalPlayer then
@@ -776,7 +776,7 @@ RunService.RenderStepped:Connect(function()
 
             local char = getCharacter(player)
             
-            if espEnabled and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
                 local humanoid = char:FindFirstChildOfClass("Humanoid")
                 if humanoid and humanoid.Health > 0 then
                     local root = char.HumanoidRootPart
@@ -789,7 +789,6 @@ RunService.RenderStepped:Connect(function()
                         local height = math.abs(topPos.Y - bottomPos.Y)
                         local width = height * 0.55
                         
-                        -- Используем легкую проверку без raycast для отрисовки боксов
                         local isVis = IsVisibleForESP(head)
                         local boxColor = isVis and colorVisible or colorHidden
                         
