@@ -536,23 +536,21 @@ TargetButton.MouseButton1Click:Connect(function()
     TargetButton.Text = "Цель: " .. aimTarget
 end)
 
-local function cleanAllVisuals()
+local function removePlayerEsp(player)
     local folder = getCharactersFolder()
-    for _, player in ipairs(Players:GetPlayers()) do
-        local char = folder:FindFirstChild(player.Name)
-        if char then
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if root then
-                local bb = root:FindFirstChild("DeltaBillboard")
-                if bb then bb:Destroy() end
-                local tAtt = root:FindFirstChild("DeltaTracerAttachment")
-                if tAtt then tAtt:Destroy() end
-                local beam = root:FindFirstChild("DeltaTracerBeam")
-                if beam then beam:Destroy() end
-            end
-            local hl = char:FindFirstChild("DeltaHighlight")
-            if hl then hl:Destroy() end
+    local char = folder:FindFirstChild(player.Name)
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local bb = root:FindFirstChild("DeltaBillboard")
+            if bb then bb:Destroy() end
+            local tAtt = root:FindFirstChild("DeltaTracerAttachment")
+            if tAtt then tAtt:Destroy() end
+            local beam = root:FindFirstChild("DeltaTracerBeam")
+            if beam then beam:Destroy() end
         end
+        local hl = char:FindFirstChild("DeltaHighlight")
+        if hl then hl:Destroy() end
     end
 end
 
@@ -567,6 +565,13 @@ ESPToggle.MouseButton1Click:Connect(function()
         cleanAllVisuals()
     end
 end)
+
+function cleanAllVisuals()
+    local folder = getCharactersFolder()
+    for _, player in ipairs(Players:GetPlayers()) do
+        removePlayerEsp(player)
+    end
+end
 
 BHopToggle.MouseButton1Click:Connect(function()
     bHopEnabled = not bHopEnabled
@@ -663,24 +668,6 @@ local function IsVisibleCheck(targetPart)
     params.IgnoreWater = true
     local result = workspace:Raycast(origin, direction, params)
     return result == nil
-end
-
-local function removePlayerEsp(player)
-    local folder = getCharactersFolder()
-    local char = folder:FindFirstChild(player.Name)
-    if char then
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
-            local bb = root:FindFirstChild("DeltaBillboard")
-            if bb then bb:Destroy() end
-            local tAtt = root:FindFirstChild("DeltaTracerAttachment")
-            if tAtt then tAtt:Destroy() end
-            local beam = root:FindFirstChild("DeltaTracerBeam")
-            if beam then beam:Destroy() end
-        end
-        local hl = char:FindFirstChild("DeltaHighlight")
-        if hl then hl:Destroy() end
-    end
 end
 
 local function ApplyVisuals(target, occluded, dist)
