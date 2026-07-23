@@ -1,7 +1,7 @@
 --!strict
 --[[
     Block Strike Ultimate Engine - Fully Loaded Monolith (Fixed Safe Version for Mobile/Delta)
-    Исправлены зависания GUI и оптимизирован хук Namecall под мобильные устройства.
+    Полностью исправленный и оптимизированный монолитный код без сокращений.
 ]]--
 
 local Players = game:GetService("Players")
@@ -475,7 +475,6 @@ local function IsVisibleFast(targetPart)
     return true
 end
 
--- Строгое кэширование цели с интервалом 0.1 сек (снимает нагрузку с процессора)
 local cachedTarget = nil
 local lastTargetUpdate = 0
 local TARGET_UPDATE_INTERVAL = 0.1
@@ -591,41 +590,54 @@ local function CreateBulletTracer(originPos, targetPos)
     end)
 end
 
--- Отслеживание состояния стрельбы (Мышь + Тачскрин мобильных устройств)
 local isShooting = false
 
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+-- ИСПРАВЛЕНИЕ ЛАГОВ В МЕНЮ: игнорируем клики, если нажатие перехвачено интерфейсом (processed)
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    local inputType = input.UserInputType
+    if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
         isShooting = true
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+    local inputType = input.UserInputType
+    if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
         isShooting = false
     end
 end)
 
--- Абсолютно безопасный Namecall хук: работает ИСКЛЮЧИТЕЛЬНО в момент нажатия на стрельбу
+-- Таблица для быстрой проверки методов без лишних условий
+local validMethods = {
+    ["FindPartOnRayWithIgnoreList"] = true,
+    ["FindPartOnRay"] = true,
+    ["FindPartOnRayWithWhitelist"] = true
+}
+
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
-    local Arguments = {...}
     
-    if _G.SilentAimEnabled and isShooting and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FindPartOnRayWithWhitelist") then
-        local target = GetUnifiedTarget()
-        if target then
-            local origin = Arguments[1].Origin
-            local direction = (target.Position - origin)
+    -- Сверхбыстрый ранний выход: если не стреляем или функция не связана с лучами стрельбы, код даже не думает
+    if not (_G.SilentAimEnabled and isShooting and validMethods[Method]) then
+        return oldNamecall(self, ...)
+    end
+    
+    local Arguments = {...}
+    local target = GetUnifiedTarget()
+    
+    if target and target.Position then
+        local rayIndex = (Method == "FindPartOnRay") and 1 or 2
+        local originalRay = Arguments[rayIndex]
+        
+        if originalRay then
+            local origin = originalRay.Origin
+            local direction = (target.Position - origin).Unit * originalRay.Direction.Magnitude
             
-            if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRayWithWhitelist" then
-                local unitLength = Arguments[2].Direction.Magnitude
-                Arguments[2] = Ray.new(origin, direction.Unit * unitLength)
-            elseif Method == "FindPartOnRay" then
-                Arguments[1] = Ray.new(origin, direction)
-            end
+            Arguments[rayIndex] = Ray.new(origin, direction)
             
-            return oldNamecall(self, unpack(Arguments))
+            return oldNamecall(self, table.unpack(Arguments))
         end
     end
     
@@ -635,7 +647,6 @@ end)
 local lastShotTick = 0
 
 RunService.RenderStepped:Connect(function()
-    -- 1. Простой Aim Assist
     if _G.AimAssistEnabled then
         local target = GetUnifiedTarget()
         if target then
@@ -649,7 +660,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. Визуализация трассеров пуль при выстреле
     if _G.BulletTracersEnabled then
         if isShooting and (tick() - lastShotTick > 0.08) then
             lastShotTick = tick()
@@ -667,7 +677,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 3. Анти-отдача и Анти-разброс
     if _G.NoSpreadEnabled and LocalPlayer.Character then
         pcall(function()
             for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -692,7 +701,6 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 4. Скинченджер
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -711,7 +719,6 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 5. TikTok ESP с жесткой защитой от призрачных боксов на союзниках
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then
             continue
