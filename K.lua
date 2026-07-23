@@ -365,6 +365,17 @@ StretchStroke.Thickness = 1
 StretchStroke.Color = Color3.fromRGB(100, 100, 100)
 StretchStroke.Parent = StretchButton
 
+local CreditLabel = Instance.new("TextLabel")
+CreditLabel.Name = "CreditLabel"
+CreditLabel.Size = UDim2.new(1, 0, 0, 30)
+CreditLabel.Position = UDim2.new(0, 0, 1, -35)
+CreditLabel.BackgroundTransparency = 1
+CreditLabel.Text = "Block Strike Ultra Anti-Crash Mobile Engine"
+CreditLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
+CreditLabel.TextSize = 13
+CreditLabel.Font = Enum.Font.SourceSansItalic
+CreditLabel.Parent = MainMenu
+
 local DrawingContainer = Instance.new("Folder")
 DrawingContainer.Name = "DrawingContainer"
 DrawingContainer.Parent = ScreenGui
@@ -579,7 +590,7 @@ ModeButton.MouseButton1Click:Connect(function()
         aimMode = "Выкл"
         MenuConfig.AimbotEnabled = false
         MenuConfig.SilentAimActive = false
-        ModeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        ModeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
     end
     ModeButton.Text = "Режим: " .. aimMode
 end)
@@ -600,22 +611,14 @@ local function removePlayerEsp(player)
         local root = char:FindFirstChild("HumanoidRootPart")
         if root then
             local bb = root:FindFirstChild("DeltaBillboard")
-            if bb then
-                bb:Destroy()
-            end
+            if bb then bb:Destroy() end
             local tAtt = root:FindFirstChild("DeltaTracerAttachment")
-            if tAtt then
-                tAtt:Destroy()
-            end
+            if tAtt then tAtt:Destroy() end
             local beam = root:FindFirstChild("DeltaTracerBeam")
-            if beam then
-                beam:Destroy()
-            end
+            if beam then beam:Destroy() end
         end
         local hl = char:FindFirstChild("DeltaHighlight")
-        if hl then
-            hl:Destroy()
-        end
+        if hl then hl:Destroy() end
     end
 end
 
@@ -630,10 +633,10 @@ ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
         ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        ESPToggle.Text = "ESP (ВХ): ВКЛ"
+        ESPToggle.Text = "ESP (ВХ): ВКЛУЧЕНО"
     else
         ESPToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        ESPToggle.Text = "ESP (ВХ): ВЫКЛ"
+        ESPToggle.Text = "ESP (ВХ): ВЫКЛЮЧЕНО"
         cleanAllVisuals()
     end
 end)
@@ -642,10 +645,10 @@ BHopToggle.MouseButton1Click:Connect(function()
     bHopEnabled = not bHopEnabled
     if bHopEnabled then
         BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛ"
+        BHopToggle.Text = "BUNNYHOP: ВКЛУЧЕН"
     else
         BHopToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
+        BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
     end
 end)
 
