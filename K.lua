@@ -1,7 +1,7 @@
 --!strict
 --[[
     Block Strike Ultimate Engine - Fully Loaded Monolith (Ultimate Optimized Edition)
-    Внедрены все исправления: тач-таймаут, убран GetDescendants, оптимизирован ESP и трейсеры.
+    Все функции сохранены полностью. Исправлены: Touch-конфликт, проверка GUI, защита хука.
 ]]--
 
 local Players = game:GetService("Players")
@@ -428,7 +428,7 @@ local function isEnemy(targetPlayer)
     return true
 end
 
--- ИСПРАВЛЕНИЕ №3: Безопасный поиск персонажа БЕЗ Workspace:GetDescendants()
+-- Безопасный поиск персонажа БЕЗ Workspace:GetDescendants()
 local function getCharacter(player)
     if player == LocalPlayer then 
         return player.Character 
@@ -450,7 +450,7 @@ local function getCharacter(player)
     return nil
 end
 
--- ИСПРАВЛЕНИЕ №2: Упрощенная проверка видимости для ESP БЕЗ тяжелых raycast-запросов
+-- Упрощенная проверка видимости для ESP БЕЗ тяжелых raycast-запросов
 local function IsVisibleForESP(head)
     local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
     return onScreen
@@ -555,7 +555,7 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- ИСПРАВЛЕНИЕ №4: Пул объектов для трассеров (предотвращает спам уничтожения/создания партов)
+-- Пул объектов для трассеров (предотвращает спам уничтожения/создания партов)
 local tracerPool = {}
 local MAX_TRACERS = 5
 
@@ -618,27 +618,59 @@ local function CreateBulletTracerOptimized(originPos, targetPos)
     end)
 end
 
+-- ИСПРАВЛЕНО: isShooting теперь управляется корректно без конфликта таймаута
 local isShooting = false
+local shootingTouchConnections = {}
 
--- ИСПРАВЛЕНИЕ №1: Безопасный ввод с защитой для мобильного тача через таймаут
+-- Вспомогательная функция для проверки, находится ли касание над GUI меню
+local function isTouchOnGui(input)
+    if not input or not input.Position then
+        return false
+    end
+    
+    local guiObjects = GuiService:GetGuiObjectsAtPosition(input.Position.X, input.Position.Y)
+    for _, obj in ipairs(guiObjects) do
+        if obj:IsDescendantOf(ScreenGui) then
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- ИСПРАВЛЕНО: Полностью переработанная обработка ввода без конфликтов
 UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
+    if processed then 
+        return 
+    end
+    
+    -- Проверяем, не нажато ли меню (чтобы стрельба не активировалась при нажатии кнопок)
+    if isTouchOnGui(input) then
+        return
+    end
+    
     local inputType = input.UserInputType
     
     if inputType == Enum.UserInputType.MouseButton1 then
         isShooting = true
     elseif inputType == Enum.UserInputType.Touch then
         isShooting = true
-        task.delay(0.1, function()
-            isShooting = false
-        end)
+        -- На мобильных устройствах не используем таймаут,
+        -- полагаемся на InputEnded для сброса флага
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
     local inputType = input.UserInputType
-    if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
+    
+    if inputType == Enum.UserInputType.MouseButton1 then
         isShooting = false
+    elseif inputType == Enum.UserInputType.Touch then
+        -- Сбрасываем флаг только если нет других активных касаний
+        local activeTouches = UserInputService:GetTouches()
+        if #activeTouches <= 1 then
+            isShooting = false
+        end
     end
 end)
 
@@ -648,6 +680,7 @@ local validMethods = {
     ["FindPartOnRayWithWhitelist"] = true
 }
 
+-- ИСПРАВЛЕНО: Добавлена защита от ошибок в хуке и правильный вызов unpack
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
@@ -656,24 +689,33 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
         return oldNamecall(self, ...)
     end
     
-    local Arguments = {...}
-    local target = GetUnifiedTarget()
-    
-    if target and target.Position then
-        local rayIndex = (Method == "FindPartOnRay") and 1 or 2
-        local originalRay = Arguments[rayIndex]
+    local success, result = pcall(function()
+        local Arguments = {...}
+        local target = GetUnifiedTarget()
         
-        if originalRay then
-            local origin = originalRay.Origin
-            local direction = (target.Position - origin).Unit * originalRay.Direction.Magnitude
+        if target and target.Position then
+            local rayIndex = (Method == "FindPartOnRay") and 1 or 2
+            local originalRay = Arguments[rayIndex]
             
-            Arguments[rayIndex] = Ray.new(origin, direction)
-            
-            return oldNamecall(self, table.unpack(Arguments))
+            if originalRay then
+                local origin = originalRay.Origin
+                local direction = (target.Position - origin).Unit * originalRay.Direction.Magnitude
+                
+                Arguments[rayIndex] = Ray.new(origin, direction)
+                
+                return oldNamecall(self, unpack(Arguments))
+            end
         end
-    end
+        
+        return oldNamecall(self, ...)
+    end)
     
-    return oldNamecall(self, ...)
+    if success then
+        return result
+    else
+        -- В случае ошибки в хуке, возвращаем оригинальный вызов
+        return oldNamecall(self, ...)
+    end
 end)
 
 local lastShotTick = 0
@@ -736,7 +778,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- ИСПРАВЛЕНИЕ №5: Кэширование применения скинов, чтобы не перебирать GetDescendants каждый кадр
+    -- Кэширование применения скинов, чтобы не перебирать GetDescendants каждый кадр
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
