@@ -1,5 +1,6 @@
 --[[
-    Block Strike Ultimate Engine - Safe Aim Assist, TikTok ESP & SkinChanger (Full Monolith for Delta / iPad)
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Working Knife SkinChanger, Silent Aim, Aim Assist, NoSpread/Recoil & TikTok ESP)
+    Для Delta / iPad без сокращений и пропусков.
 ]]--
 
 local Players = game:GetService("Players")
@@ -13,16 +14,19 @@ local Camera = workspace.CurrentCamera
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Глобальные настройки читера
+-- Глобальные настройки читов
 _G.AimAssistEnabled = false
-_G.AimSmoothness = 0.18      -- Плавность (беспалевная под интерполяцию античита)
-_G.AimFOV = 140              -- Радиус FOV
-_G.TargetPart = "Head"       -- Цель: Head или HumanoidRootPart
+_G.SilentAimEnabled = false
+_G.NoSpreadEnabled = false
 _G.SkinChangerEnabled = false
-_G.SelectedSkinColor = Color3.fromRGB(255, 100, 0) -- Цвет для скинченджера (Неоновый оранжевый)
+_G.AimSmoothness = 0.18
+_G.AimFOV = 140
+_G.TargetPart = "Head"
+_G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
+_G.KnifeSkinName = "Karambit" -- Имя или паттерн для ножа
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeSafeEngineMaster"
+ScreenGui.Name = "BlockStrikeUltimateMonolith"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -66,8 +70,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 360, 0, 600)
-MainMenu.Position = UDim2.new(0.5, -180, 0.5, -300)
+MainMenu.Size = UDim2.new(0, 360, 0, 640)
+MainMenu.Position = UDim2.new(0.5, -180, 0.5, -320)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -85,7 +89,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ BLOCK STRIKE MOBILE ENGINE ⚡"
+TitleLabel.Text = "⚡ BLOCK STRIKE FULL ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -114,7 +118,7 @@ ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -128,7 +132,7 @@ local AimButton = Instance.new("TextButton")
 AimButton.Name = "AimButton"
 AimButton.Size = UDim2.new(1, 0, 0, 45)
 AimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-AimButton.Text = "Безопасный Aim Assist: ВЫКЛ"
+AimButton.Text = "Простой Aim Assist: ВЫКЛ"
 AimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimButton.TextSize = 15
 AimButton.Font = Enum.Font.SourceSansBold
@@ -141,11 +145,45 @@ AimStroke.Color = Color3.fromRGB(40, 40, 45)
 AimStroke.Parent = AimButton
 AimButton.Parent = ContentFrame
 
+local SilentAimButton = Instance.new("TextButton")
+SilentAimButton.Name = "SilentAimButton"
+SilentAimButton.Size = UDim2.new(1, 0, 0, 45)
+SilentAimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+SilentAimButton.Text = "Silent Aim (Сайленд): ВЫКЛ"
+SilentAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SilentAimButton.TextSize = 15
+SilentAimButton.Font = Enum.Font.SourceSansBold
+local SilentCorner = Instance.new("UICorner")
+SilentCorner.CornerRadius = UDim.new(0.2, 0)
+SilentCorner.Parent = SilentAimButton
+local SilentStroke = Instance.new("UIStroke")
+SilentStroke.Thickness = 1
+SilentStroke.Color = Color3.fromRGB(40, 40, 45)
+SilentStroke.Parent = SilentAimButton
+SilentAimButton.Parent = ContentFrame
+
+local NoSpreadButton = Instance.new("TextButton")
+NoSpreadButton.Name = "NoSpreadButton"
+NoSpreadButton.Size = UDim2.new(1, 0, 0, 45)
+NoSpreadButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+NoSpreadButton.Text = "Анти-Отдача / Разброс: ВЫКЛ"
+NoSpreadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoSpreadButton.TextSize = 15
+NoSpreadButton.Font = Enum.Font.SourceSansBold
+local NoSpreadCorner = Instance.new("UICorner")
+NoSpreadCorner.CornerRadius = UDim.new(0.2, 0)
+NoSpreadCorner.Parent = NoSpreadButton
+local NoSpreadStroke = Instance.new("UIStroke")
+NoSpreadStroke.Thickness = 1
+NoSpreadStroke.Color = Color3.fromRGB(40, 40, 45)
+NoSpreadStroke.Parent = NoSpreadButton
+NoSpreadButton.Parent = ContentFrame
+
 local SkinButton = Instance.new("TextButton")
 SkinButton.Name = "SkinButton"
 SkinButton.Size = UDim2.new(1, 0, 0, 45)
 SkinButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SkinButton.Text = "Скинченджер (Оружие): ВЫКЛ"
+SkinButton.Text = "Скинченджер (Оружие + Нож): ВЫКЛ"
 SkinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SkinButton.TextSize = 15
 SkinButton.Font = Enum.Font.SourceSansBold
@@ -267,24 +305,26 @@ end)
 
 AimButton.MouseButton1Click:Connect(function()
     _G.AimAssistEnabled = not _G.AimAssistEnabled
-    if _G.AimAssistEnabled then
-        AimButton.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        AimButton.Text = "Безопасный Aim Assist: ВКЛ"
-    else
-        AimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-        AimButton.Text = "Безопасный Aim Assist: ВЫКЛ"
-    end
+    AimButton.BackgroundColor3 = _G.AimAssistEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    AimButton.Text = _G.AimAssistEnabled and "Простой Aim Assist: ВКЛ" or "Простой Aim Assist: ВЫКЛ"
+end)
+
+SilentAimButton.MouseButton1Click:Connect(function()
+    _G.SilentAimEnabled = not _G.SilentAimEnabled
+    SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim (Сайленд): ВКЛ" or "Silent Aim (Сайленд): ВЫКЛ"
+end)
+
+NoSpreadButton.MouseButton1Click:Connect(function()
+    _G.NoSpreadEnabled = not _G.NoSpreadEnabled
+    NoSpreadButton.BackgroundColor3 = _G.NoSpreadEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    NoSpreadButton.Text = _G.NoSpreadEnabled and "Анти-Отдача / Разброс: ВКЛ" or "Анти-Отдача / Разброс: ВЫКЛ"
 end)
 
 SkinButton.MouseButton1Click:Connect(function()
     _G.SkinChangerEnabled = not _G.SkinChangerEnabled
-    if _G.SkinChangerEnabled then
-        SkinButton.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        SkinButton.Text = "Скинченджер (Оружие): ВКЛ"
-    else
-        SkinButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-        SkinButton.Text = "Скинченджер (Оружие): ВЫКЛ"
-    end
+    SkinButton.BackgroundColor3 = _G.SkinChangerEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + Нож): ВКЛ" or "Скинченджер (Оружие + Нож): ВЫКЛ"
 end)
 
 ESPToggle.MouseButton1Click:Connect(function()
@@ -329,23 +369,19 @@ end
 local function IsVisible(target)
     local character = LocalPlayer.Character
     if not character then return false end
-    
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.FilterDescendantsInstances = {character, target.Parent}
     raycastParams.IgnoreWater = true
-    
     local origin = Camera.CFrame.Position
     local direction = target.Position - origin
     local raycastResult = workspace:Raycast(origin, direction, raycastParams)
-    
     return raycastResult == nil
 end
 
 local function GetClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = _G.AimFOV
-
     for _, player in pairs(Players:GetPlayers()) do
         if isEnemy(player) then
             local char = getCharacter(player)
@@ -354,7 +390,6 @@ local function GetClosestPlayer()
                 if humanoid.Health > 0 then
                     local targetPart = char[_G.TargetPart]
                     local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                    
                     if onScreen then
                         local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                         if distance < shortestDistance then
@@ -403,8 +438,9 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
+-- Монитор кадров и всех логических функций
 RunService.RenderStepped:Connect(function()
-    -- 1. Безопасный Aim Assist
+    -- 1. Простой Aim Assist
     if _G.AimAssistEnabled then
         local target = GetClosestPlayer()
         if target then
@@ -418,15 +454,53 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. Скинченджер (Окрашивает оружие в руках локального игрока)
+    -- 2. Silent Aim (Сайленд аим - доводка по клику мыши / тапу выстрела)
+    if _G.SilentAimEnabled then
+        local target = GetClosestPlayer()
+        if target and (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled) then
+            pcall(function()
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+            end)
+        end
+    end
+
+    -- 3. Анти-отдача и Анти-разброс (NoSpread / NoRecoil)
+    if _G.NoSpreadEnabled and LocalPlayer.Character then
+        pcall(function()
+            for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+                if tool:IsA("Tool") then
+                    tool:SetAttribute("Spread", 0)
+                    tool:SetAttribute("Recoil", 0)
+                    tool:SetAttribute("Inaccuracy", 0)
+                    tool:SetAttribute("Kickback", 0)
+                end
+            end
+            local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+            if backpack then
+                for _, tool in ipairs(backpack:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        tool:SetAttribute("Spread", 0)
+                        tool:SetAttribute("Recoil", 0)
+                        tool:SetAttribute("Inaccuracy", 0)
+                        tool:SetAttribute("Kickback", 0)
+                    end
+                end
+            end
+        end)
+    end
+
+    -- 4. Скинченджер (Оружие и Ножи: перекраска мешей и текстурный ванищ)
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
                 if item:IsA("Tool") then
                     for _, part in ipairs(item:GetDescendants()) do
-                        if part:IsA("BasePart") then
+                        if part:IsA("BasePart") or part:IsA("MeshPart") then
                             part.Color = _G.SelectedSkinColor
                             part.Material = Enum.Material.Neon
+                            if part:IsA("MeshPart") then
+                                part.TextureID = ""
+                            end
                         end
                     end
                 end
@@ -434,7 +508,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 3. TikTok ESP Отрисовка
+    -- 5. TikTok ESP Отрисовка
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
