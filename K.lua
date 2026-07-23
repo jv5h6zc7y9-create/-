@@ -1,5 +1,5 @@
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Working Knife SkinChanger, Silent Aim, Aim Assist, NoSpread/Recoil & TikTok ESP)
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Bullet Tracers via Textures/Beams, Knife & Weapon SkinChanger, Silent Aim, Aim Assist, NoSpread & TikTok ESP)
     Для Delta / iPad без сокращений и пропусков.
 ]]--
 
@@ -19,14 +19,15 @@ _G.AimAssistEnabled = false
 _G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
 _G.SkinChangerEnabled = false
+_G.BulletTracersEnabled = false -- Трассеры пуль через текстуры/лучи
 _G.AimSmoothness = 0.18
 _G.AimFOV = 140
 _G.TargetPart = "Head"
 _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
-_G.KnifeSkinName = "Karambit" -- Имя или паттерн для ножа
+_G.TracerColor = Color3.fromRGB(0, 255, 255)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeUltimateMonolith"
+ScreenGui.Name = "BlockStrikeUltimateMonolithTracer"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -70,8 +71,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 360, 0, 640)
-MainMenu.Position = UDim2.new(0.5, -180, 0.5, -320)
+MainMenu.Size = UDim2.new(0, 360, 0, 680)
+MainMenu.Position = UDim2.new(0.5, -180, 0.5, -340)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -89,7 +90,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ BLOCK STRIKE FULL ENGINE ⚡"
+TitleLabel.Text = "⚡ BLOCK STRIKE TRACER ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -118,7 +119,7 @@ ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -178,6 +179,23 @@ NoSpreadStroke.Thickness = 1
 NoSpreadStroke.Color = Color3.fromRGB(40, 40, 45)
 NoSpreadStroke.Parent = NoSpreadButton
 NoSpreadButton.Parent = ContentFrame
+
+local TracersButton = Instance.new("TextButton")
+TracersButton.Name = "TracersButton"
+TracersButton.Size = UDim2.new(1, 0, 0, 45)
+TracersButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+TracersButton.Text = "Трассеры Пуль (Текстуры/Лучи): ВЫКЛ"
+TracersButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TracersButton.TextSize = 15
+TracersButton.Font = Enum.Font.SourceSansBold
+local TracersCorner = Instance.new("UICorner")
+TracersCorner.CornerRadius = UDim.new(0.2, 0)
+TracersCorner.Parent = TracersButton
+local TracersStroke = Instance.new("UIStroke")
+TracersStroke.Thickness = 1
+TracersStroke.Color = Color3.fromRGB(40, 40, 45)
+TracersStroke.Parent = TracersButton
+TracersButton.Parent = ContentFrame
 
 local SkinButton = Instance.new("TextButton")
 SkinButton.Name = "SkinButton"
@@ -321,6 +339,12 @@ NoSpreadButton.MouseButton1Click:Connect(function()
     NoSpreadButton.Text = _G.NoSpreadEnabled and "Анти-Отдача / Разброс: ВКЛ" or "Анти-Отдача / Разброс: ВЫКЛ"
 end)
 
+TracersButton.MouseButton1Click:Connect(function()
+    _G.BulletTracersEnabled = not _G.BulletTracersEnabled
+    TracersButton.BackgroundColor3 = _G.BulletTracersEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    TracersButton.Text = _G.BulletTracersEnabled and "Трассеры Пуль (Текстуры/Лучи): ВКЛ" or "Трассеры Пуль (Текстуры/Лучи): ВЫКЛ"
+end)
+
 SkinButton.MouseButton1Click:Connect(function()
     _G.SkinChangerEnabled = not _G.SkinChangerEnabled
     SkinButton.BackgroundColor3 = _G.SkinChangerEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
@@ -438,6 +462,52 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
+-- Функция создания красивого светового луча/трассера пули на базе текстурных Beam-ов
+local function CreateBulletTracer(originPos, targetPos)
+    pcall(function()
+        local partA = Instance.new("Part")
+        partA.Size = Vector3.new(0.1, 0.1, 0.1)
+        partA.Position = originPos
+        partA.Transparency = 1
+        partA.Anchored = true
+        partA.CanCollide = false
+        partA.Parent = Workspace
+
+        local partB = Instance.new("Part")
+        partB.Size = Vector3.new(0.1, 0.1, 0.1)
+        partB.Position = targetPos
+        partB.Transparency = 1
+        partB.Anchored = true
+        partB.CanCollide = false
+        partB.Parent = Workspace
+
+        local attachmentA = Instance.new("Attachment", partA)
+        local attachmentB = Instance.new("Attachment", partB)
+
+        local beam = Instance.new("Beam")
+        beam.Attachment0 = attachmentA
+        beam.Attachment1 = attachmentB
+        beam.Color = ColorSequence.new(_G.TracerColor)
+        beam.Width0 = 0.12
+        beam.Width1 = 0.12
+        beam.Texture = "rbxassetid://6079958617" -- Текстура неонового светового луча
+        beam.TextureMode = Enum.TextureMode.Wrap
+        beam.TextureSpeed = 5
+        beam.LightEmission = 1
+        beam.LightInfluence = 0
+        beam.Parent = partA
+
+        task.delay(0.08, function()
+            pcall(function()
+                partA:Destroy()
+                partB:Destroy()
+            end)
+        end)
+    end)
+end
+
+local lastShotTick = 0
+
 -- Монитор кадров и всех логических функций
 RunService.RenderStepped:Connect(function()
     -- 1. Простой Aim Assist
@@ -454,12 +524,40 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. Silent Aim (Сайленд аим - доводка по клику мыши / тапу выстрела)
+    -- 2. Silent Aim (Сайленд аим) + Генерация трассеров пуль
     if _G.SilentAimEnabled then
         local target = GetClosestPlayer()
-        if target and (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled) then
+        local isShooting = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled
+        if target and isShooting then
             pcall(function()
+                local gunOrigin = Camera.CFrame.Position
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
+                    if handle then gunOrigin = handle.Position end
+                end
+
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+
+                if _G.BulletTracersEnabled and (tick() - lastShotTick > 0.08) then
+                    lastShotTick = tick()
+                    CreateBulletTracer(gunOrigin, target.Position)
+                end
+            end)
+        end
+    elseif _G.BulletTracersEnabled then
+        -- Трассеры при обычном выстреле/клике
+        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) and (tick() - lastShotTick > 0.15) then
+            lastShotTick = tick()
+            pcall(function()
+                local gunOrigin = Camera.CFrame.Position
+                local targetRayPos = gunOrigin + (Camera.CFrame.LookVector * 300)
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
+                local res = Workspace:Raycast(gunOrigin, Camera.CFrame.LookVector * 300, rayParams)
+                if res then targetRayPos = res.Position end
+                CreateBulletTracer(gunOrigin, targetRayPos)
             end)
         end
     end
@@ -489,7 +587,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 4. Скинченджер (Оружие и Ножи: перекраска мешей и текстурный ванищ)
+    -- 4. Скинченджер (Оружие + Ножи: перекраска и замена под нож)
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
