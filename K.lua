@@ -61,6 +61,7 @@ MenuButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MenuButton.Text = "⚙️"
 MenuButton.TextSize = 25
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MenuButton.ZIndex = 100
 MenuButton.Parent = ScreenGui
 
 local MenuButtonCorner = Instance.new("UICorner")
@@ -78,6 +79,7 @@ MainMenu.Size = UDim2.new(0, 320, 0, 640)
 MainMenu.Position = UDim2.new(0.5, -160, 0.5, -320)
 MainMenu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainMenu.Visible = false
+MainMenu.ZIndex = 101
 MainMenu.Parent = ScreenGui
 
 local MainMenuCorner = Instance.new("UICorner")
@@ -364,17 +366,6 @@ local StretchStroke = Instance.new("UIStroke")
 StretchStroke.Thickness = 1
 StretchStroke.Color = Color3.fromRGB(100, 100, 100)
 StretchStroke.Parent = StretchButton
-
-local CreditLabel = Instance.new("TextLabel")
-CreditLabel.Name = "CreditLabel"
-CreditLabel.Size = UDim2.new(1, 0, 0, 30)
-CreditLabel.Position = UDim2.new(0, 0, 1, -35)
-CreditLabel.BackgroundTransparency = 1
-CreditLabel.Text = "Block Strike Ultra Anti-Crash Mobile Engine"
-CreditLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
-CreditLabel.TextSize = 13
-CreditLabel.Font = Enum.Font.SourceSansItalic
-CreditLabel.Parent = MainMenu
 
 local DrawingContainer = Instance.new("Folder")
 DrawingContainer.Name = "DrawingContainer"
@@ -893,6 +884,45 @@ local function getClosestVisibleEnemy()
 end
 
 RunService.RenderStepped:Connect(function()
+    if not ScreenGui or not ScreenGui.Parent then
+        ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "AimbotSystemGui"
+        ScreenGui.ResetOnSpawn = false
+        ScreenGui.IgnoreGuiInset = true
+        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end
+    
+    if not FOVCircle or not FOVCircle.Parent then
+        FOVCircle = Instance.new("Frame")
+        FOVCircle.Name = "FOVCircle"
+        FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        FOVCircle.BackgroundTransparency = 0.8
+        FOVCircle.BorderSizePixel = 0
+        FOVCircle.Visible = true
+        FOVCircle.Parent = ScreenGui
+        FOVStroke = Instance.new("UIStroke")
+        FOVStroke.Thickness = 2
+        FOVStroke.Color = Color3.fromRGB(255, 0, 0)
+        FOVStroke.Parent = FOVCircle
+        FOVCorner = Instance.new("UICorner")
+        FOVCorner.CornerRadius = UDim.new(1, 0)
+        FOVCorner.Parent = FOVCircle
+    end
+    
+    if not MenuButton or not MenuButton.Parent then
+        MenuButton = Instance.new("TextButton")
+        MenuButton.Name = "MenuButton"
+        MenuButton.Size = UDim2.new(0, 50, 0, 50)
+        MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
+        MenuButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        MenuButton.Text = "⚙️"
+        MenuButton.TextSize = 25
+        MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        MenuButton.ZIndex = 100
+        MenuButton.Parent = ScreenGui
+    end
+    
     local targetPlayer = getClosestVisibleEnemy()
     local folder = getCharactersFolder()
     
