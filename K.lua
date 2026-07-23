@@ -318,6 +318,17 @@ ColorStroke.Thickness = 1
 ColorStroke.Color = Color3.fromRGB(80, 80, 80)
 ColorStroke.Parent = ColorButton
 
+local CreditLabel = Instance.new("TextLabel")
+CreditLabel.Name = "CreditLabel"
+CreditLabel.Size = UDim2.new(1, 0, 0, 30)
+CreditLabel.Position = UDim2.new(0, 0, 1, -35)
+CreditLabel.BackgroundTransparency = 1
+CreditLabel.Text = "Premium Multi-Hack Setup for iPad Pro"
+CreditLabel.TextColor3 = Color3.fromRGB(130, 130, 130)
+CreditLabel.TextSize = 13
+CreditLabel.Font = Enum.Font.SourceSansItalic
+CreditLabel.Parent = MainMenu
+
 local DrawingContainer = Instance.new("Folder")
 DrawingContainer.Name = "DrawingContainer"
 DrawingContainer.Parent = ScreenGui
@@ -501,8 +512,8 @@ local function cleanAllVisuals()
         if char then
             local head = char:FindFirstChild("Head")
             if head then
-                local billboardGui = head:FindFirstChild("AdvancedEspBillboard")
-                if billboardGui then billboardGui:Destroy() end
+                local bGui = head:FindFirstChild("CustomEspGui")
+                if bGui then bGui:Destroy() end
             end
             local highlight = char:FindFirstChild("EspPlayerHighlight")
             if highlight then highlight:Destroy() end
@@ -670,6 +681,37 @@ local function getClosestVisibleEnemy()
     return closestPlayer
 end
 
+local function createEspBoxGui(player)
+    local name = player.Name .. "_BoxGui"
+    local boxFrame = DrawingContainer:FindFirstChild(name)
+    if not boxFrame then
+        boxFrame = Instance.new("Frame")
+        boxFrame.Name = name
+        boxFrame.BackgroundTransparency = 1
+        boxFrame.Size = UDim2.new(0, 100, 0, 100)
+        boxFrame.Parent = DrawingContainer
+        
+        local stroke = Instance.new("UIStroke")
+        stroke.Name = "BoxStroke"
+        stroke.Thickness = 1.5
+        stroke.Color = Color3.fromRGB(255, 0, 0)
+        stroke.Parent = boxFrame
+        
+        local hpBg = Instance.new("Frame")
+        hpBg.Name = "RightHpBg"
+        hpBg.BackgroundColor3 = Color3.fromRGB(60, 10, 10)
+        hpBg.BorderSizePixel = 0
+        hpBg.Parent = boxFrame
+        
+        local hpBar = Instance.new("Frame")
+        hpBar.Name = "RightHpFill"
+        hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        hpBar.BorderSizePixel = 0
+        hpBar.Parent = hpBg
+    end
+    return boxFrame
+end
+
 local function createScreenLine(name)
     local line = DrawingContainer:FindFirstChild(name)
     if not line then
@@ -688,45 +730,17 @@ local function updatePlayerEsp(player, character, enemyVisible)
     local root = character:FindFirstChild("HumanoidRootPart")
     if not head or not humanoid or not root then return end
     
-    local billboardGui = head:FindFirstChild("AdvancedEspBillboard")
+    local billboardGui = head:FindFirstChild("CustomEspGui")
     if not billboardGui then
         billboardGui = Instance.new("BillboardGui")
-        billboardGui.Name = "AdvancedEspBillboard"
-        billboardGui.Size = UDim2.new(0, 130, 0, 150)
+        billboardGui.Name = "CustomEspGui"
+        billboardGui.Size = UDim2.new(0, 140, 0, 30)
+        billboardGui.StudsOffset = Vector3.new(0, 3, 0)
         billboardGui.AlwaysOnTop = true
-        billboardGui.ExtentsOffset = Vector3.new(0, -1.5, 0)
-        
-        local boxFrame = Instance.new("Frame")
-        boxFrame.Name = "BoxFrame"
-        boxFrame.Size = UDim2.new(1, 0, 1, 0)
-        boxFrame.BackgroundTransparency = 1
-        boxFrame.Parent = billboardGui
-        
-        local stroke = Instance.new("UIStroke")
-        stroke.Name = "BoxStroke"
-        stroke.Thickness = 2
-        stroke.Color = Color3.fromRGB(255, 0, 0)
-        stroke.Parent = boxFrame
-        
-        local hpBackground = Instance.new("Frame")
-        hpBackground.Name = "HpBackground"
-        hpBackground.Size = UDim2.new(0, 6, 1, 0)
-        hpBackground.Position = UDim2.new(1, 6, 0, 0)
-        hpBackground.BackgroundColor3 = Color3.fromRGB(60, 10, 10)
-        hpBackground.BorderSizePixel = 0
-        hpBackground.Parent = boxFrame
-        
-        local hpBar = Instance.new("Frame")
-        hpBar.Name = "HpBar"
-        hpBar.Size = UDim2.new(1, 0, 1, 0)
-        hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        hpBar.BorderSizePixel = 0
-        hpBar.Parent = hpBackground
         
         local infoLabel = Instance.new("TextLabel")
         infoLabel.Name = "InfoLabel"
-        infoLabel.Size = UDim2.new(1, 0, 0, 20)
-        infoLabel.Position = UDim2.new(0, 0, 0, -25)
+        infoLabel.Size = UDim2.new(1, 0, 1, 0)
         infoLabel.BackgroundTransparency = 1
         infoLabel.Font = Enum.Font.SourceSansBold
         infoLabel.TextSize = 14
@@ -744,27 +758,36 @@ local function updatePlayerEsp(player, character, enemyVisible)
     billboardGui.InfoLabel.Text = string.format("%s [%dм]", player.Name, math.floor(distanceMeters))
     billboardGui.InfoLabel.TextColor3 = enemyVisible and colorVisible or colorHidden
     
-    local boxFrame = billboardGui:FindFirstChild("BoxFrame")
-    if boxFrame then
-        local stroke = boxFrame:FindFirstChild("BoxStroke")
+    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+    local boxGui = createEspBoxGui(player)
+    local line = createScreenLine(player.Name .. "_Tracer")
+    
+    if onScreen then
+        local topPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
+        local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+        local height = math.abs(topPos.Y - bottomPos.Y)
+        local width = height * 0.55
+        
+        boxGui.Visible = true
+        boxGui.Size = UDim2.new(0, width, 0, height)
+        boxGui.Position = UDim2.new(0, rPos.X - width / 2, 0, topPos.Y)
+        
+        local stroke = boxGui:FindFirstChild("BoxStroke")
         if stroke then
             stroke.Color = enemyVisible and colorVisible or colorHidden
         end
         
         local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-        local hpBg = boxFrame:FindFirstChild("HpBackground")
-        local hpBar = hpBg and hpBg:FindFirstChild("HpBar")
-        if hpBg and hpBar then
-            hpBar.Size = UDim2.new(1, 0, healthRatio, 0)
-            hpBar.Position = UDim2.new(0, 0, 1 - healthRatio, 0)
-            hpBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+        local hpBg = boxGui:FindFirstChild("RightHpBg")
+        local hpFill = hpBg and hpBg:FindFirstChild("RightHpFill")
+        if hpBg and hpFill then
+            hpBg.Size = UDim2.new(0, 4, 1, 0)
+            hpBg.Position = UDim2.new(1, 4, 0, 0)
+            hpFill.Size = UDim2.new(1, 0, healthRatio, 0)
+            hpFill.Position = UDim2.new(0, 0, 1 - healthRatio, 0)
+            hpFill.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
         end
-    end
-    
-    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-    local line = createScreenLine(player.Name .. "_Tracer")
-    
-    if onScreen then
+        
         local startX = Camera.ViewportSize.X / 2
         local startY = Camera.ViewportSize.Y
         local endX = rPos.X
@@ -775,11 +798,12 @@ local function updatePlayerEsp(player, character, enemyVisible)
         local angle = math.atan2(distanceY, distanceX)
         
         line.Visible = true
-        line.Size = UDim2.new(0, 2, 0, lineLength)
+        line.Size = UDim2.new(0, 1.5, 0, lineLength)
         line.Position = UDim2.new(0, startX, 0, startY)
         line.Rotation = math.deg(angle) - 90
         line.BackgroundColor3 = enemyVisible and colorVisible or colorHidden
     else
+        boxGui.Visible = false
         line.Visible = false
     end
     
@@ -801,12 +825,14 @@ local function removePlayerEsp(player)
     if char then
         local head = char:FindFirstChild("Head")
         if head then
-            local billboardGui = head:FindFirstChild("AdvancedEspBillboard")
-            if billboardGui then billboardGui:Destroy() end
+            local bGui = head:FindFirstChild("CustomEspGui")
+            if bGui then bGui:Destroy() end
         end
         local highlight = char:FindFirstChild("EspPlayerHighlight")
         if highlight then highlight:Destroy() end
     end
+    local boxGui = DrawingContainer:FindFirstChild(player.Name .. "_BoxGui")
+    if boxGui then boxGui:Destroy() end
     local line = DrawingContainer:FindFirstChild(player.Name .. "_Tracer")
     if line then line:Destroy() end
 end
@@ -842,11 +868,13 @@ RunService.RenderStepped:Connect(function()
             local targetPart = char:FindFirstChild(currentTargetPartName)
             if targetPart then
                 if aimMode == "Обычный Аим" then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+                    local currentRotation = Camera.CFrame - Camera.CFrame.Position
+                    local targetRotation = CFrame.new(Camera.CFrame.Position, targetPart.Position) - Camera.CFrame.Position
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position) * currentRotation:Lerp(targetRotation, 0.25)
                 elseif aimMode == "Сайлент Аим" then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                     if onScreen and (UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetMouseLocation() > 0) then
-                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), 1)
+                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                     end
                 end
             end
