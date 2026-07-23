@@ -1,21 +1,21 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Extreme Performance & Production Ready Edition
-    Optimized to eliminate frame-time spikes, GC pressure, and redundant scheduler overhead.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Extreme Performance Edition)
+    Все функции, полное меню, полная отрисовка и исправление лагов сразу после инжекта.
 ]]--
 
 local Players = game:GetService("Players")
-local RunService = service or game:GetService("RunService")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+local Camera = workspace.CurrentCamera
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Global Settings
+-- Глобальные настройки читов
 _G.AimAssistEnabled = false
 _G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
@@ -355,10 +355,12 @@ end)
 local function removeEsp(playerName)
     local data = cacheDrawingObjects[playerName]
     if data then
-        if data.Box then data.Box.Visible = false end
-        if data.HpBackground then data.HpBackground.Visible = false end
-        if data.HpFill then data.HpFill.Visible = false end
-        if data.Text then data.Text.Visible = false end
+        pcall(function()
+            if data.Box then data.Box.Visible = false end
+            if data.HpBackground then data.HpBackground.Visible = false end
+            if data.HpFill then data.HpFill.Visible = false end
+            if data.Text then data.Text.Visible = false end
+        end)
     end
 end
 
@@ -377,36 +379,57 @@ ESPToggle.MouseButton1Click:Connect(function()
 end)
 
 local function isEnemy(targetPlayer)
-    if not targetPlayer or targetPlayer == LocalPlayer then return false end
+    if not targetPlayer or targetPlayer == LocalPlayer then 
+        return false 
+    end
 
     if targetPlayer.Team and LocalPlayer.Team then
-        return targetPlayer.Team ~= LocalPlayer.Team
+        if targetPlayer.Team == LocalPlayer.Team then
+            return false
+        else
+            return true
+        end
     end
 
     local attrTeam = targetPlayer:GetAttribute("Team") or targetPlayer:GetAttribute("Side")
     local localAttrTeam = LocalPlayer:GetAttribute("Team") or LocalPlayer:GetAttribute("Side")
     if attrTeam ~= nil and localAttrTeam ~= nil then
-        return attrTeam ~= localAttrTeam
+        if attrTeam == localAttrTeam then
+            return false
+        else
+            return true
+        end
     end
 
     local teamObj = targetPlayer:FindFirstChild("Team")
     local localTeamObj = LocalPlayer:FindFirstChild("Team")
-    if teamObj and localTeamObj then
-        return teamObj.Value ~= localTeamObj.Value
+    if teamObj and localTeamObj and (teamObj:IsA("StringValue") or teamObj:IsA("IntValue")) and (localTeamObj:IsA("StringValue") or localTeamObj:IsA("IntValue")) then
+        if teamObj.Value == localTeamObj.Value then
+            return false
+        else
+            return true
+        end
     end
 
     if targetPlayer.TeamColor and LocalPlayer.TeamColor then
         if targetPlayer.TeamColor == BrickColor.new("White") or LocalPlayer.TeamColor == BrickColor.new("White") then
             return true
         end
-        return targetPlayer.TeamColor ~= LocalPlayer.TeamColor
+        if targetPlayer.TeamColor == LocalPlayer.TeamColor then
+            return false
+        else
+            return true
+        end
     end
 
     return true
 end
 
 local function getCharacter(player)
-    if player == LocalPlayer then return player.Character end
+    if player == LocalPlayer then 
+        return player.Character 
+    end
+    
     local char = player.Character
     if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") then 
         return char 
@@ -419,6 +442,7 @@ local function getCharacter(player)
             end
         end
     end
+
     return nil
 end
 
@@ -430,6 +454,7 @@ end
 local function IsVisibleFast(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
+    
     local head = character:FindFirstChild("Head")
     if not head then return false end
     
@@ -445,7 +470,7 @@ local function IsVisibleFast(targetPart)
         
         local origin = Camera.CFrame.Position
         local direction = targetPart.Position - origin
-        local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
+        local raycastResult = workspace:Raycast(origin, direction, raycastParams)
         return raycastResult == nil or raycastResult.Instance:IsDescendantOf(targetPart.Parent)
     end
     
@@ -457,23 +482,27 @@ local lastTargetUpdate = 0
 local TARGET_UPDATE_INTERVAL = 0.1
 
 local function GetUnifiedTarget()
-    local currentTime = os.clock()
-    if currentTime - lastTargetUpdate > TARGET_UPDATE_INTERVAL then
+    if tick() - lastTargetUpdate > TARGET_UPDATE_INTERVAL then
         cachedTarget = nil
         local closestTarget = nil
         local shortestDistance = _G.AimFOV
 
         for _, player in ipairs(Players:GetPlayers()) do
-            if isEnemy(player) then
-                local char = getCharacter(player)
-                if char then
-                    local humanoid = char:FindFirstChildOfClass("Humanoid")
-                    local targetPart = char:FindFirstChild(_G.TargetPart)
-                    if humanoid and targetPart and humanoid.Health > 0 then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                        if onScreen then
-                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                            if distance < shortestDistance and IsVisibleFast(targetPart) then
+            if not isEnemy(player) then
+                continue
+            end
+
+            local char = getCharacter(player)
+            if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid.Health > 0 then
+                    local targetPart = char[_G.TargetPart]
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    
+                    if onScreen then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if distance < shortestDistance then
+                            if IsVisibleFast(targetPart) then
                                 shortestDistance = distance
                                 closestTarget = targetPart
                             end
@@ -483,7 +512,7 @@ local function GetUnifiedTarget()
             end
         end
         cachedTarget = closestTarget
-        lastTargetUpdate = currentTime
+        lastTargetUpdate = tick()
     end
     return cachedTarget
 end
@@ -492,28 +521,29 @@ local function createPlayerDrawingObjects(playerName)
     if not DrawingSupported then return nil end
     if not cacheDrawingObjects[playerName] then
         local data = {}
-        data.Box = Drawing.new("Square")
-        data.Box.Thickness = 2
-        data.Box.Filled = false
-        data.Box.Visible = false
-        
-        data.HpBackground = Drawing.new("Square")
-        data.HpBackground.Thickness = 1
-        data.HpBackground.Filled = true
-        data.HpBackground.Color = Color3.fromRGB(60, 10, 10)
-        data.HpBackground.Visible = false
-        
-        data.HpFill = Drawing.new("Square")
-        data.HpFill.Thickness = 1
-        data.HpFill.Filled = true
-        data.HpFill.Visible = false
-        
-        data.Text = Drawing.new("Text")
-        data.Text.Size = 14
-        data.Text.Center = true
-        data.Text.Outline = true
-        data.Text.Visible = false
-
+        pcall(function()
+            data.Box = Drawing.new("Square")
+            data.Box.Thickness = 2
+            data.Box.Filled = false
+            data.Box.Visible = false
+            
+            data.HpBackground = Drawing.new("Square")
+            data.HpBackground.Thickness = 1
+            data.HpBackground.Filled = true
+            data.HpBackground.Color = Color3.fromRGB(60, 10, 10)
+            data.HpBackground.Visible = false
+            
+            data.HpFill = Drawing.new("Square")
+            data.HpFill.Thickness = 1
+            data.HpFill.Filled = true
+            data.HpFill.Visible = false
+            
+            data.Text = Drawing.new("Text")
+            data.Text.Size = 14
+            data.Text.Center = true
+            data.Text.Outline = true
+            data.Text.Visible = false
+        end)
         cacheDrawingObjects[playerName] = data
     end
     return cacheDrawingObjects[playerName]
@@ -525,53 +555,59 @@ local MAX_TRACERS = 5
 local function CreateBulletTracerOptimized(originPos, targetPos)
     if #tracerPool >= MAX_TRACERS then
         local old = table.remove(tracerPool, 1)
-        if old.PartA then old.PartA:Destroy() end
-        if old.PartB then old.PartB:Destroy() end
+        pcall(function()
+            if old.PartA then old.PartA:Destroy() end
+            if old.PartB then old.PartB:Destroy() end
+        end)
     end
     
-    local partA = Instance.new("Part")
-    partA.Size = Vector3.new(0.1, 0.1, 0.1)
-    partA.Position = originPos
-    partA.Transparency = 1
-    partA.Anchored = true
-    partA.CanCollide = false
-    partA.Parent = Workspace
+    pcall(function()
+        local partA = Instance.new("Part")
+        partA.Size = Vector3.new(0.1, 0.1, 0.1)
+        partA.Position = originPos
+        partA.Transparency = 1
+        partA.Anchored = true
+        partA.CanCollide = false
+        partA.Parent = Workspace
 
-    local partB = Instance.new("Part")
-    partB.Size = Vector3.new(0.1, 0.1, 0.1)
-    partB.Position = targetPos
-    partB.Transparency = 1
-    partB.Anchored = true
-    partB.CanCollide = false
-    partB.Parent = Workspace
+        local partB = Instance.new("Part")
+        partB.Size = Vector3.new(0.1, 0.1, 0.1)
+        partB.Position = targetPos
+        partB.Transparency = 1
+        partB.Anchored = true
+        partB.CanCollide = false
+        partB.Parent = Workspace
 
-    local attachmentA = Instance.new("Attachment", partA)
-    local attachmentB = Instance.new("Attachment", partB)
+        local attachmentA = Instance.new("Attachment", partA)
+        local attachmentB = Instance.new("Attachment", partB)
 
-    local beam = Instance.new("Beam")
-    beam.Attachment0 = attachmentA
-    beam.Attachment1 = attachmentB
-    beam.Color = ColorSequence.new(_G.TracerColor)
-    beam.Width0 = 0.12
-    beam.Width1 = 0.12
-    beam.Texture = "rbxassetid://6079958617" 
-    beam.TextureMode = Enum.TextureMode.Wrap
-    beam.TextureSpeed = 5
-    beam.LightEmission = 1
-    beam.LightInfluence = 0
-    beam.Parent = partA
+        local beam = Instance.new("Beam")
+        beam.Attachment0 = attachmentA
+        beam.Attachment1 = attachmentB
+        beam.Color = ColorSequence.new(_G.TracerColor)
+        beam.Width0 = 0.12
+        beam.Width1 = 0.12
+        beam.Texture = "rbxassetid://6079958617" 
+        beam.TextureMode = Enum.TextureMode.Wrap
+        beam.TextureSpeed = 5
+        beam.LightEmission = 1
+        beam.LightInfluence = 0
+        beam.Parent = partA
 
-    table.insert(tracerPool, {PartA = partA, PartB = partB})
+        table.insert(tracerPool, {PartA = partA, PartB = partB})
 
-    task.delay(0.08, function()
-        partA:Destroy()
-        partB:Destroy()
-        for i, v in ipairs(tracerPool) do
-            if v.PartA == partA then
-                table.remove(tracerPool, i)
-                break
+        task.delay(0.08, function()
+            pcall(function()
+                partA:Destroy()
+                partB:Destroy()
+            end)
+            for i, v in ipairs(tracerPool) do
+                if v.PartA == partA then
+                    table.remove(tracerPool, i)
+                    break
+                end
             end
-        end
+        end)
     end)
 end
 
@@ -580,6 +616,7 @@ local isShooting = false
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     local inputType = input.UserInputType
+    
     if inputType == Enum.UserInputType.MouseButton1 then
         isShooting = true
     elseif inputType == Enum.UserInputType.Touch then
@@ -624,7 +661,9 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
         if originalRay then
             local origin = originalRay.Origin
             local direction = (target.Position - origin).Unit * originalRay.Direction.Magnitude
+            
             Arguments[rayIndex] = Ray.new(origin, direction)
+            
             return oldNamecall(self, table.unpack(Arguments))
         end
     end
@@ -633,42 +672,52 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 end)
 
 RunService.RenderStepped:Connect(function()
-    if _G.AimAssistEnabled then
+    if not _G.AimAssistEnabled then return end
+    local target = GetUnifiedTarget()
+    if target then
+        FOVStroke.Color = Color3.fromRGB(0, 255, 150)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+        local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.AimSmoothness)
+    else
+        FOVStroke.Color = Color3.fromRGB(255, 0, 0)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    end
+end)
+
+local lastShotTick = 0
+RunService.RenderStepped:Connect(function()
+    if not _G.BulletTracersEnabled or not isShooting then return end
+    if tick() - lastShotTick <= 0.08 then return end
+    lastShotTick = tick()
+    
+    pcall(function()
+        local gunOrigin = Camera.CFrame.Position
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
+            if handle then gunOrigin = handle.Position end
+        end
         local target = GetUnifiedTarget()
-        if target then
-            FOVStroke.Color = Color3.fromRGB(0, 255, 150)
-            FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), _G.AimSmoothness)
-        else
-            FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-            FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        end
-    end
+        local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
+        CreateBulletTracerOptimized(gunOrigin, targetPos)
+    end)
+end)
 
-    if _G.BulletTracersEnabled and isShooting then
-        local currentTime = os.clock()
-        static lastShotTick = 0 or 0
-        if currentTime - lastShotTick > 0.08 then
-            lastShotTick = currentTime
-            local gunOrigin = Camera.CFrame.Position
-            local character = LocalPlayer.Character
-            if character then
-                local tool = character:FindFirstChildOfClass("Tool")
-                if tool then
-                    local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
-                    if handle then gunOrigin = handle.Position end
-                end
+RunService.RenderStepped:Connect(function()
+    if not _G.NoSpreadEnabled or not LocalPlayer.Character then return end
+    pcall(function()
+        for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                tool:SetAttribute("Spread", 0)
+                tool:SetAttribute("Recoil", 0)
+                tool:SetAttribute("Inaccuracy", 0)
+                tool:SetAttribute("Kickback", 0)
             end
-            local target = GetUnifiedTarget()
-            local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
-            CreateBulletTracerOptimized(gunOrigin, targetPos)
         end
-    end
-
-    if _G.NoSpreadEnabled then
-        local character = LocalPlayer.Character
-        if character then
-            for _, tool in ipairs(character:GetChildren()) do
+        local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+        if backpack then
+            for _, tool in ipairs(backpack:GetChildren()) do
                 if tool:IsA("Tool") then
                     tool:SetAttribute("Spread", 0)
                     tool:SetAttribute("Recoil", 0)
@@ -676,115 +725,114 @@ RunService.RenderStepped:Connect(function()
                     tool:SetAttribute("Kickback", 0)
                 end
             end
-            local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
-            if backpack then
-                for _, tool in ipairs(backpack:GetChildren()) do
-                    if tool:IsA("Tool") then
-                        tool:SetAttribute("Spread", 0)
-                        tool:SetAttribute("Recoil", 0)
-                        tool:SetAttribute("Inaccuracy", 0)
-                        tool:SetAttribute("Kickback", 0)
+        end
+    end)
+end)
+
+local lastSkinApplied = {}
+RunService.RenderStepped:Connect(function()
+    if not _G.SkinChangerEnabled or not LocalPlayer.Character then
+        lastSkinApplied = {}
+        return
+    end
+    pcall(function()
+        for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
+            if item:IsA("Tool") then
+                if not lastSkinApplied[item] then
+                    for _, part in ipairs(item:GetDescendants()) do
+                        if part:IsA("BasePart") or part:IsA("MeshPart") then
+                            part.Color = _G.SelectedSkinColor
+                            part.Material = Enum.Material.Neon
+                            if part:IsA("MeshPart") then
+                                part.TextureID = ""
+                            end
+                        end
                     end
+                    lastSkinApplied[item] = true
                 end
             end
         end
-    end
+    end)
+end)
 
-    if _G.SkinChangerEnabled then
-        local character = LocalPlayer.Character
-        static lastSkinApplied = {}
-        if character then
-            for _, item in ipairs(character:GetChildren()) do
-                if item:IsA("Tool") then
-                    if not lastSkinApplied[item] then
-                        for _, part in ipairs(item:GetDescendants()) do
-                            if part:IsA("BasePart") or part:IsA("MeshPart") then
-                                part.Color = _G.SelectedSkinColor
-                                part.Material = Enum.Material.Neon
-                                if part:IsA("MeshPart") then
-                                    part.TextureID = ""
-                                end
-                            end
-                        end
-                        lastSkinApplied[item] = true
-                    end
+local lastEspUpdate = 0
+local ESP_THROTTLE = 0.1
+RunService.RenderStepped:Connect(function()
+    if not espEnabled then return end
+    if tick() - lastEspUpdate < ESP_THROTTLE then return end
+    lastEspUpdate = tick()
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then
+            continue
+        end
+
+        local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
+
+        if not isEnemy(player) then
+            removeEsp(player.Name)
+            continue
+        end
+
+        local char = getCharacter(player)
+        
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local root = char.HumanoidRootPart
+                local head = char.Head
+                local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                
+                if onScreen then
+                    local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
+                    local height = math.abs(topPos.Y - bottomPos.Y)
+                    local width = height * 0.55
+                    
+                    local isVis = IsVisibleForESP(head)
+                    local boxColor = isVis and colorVisible or colorHidden
+                    
+                    data.Box.Size = Vector2.new(width, height)
+                    data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
+                    data.Box.Color = boxColor
+                    data.Box.Visible = true
+                    
+                    local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                    data.HpBackground.Size = Vector2.new(4, height)
+                    data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
+                    data.HpBackground.Visible = true
+                    
+                    local fillHeight = height * healthRatio
+                    data.HpFill.Size = Vector2.new(4, fillHeight)
+                    data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
+                    data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+                    data.HpFill.Visible = true
+                    
+                    local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
+                    data.Text.Text = player.Name .. " [" .. distance .. "м]"
+                    data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
+                    data.Text.Color = boxColor
+                    data.Text.Visible = true
+                else
+                    removeEsp(player.Name)
                 end
+            else
+                removeEsp(player.Name)
             end
         else
-            table.clear(lastSkinApplied)
-        end
-    end
-
-    if espEnabled then
-        static lastEspUpdate = 0
-        local currentTime = os.clock()
-        if currentTime - lastEspUpdate >= 0.1 then
-            lastEspUpdate = currentTime
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer then
-                    local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
-                    if isEnemy(player) then
-                        local char = getCharacter(player)
-                        if char then
-                            local humanoid = char:FindFirstChildOfClass("Humanoid")
-                            local root = char:FindFirstChild("HumanoidRootPart")
-                            local head = char:FindFirstChild("Head")
-                            if humanoid and root and head and humanoid.Health > 0 and data and data.Box then
-                                local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-                                if onScreen then
-                                    local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
-                                    local height = math.abs(topPos.Y - bottomPos.Y)
-                                    local width = height * 0.55
-                                    
-                                    local boxColor = IsVisibleForESP(head) and colorVisible or colorHidden
-                                    
-                                    data.Box.Size = Vector2.new(width, height)
-                                    data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
-                                    data.Box.Color = boxColor
-                                    data.Box.Visible = true
-                                    
-                                    local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                                    data.HpBackground.Size = Vector2.new(4, height)
-                                    data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
-                                    data.HpBackground.Visible = true
-                                    
-                                    local fillHeight = height * healthRatio
-                                    data.HpFill.Size = Vector2.new(4, fillHeight)
-                                    data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
-                                    data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
-                                    data.HpFill.Visible = true
-                                    
-                                    local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
-                                    data.Text.Text = player.Name .. " [" .. distance .. "м]"
-                                    data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
-                                    data.Text.Color = boxColor
-                                    data.Text.Visible = true
-                                else
-                                    removeEsp(player.Name)
-                                end
-                            else
-                                removeEsp(player.Name)
-                            end
-                        else
-                            removeEsp(player.Name)
-                        end
-                    else
-                        removeEsp(player.Name)
-                    end
-                end
-            end
+            removeEsp(player.Name)
         end
     end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-    local data = cacheDrawingObjects[player.Name]
-    if data then
-        if data.Box then data.Box:Remove() end
-        if data.HpBackground then data.HpBackground:Remove() end
-        if data.HpFill then data.HpFill:Remove() end
-        if data.Text then data.Text:Remove() end
+    if cacheDrawingObjects[player.Name] then
+        pcall(function()
+            cacheDrawingObjects[player.Name].Box:Remove()
+            cacheDrawingObjects[player.Name].HpBackground:Remove()
+            cacheDrawingObjects[player.Name].HpFill:Remove()
+            cacheDrawingObjects[player.Name].Text:Remove()
+        end)
         cacheDrawingObjects[player.Name] = nil
     end
 end)
