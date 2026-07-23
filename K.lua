@@ -1,7 +1,7 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Fixed Safe Version for Mobile/Delta)
-    Полностью исправленный и оптимизированный монолитный код без сокращений.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Optimized Throttle Edition)
+    Оптимизирована производительность ESP и хуков для стабильных 60 FPS на мобильных устройствах.
 ]]--
 
 local Players = game:GetService("Players")
@@ -91,7 +91,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ NAMECALL SILENT AIM ENGINE ⚡"
+TitleLabel.Text = "⚡ OPTIMIZED ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 14
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -592,7 +592,6 @@ end
 
 local isShooting = false
 
--- ИСПРАВЛЕНИЕ ЛАГОВ В МЕНЮ: игнорируем клики, если нажатие перехвачено интерфейсом (processed)
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     local inputType = input.UserInputType
@@ -608,7 +607,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Таблица для быстрой проверки методов без лишних условий
 local validMethods = {
     ["FindPartOnRayWithIgnoreList"] = true,
     ["FindPartOnRay"] = true,
@@ -619,7 +617,6 @@ local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
     
-    -- Сверхбыстрый ранний выход: если не стреляем или функция не связана с лучами стрельбы, код даже не думает
     if not (_G.SilentAimEnabled and isShooting and validMethods[Method]) then
         return oldNamecall(self, ...)
     end
@@ -645,6 +642,8 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 end)
 
 local lastShotTick = 0
+local lastEspUpdate = 0
+local ESP_THROTTLE = 0.1 -- Обновляем ESP 10 раз в секунду, убирая лаги интерфейса
 
 RunService.RenderStepped:Connect(function()
     if _G.AimAssistEnabled then
@@ -719,64 +718,68 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player == LocalPlayer then
-            continue
-        end
+    -- Оптимизированный рендер ESP по таймеру
+    if tick() - lastEspUpdate >= ESP_THROTTLE then
+        lastEspUpdate = tick()
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player == LocalPlayer then
+                continue
+            end
 
-        local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
+            local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
 
-        if not isEnemy(player) then
-            removeEsp(player.Name)
-            continue
-        end
+            if not isEnemy(player) then
+                removeEsp(player.Name)
+                continue
+            end
 
-        local char = getCharacter(player)
-        
-        if espEnabled and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local root = char.HumanoidRootPart
-                local head = char.Head
-                local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-                
-                if onScreen then
-                    local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
-                    local height = math.abs(topPos.Y - bottomPos.Y)
-                    local width = height * 0.55
-                    local isVis = IsVisibleFast(head)
-                    local boxColor = isVis and colorVisible or colorHidden
+            local char = getCharacter(player)
+            
+            if espEnabled and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local root = char.HumanoidRootPart
+                    local head = char.Head
+                    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                     
-                    data.Box.Size = Vector2.new(width, height)
-                    data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
-                    data.Box.Color = boxColor
-                    data.Box.Visible = true
-                    
-                    local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                    data.HpBackground.Size = Vector2.new(4, height)
-                    data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
-                    data.HpBackground.Visible = true
-                    
-                    local fillHeight = height * healthRatio
-                    data.HpFill.Size = Vector2.new(4, fillHeight)
-                    data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
-                    data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
-                    data.HpFill.Visible = true
-                    
-                    local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
-                    data.Text.Text = player.Name .. " [" .. distance .. "м]"
-                    data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
-                    data.Text.Color = boxColor
-                    data.Text.Visible = true
+                    if onScreen then
+                        local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                        local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
+                        local height = math.abs(topPos.Y - bottomPos.Y)
+                        local width = height * 0.55
+                        local isVis = IsVisibleFast(head)
+                        local boxColor = isVis and colorVisible or colorHidden
+                        
+                        data.Box.Size = Vector2.new(width, height)
+                        data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
+                        data.Box.Color = boxColor
+                        data.Box.Visible = true
+                        
+                        local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                        data.HpBackground.Size = Vector2.new(4, height)
+                        data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
+                        data.HpBackground.Visible = true
+                        
+                        local fillHeight = height * healthRatio
+                        data.HpFill.Size = Vector2.new(4, fillHeight)
+                        data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
+                        data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+                        data.HpFill.Visible = true
+                        
+                        local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
+                        data.Text.Text = player.Name .. " [" .. distance .. "м]"
+                        data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
+                        data.Text.Color = boxColor
+                        data.Text.Visible = true
+                    else
+                        removeEsp(player.Name)
+                    end
                 else
                     removeEsp(player.Name)
                 end
             else
                 removeEsp(player.Name)
             end
-        else
-            removeEsp(player.Name)
         end
     end
 end)
