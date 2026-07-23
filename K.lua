@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AimbotSystemGui"
+ScreenGui.Name = "BlockStrikeIndependentEngineGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -366,6 +366,17 @@ local StretchStroke = Instance.new("UIStroke")
 StretchStroke.Thickness = 1
 StretchStroke.Color = Color3.fromRGB(100, 100, 100)
 StretchStroke.Parent = StretchButton
+
+local CreditLabel = Instance.new("TextLabel")
+CreditLabel.Name = "CreditLabel"
+CreditLabel.Size = UDim2.new(1, 0, 0, 30)
+CreditLabel.Position = UDim2.new(0, 0, 1, -35)
+CreditLabel.BackgroundTransparency = 1
+CreditLabel.Text = "Block Strike Ultra Anti-Crash Mobile Engine"
+CreditLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
+CreditLabel.TextSize = 13
+CreditLabel.Font = Enum.Font.SourceSansItalic
+CreditLabel.Parent = MainMenu
 
 local DrawingContainer = Instance.new("Folder")
 DrawingContainer.Name = "DrawingContainer"
@@ -886,7 +897,7 @@ end
 RunService.RenderStepped:Connect(function()
     if not ScreenGui or not ScreenGui.Parent then
         ScreenGui = Instance.new("ScreenGui")
-        ScreenGui.Name = "AimbotSystemGui"
+        ScreenGui.Name = "BlockStrikeIndependentEngineGui"
         ScreenGui.ResetOnSpawn = false
         ScreenGui.IgnoreGuiInset = true
         ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
