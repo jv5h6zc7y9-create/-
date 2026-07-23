@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "PremiumMobileMatrixEngine"
+ScreenGui.Name = "BlockStrikePremiumEngine"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -17,8 +17,8 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 local FOVCircle = Instance.new("Frame")
 FOVCircle.Name = "FOVCircle"
 FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-FOVCircle.BackgroundTransparency = 0.95
+FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+FOVCircle.BackgroundTransparency = 0.9
 FOVCircle.BorderSizePixel = 0
 FOVCircle.Visible = true
 FOVCircle.Parent = ScreenGui
@@ -34,11 +34,11 @@ FOVCorner.Parent = FOVCircle
 
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "MenuButton"
-MenuButton.Size = UDim2.new(0, 60, 0, 60)
+MenuButton.Size = UDim2.new(0, 55, 0, 55)
 MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
-MenuButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MenuButton.Text = "⚙️"
-MenuButton.TextSize = 28
+MenuButton.TextSize = 26
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuButton.Parent = ScreenGui
 
@@ -48,14 +48,14 @@ MenuButtonCorner.Parent = MenuButton
 
 local MenuButtonStroke = Instance.new("UIStroke")
 MenuButtonStroke.Thickness = 2
-MenuButtonStroke.Color = Color3.fromRGB(0, 150, 255)
+MenuButtonStroke.Color = Color3.fromRGB(100, 100, 100)
 MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 350, 0, 640)
-MainMenu.Position = UDim2.new(0.5, -175, 0.5, -320)
-MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainMenu.Size = UDim2.new(0, 340, 0, 680)
+MainMenu.Position = UDim2.new(0.5, -170, 0.5, -340)
+MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
 
@@ -65,14 +65,14 @@ MainMenuCorner.Parent = MainMenu
 
 local MainMenuStroke = Instance.new("UIStroke")
 MainMenuStroke.Thickness = 2
-MainMenuStroke.Color = Color3.fromRGB(45, 45, 55)
+MainMenuStroke.Color = Color3.fromRGB(60, 60, 60)
 MainMenuStroke.Parent = MainMenu
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, 0, 0, 50)
-TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-TitleLabel.Text = "iPad Pro 11 Premium Multi-Cheat"
+TitleLabel.Size = UDim2.new(1, 0, 0, 45)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TitleLabel.Text = "iPad Pro 11 Ultimate Menu"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -84,9 +84,9 @@ TitleCorner.Parent = TitleLabel
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 34, 0, 34)
-CloseButton.Position = UDim2.new(1, -42, 0, 8)
-CloseButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+CloseButton.Size = UDim2.new(0, 32, 0, 32)
+CloseButton.Position = UDim2.new(1, -38, 0, 6)
+CloseButton.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 CloseButton.Text = "❌"
 CloseButton.TextSize = 14
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -98,9 +98,9 @@ CloseCorner.Parent = CloseButton
 
 local ModeButton = Instance.new("TextButton")
 ModeButton.Name = "ModeButton"
-ModeButton.Size = UDim2.new(0, 310, 0, 45)
-ModeButton.Position = UDim2.new(0.5, -155, 0, 70)
-ModeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+ModeButton.Size = UDim2.new(0, 300, 0, 45)
+ModeButton.Position = UDim2.new(0.5, -150, 0, 65)
+ModeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 ModeButton.Text = "Режим: Выкл"
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ModeButton.TextSize = 16
@@ -113,14 +113,14 @@ ModeCorner.Parent = ModeButton
 
 local ModeStroke = Instance.new("UIStroke")
 ModeStroke.Thickness = 1
-ModeStroke.Color = Color3.fromRGB(75, 75, 90)
+ModeStroke.Color = Color3.fromRGB(80, 80, 80)
 ModeStroke.Parent = ModeButton
 
 local TargetButton = Instance.new("TextButton")
 TargetButton.Name = "TargetButton"
-TargetButton.Size = UDim2.new(0, 310, 0, 45)
-TargetButton.Position = UDim2.new(0.5, -155, 0, 130)
-TargetButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+TargetButton.Size = UDim2.new(0, 300, 0, 45)
+TargetButton.Position = UDim2.new(0.5, -150, 0, 125)
+TargetButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 TargetButton.Text = "Цель: Head"
 TargetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 TargetButton.TextSize = 16
@@ -133,13 +133,13 @@ TargetCorner.Parent = TargetButton
 
 local TargetStroke = Instance.new("UIStroke")
 TargetStroke.Thickness = 1
-TargetStroke.Color = Color3.fromRGB(75, 75, 90)
+TargetStroke.Color = Color3.fromRGB(80, 80, 80)
 TargetStroke.Parent = TargetButton
 
 local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Name = "SliderLabel"
-SliderLabel.Size = UDim2.new(0, 310, 0, 25)
-SliderLabel.Position = UDim2.new(0.5, -155, 0, 195)
+SliderLabel.Size = UDim2.new(0, 300, 0, 25)
+SliderLabel.Position = UDim2.new(0.5, -150, 0, 190)
 SliderLabel.BackgroundTransparency = 1
 SliderLabel.Text = "Радиус FOV: 100 px"
 SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -149,9 +149,9 @@ SliderLabel.Parent = MainMenu
 
 local SliderBar = Instance.new("Frame")
 SliderBar.Name = "SliderBar"
-SliderBar.Size = UDim2.new(0, 310, 0, 12)
-SliderBar.Position = UDim2.new(0.5, -155, 0, 230)
-SliderBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+SliderBar.Size = UDim2.new(0, 300, 0, 12)
+SliderBar.Position = UDim2.new(0.5, -150, 0, 225)
+SliderBar.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 SliderBar.BorderSizePixel = 0
 SliderBar.Parent = MainMenu
 
@@ -164,7 +164,7 @@ SliderBtn.Name = "SliderBtn"
 SliderBtn.Size = UDim2.new(0, 22, 0, 22)
 SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 SliderBtn.Position = UDim2.new(0.318, 0, 0.5, 0)
-SliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SliderBtn.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
 SliderBtn.Text = ""
 SliderBtn.Parent = SliderBar
 
@@ -179,10 +179,10 @@ SliderBtnStroke.Parent = SliderBtn
 
 local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
-ESPToggle.Size = UDim2.new(0, 310, 0, 45)
-ESPToggle.Position = UDim2.new(0.5, -155, 0, 270)
-ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-ESPToggle.Text = "ESP (ВХ): ВКЛУЧЕНО"
+ESPToggle.Size = UDim2.new(0, 300, 0, 45)
+ESPToggle.Position = UDim2.new(0.5, -150, 0, 265)
+ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+ESPToggle.Text = "ESP: ВКЛ"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.TextSize = 16
 ESPToggle.Font = Enum.Font.SourceSansBold
@@ -194,15 +194,15 @@ ESPToggleCorner.Parent = ESPToggle
 
 local ESPToggleStroke = Instance.new("UIStroke")
 ESPToggleStroke.Thickness = 1
-ESPToggleStroke.Color = Color3.fromRGB(75, 75, 90)
+ESPToggleStroke.Color = Color3.fromRGB(80, 80, 80)
 ESPToggleStroke.Parent = ESPToggle
 
 local BHopToggle = Instance.new("TextButton")
 BHopToggle.Name = "BHopToggle"
-BHopToggle.Size = UDim2.new(0, 310, 0, 45)
-BHopToggle.Position = UDim2.new(0.5, -155, 0, 330)
-BHopToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
+BHopToggle.Size = UDim2.new(0, 300, 0, 45)
+BHopToggle.Position = UDim2.new(0.5, -150, 0, 325)
+BHopToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
 BHopToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 BHopToggle.TextSize = 16
 BHopToggle.Font = Enum.Font.SourceSansBold
@@ -214,15 +214,15 @@ BHopToggleCorner.Parent = BHopToggle
 
 local BHopToggleStroke = Instance.new("UIStroke")
 BHopToggleStroke.Thickness = 1
-BHopToggleStroke.Color = Color3.fromRGB(75, 75, 90)
+BHopToggleStroke.Color = Color3.fromRGB(80, 80, 80)
 BHopToggleStroke.Parent = BHopToggle
 
 local ThirdPersonToggle = Instance.new("TextButton")
 ThirdPersonToggle.Name = "ThirdPersonToggle"
-ThirdPersonToggle.Size = UDim2.new(0, 310, 0, 45)
-ThirdPersonToggle.Position = UDim2.new(0.5, -155, 0, 390)
-ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-ThirdPersonToggle.Text = "ТРЕТЬЕ ЛИЦО: ВЫКЛ"
+ThirdPersonToggle.Size = UDim2.new(0, 300, 0, 45)
+ThirdPersonToggle.Position = UDim2.new(0.5, -150, 0, 385)
+ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+ThirdPersonToggle.Text = "3 ЛИЦО: ВЫКЛ"
 ThirdPersonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ThirdPersonToggle.TextSize = 16
 ThirdPersonToggle.Font = Enum.Font.SourceSansBold
@@ -234,15 +234,35 @@ ThirdPersonCorner.Parent = ThirdPersonToggle
 
 local ThirdPersonStroke = Instance.new("UIStroke")
 ThirdPersonStroke.Thickness = 1
-ThirdPersonStroke.Color = Color3.fromRGB(75, 75, 90)
+ThirdPersonStroke.Color = Color3.fromRGB(80, 80, 80)
 ThirdPersonStroke.Parent = ThirdPersonToggle
+
+local SkyButton = Instance.new("TextButton")
+SkyButton.Name = "SkyButton"
+SkyButton.Size = UDim2.new(0, 300, 0, 45)
+SkyButton.Position = UDim2.new(0.5, -150, 0, 445)
+SkyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SkyButton.Text = "Небо: Обычное"
+SkyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SkyButton.TextSize = 16
+SkyButton.Font = Enum.Font.SourceSansBold
+SkyButton.Parent = MainMenu
+
+local SkyCorner = Instance.new("UICorner")
+SkyCorner.CornerRadius = UDim.new(0.2, 0)
+SkyCorner.Parent = SkyButton
+
+local SkyStroke = Instance.new("UIStroke")
+SkyStroke.Thickness = 1
+SkyStroke.Color = Color3.fromRGB(80, 80, 80)
+SkyStroke.Parent = SkyButton
 
 local SpeedLabel = Instance.new("TextLabel")
 SpeedLabel.Name = "SpeedLabel"
-SpeedLabel.Size = UDim2.new(0, 310, 0, 25)
-SpeedLabel.Position = UDim2.new(0.5, -155, 0, 450)
+SpeedLabel.Size = UDim2.new(0, 300, 0, 25)
+SpeedLabel.Position = UDim2.new(0.5, -150, 0, 505)
 SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "Скорость бега: x1.0"
+SpeedLabel.Text = "Множитель Скорости: x1"
 SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedLabel.TextSize = 16
 SpeedLabel.Font = Enum.Font.SourceSansBold
@@ -250,9 +270,9 @@ SpeedLabel.Parent = MainMenu
 
 local SpeedBar = Instance.new("Frame")
 SpeedBar.Name = "SpeedBar"
-SpeedBar.Size = UDim2.new(0, 310, 0, 12)
-SpeedBar.Position = UDim2.new(0.5, -155, 0, 485)
-SpeedBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+SpeedBar.Size = UDim2.new(0, 300, 0, 12)
+SpeedBar.Position = UDim2.new(0.5, -150, 0, 540)
+SpeedBar.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 SpeedBar.BorderSizePixel = 0
 SpeedBar.Parent = MainMenu
 
@@ -265,7 +285,7 @@ SpeedBtn.Name = "SpeedBtn"
 SpeedBtn.Size = UDim2.new(0, 22, 0, 22)
 SpeedBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 SpeedBtn.Position = UDim2.new(0, 0, 0.5, 0)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
 SpeedBtn.Text = ""
 SpeedBtn.Parent = SpeedBar
 
@@ -278,49 +298,38 @@ SpeedBtnStroke.Thickness = 1
 SpeedBtnStroke.Color = Color3.fromRGB(0, 0, 0)
 SpeedBtnStroke.Parent = SpeedBtn
 
-local EnvironmentButton = Instance.new("TextButton")
-EnvironmentButton.Name = "EnvironmentButton"
-EnvironmentButton.Size = UDim2.new(0, 310, 0, 45)
-EnvironmentButton.Position = UDim2.new(0.5, -155, 0, 520)
-EnvironmentButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-EnvironmentButton.Text = "Небо и Гамма: Стандарт"
-EnvironmentButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-EnvironmentButton.TextSize = 16
-EnvironmentButton.Font = Enum.Font.SourceSansBold
-EnvironmentButton.Parent = MainMenu
+local ColorButton = Instance.new("TextButton")
+ColorButton.Name = "ColorButton"
+ColorButton.Size = UDim2.new(0, 300, 0, 45)
+ColorButton.Position = UDim2.new(0.5, -150, 0, 580)
+ColorButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ColorButton.Text = "Гамма: Стандарт"
+ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ColorButton.TextSize = 16
+ColorButton.Font = Enum.Font.SourceSansBold
+ColorButton.Parent = MainMenu
 
-local EnvironmentCorner = Instance.new("UICorner")
-EnvironmentCorner.CornerRadius = UDim.new(0.2, 0)
-EnvironmentCorner.Parent = EnvironmentButton
+local ColorCorner = Instance.new("UICorner")
+ColorCorner.CornerRadius = UDim.new(0.2, 0)
+ColorCorner.Parent = ColorButton
 
-local EnvironmentStroke = Instance.new("UIStroke")
-EnvironmentStroke.Thickness = 1
-EnvironmentStroke.Color = Color3.fromRGB(75, 75, 90)
-EnvironmentStroke.Parent = EnvironmentButton
+local ColorStroke = Instance.new("UIStroke")
+ColorStroke.Thickness = 1
+ColorStroke.Color = Color3.fromRGB(80, 80, 80)
+ColorStroke.Parent = ColorButton
 
-local CreditLabel = Instance.new("TextLabel")
-CreditLabel.Name = "CreditLabel"
-CreditLabel.Size = UDim2.new(1, 0, 0, 30)
-CreditLabel.Position = UDim2.new(0, 0, 1, -35)
-CreditLabel.BackgroundTransparency = 1
-CreditLabel.Text = "Block Strike Ultra Anti-Crash Mobile Engine"
-CreditLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
-CreditLabel.TextSize = 13
-CreditLabel.Font = Enum.Font.SourceSansItalic
-CreditLabel.Parent = MainMenu
-
-local LocalTracerAttachment = Instance.new("Attachment")
-LocalTracerAttachment.Name = "LocalPlayerTracerAttachment"
-LocalTracerAttachment.Position = Vector3.new(0, -2.5, -1)
-LocalTracerAttachment.Parent = Camera
+local DrawingContainer = Instance.new("Folder")
+DrawingContainer.Name = "DrawingContainer"
+DrawingContainer.Parent = ScreenGui
 
 local fovRadius = 100
 local aimMode = "Выкл"
 local aimTarget = "Head"
 local espEnabled = true
 local bHopEnabled = false
-local thirdPersonActive = false
-local currentEnvironmentState = 1
+local thirdPersonEnabled = false
+local currentSkyMode = "Обычное"
+local currentGammaMode = "Стандарт"
 local speedMultiplier = 1
 
 local colorVisible = Color3.fromRGB(0, 255, 0)
@@ -328,16 +337,11 @@ local colorHidden = Color3.fromRGB(255, 0, 0)
 
 local screenCenter = Vector2.new(0, 0)
 local menuButtonPosition = nil
-local isUserTouchingToFire = false
 
 local ColorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
 if not ColorCorrection then
     ColorCorrection = Instance.new("ColorCorrectionEffect")
     ColorCorrection.Parent = Lighting
-end
-
-local function getCharactersFolder()
-    return Workspace:FindFirstChild("Players") or Workspace:FindFirstChild("Entities") or Workspace
 end
 
 local function updateCenter()
@@ -445,7 +449,7 @@ local function moveSpeedSlider(input)
     local percentage = math.clamp(rX / SpeedBar.AbsoluteSize.X, 0, 1)
     SpeedBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
     speedMultiplier = 1 + (percentage * 4)
-    SpeedLabel.Text = "Скорость бега: x" .. string.format("%.1f", speedMultiplier)
+    SpeedLabel.Text = "Множитель Скорости: x" .. string.format("%.1f", speedMultiplier)
 end
 
 SpeedBtn.InputBegan:Connect(function(input)
@@ -469,13 +473,13 @@ end)
 ModeButton.MouseButton1Click:Connect(function()
     if aimMode == "Выкл" then
         aimMode = "Обычный Аим"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
     elseif aimMode == "Обычный Аим" then
         aimMode = "Сайлент Аим"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 0, 150)
+        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 0, 140)
     else
         aimMode = "Выкл"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+        ModeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     end
     ModeButton.Text = "Режим: " .. aimMode
 end)
@@ -490,26 +494,18 @@ TargetButton.MouseButton1Click:Connect(function()
 end)
 
 local function cleanAllVisuals()
-    local folder = getCharactersFolder()
+    DrawingContainer:ClearAllChildren()
     for _, player in ipairs(Players:GetPlayers()) do
-        local char = folder:FindFirstChild(player.Name)
+        local plFolder = Workspace:FindFirstChild("Players") or Workspace:FindFirstChild("Entities") or Workspace
+        local char = plFolder:FindFirstChild(player.Name)
         if char then
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local bGui = hrp:FindFirstChild("MatrixBillboardEsp")
-                if bGui then bGui:Destroy() end
-                local attachment = hrp:FindFirstChild("EnemyTracerAttachment")
-                if attachment then attachment:Destroy() end
-            end
             local head = char:FindFirstChild("Head")
             if head then
-                local tGui = head:FindFirstChild("NameDistanceEspGui")
-                if tGui then tGui:Destroy() end
+                local billboardGui = head:FindFirstChild("AdvancedEspBillboard")
+                if billboardGui then billboardGui:Destroy() end
             end
-            local highlight = char:FindFirstChild("MatrixEspHighlight")
+            local highlight = char:FindFirstChild("EspPlayerHighlight")
             if highlight then highlight:Destroy() end
-            local beam = Camera:FindFirstChild(player.Name .. "_BeamTracer")
-            if beam then beam:Destroy() end
         end
     end
 end
@@ -517,11 +513,11 @@ end
 ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        ESPToggle.Text = "ESP (ВХ): ВКЛУЧЕНО"
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+        ESPToggle.Text = "ESP: ВКЛ"
     else
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-        ESPToggle.Text = "ESP (ВХ): ВЫКЛЮЧЕНО"
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+        ESPToggle.Text = "ESP: ВЫКЛ"
         cleanAllVisuals()
     end
 end)
@@ -529,75 +525,78 @@ end)
 BHopToggle.MouseButton1Click:Connect(function()
     bHopEnabled = not bHopEnabled
     if bHopEnabled then
-        BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛУЧЕН"
+        BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+        BHopToggle.Text = "BUNNYHOP: ВКЛ"
     else
-        BHopToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-        BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
+        BHopToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+        BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
     end
 end)
 
 ThirdPersonToggle.MouseButton1Click:Connect(function()
-    thirdPersonActive = not thirdPersonActive
-    if thirdPersonActive then
-        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        ThirdPersonToggle.Text = "ТРЕТЬЕ ЛИЦО: ВКЛ"
+    thirdPersonEnabled = not thirdPersonEnabled
+    if thirdPersonEnabled then
+        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+        ThirdPersonToggle.Text = "3 ЛИЦО: ВКЛ"
     else
-        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-        ThirdPersonToggle.Text = "ТРЕТЬЕ ЛИЦО: ВЫКЛ"
+        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+        ThirdPersonToggle.Text = "3 ЛИЦО: ВЫКЛ"
         LocalPlayer.CameraMaxZoomDistance = 0.5
         LocalPlayer.CameraMinZoomDistance = 0.5
     end
 end)
 
-EnvironmentButton.MouseButton1Click:Connect(function()
-    if currentEnvironmentState == 1 then
-        currentEnvironmentState = 2
+SkyButton.MouseButton1Click:Connect(function()
+    if currentSkyMode == "Обычное" then
+        currentSkyMode = "Полночь"
         Lighting.TimeOfDay = "00:00:00"
         Lighting.Brightness = 0
-        Lighting.OutdoorAmbient = Color3.fromRGB(15, 15, 35)
-        ColorCorrection.Saturation = 0.6
-        ColorCorrection.Contrast = 0.3
-        ColorCorrection.Brightness = 0.05
-        EnvironmentButton.Text = "Небо и Гамма: Полночь + Насыщенная"
-    elseif currentEnvironmentState == 2 then
-        currentEnvironmentState = 3
-        Lighting.TimeOfDay = "18:20:00"
-        Lighting.Brightness = 1.5
-        Lighting.OutdoorAmbient = Color3.fromRGB(100, 50, 40)
-        ColorCorrection.Saturation = -0.1
-        ColorCorrection.Contrast = 0.4
-        ColorCorrection.Brightness = -0.05
-        EnvironmentButton.Text = "Небо и Гамма: Закат + Кино"
+        Lighting.OutdoorAmbient = Color3.fromRGB(20, 20, 40)
+    elseif currentSkyMode == "Полночь" then
+        currentSkyMode = "Закат"
+        Lighting.TimeOfDay = "18:00:00"
+        Lighting.Brightness = 2
+        Lighting.OutdoorAmbient = Color3.fromRGB(120, 60, 40)
     else
-        currentEnvironmentState = 1
+        currentSkyMode = "Обычное"
         Lighting.TimeOfDay = "14:00:00"
         Lighting.Brightness = 3
         Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    end
+    SkyButton.Text = "Небо: " .. currentSkyMode
+end)
+
+ColorButton.MouseButton1Click:Connect(function()
+    if currentGammaMode == "Стандарт" then
+        currentGammaMode = "Яркая"
+        ColorCorrection.Saturation = 0.5
+        ColorCorrection.Contrast = 0.2
+        ColorCorrection.Brightness = 0.05
+    elseif currentGammaMode == "Яркая" then
+        currentGammaMode = "Кинематограф"
+        ColorCorrection.Saturation = -0.2
+        ColorCorrection.Contrast = 0.4
+        ColorCorrection.Brightness = -0.05
+    else
+        currentGammaMode = "Стандарт"
         ColorCorrection.Saturation = 0
         ColorCorrection.Contrast = 0
         ColorCorrection.Brightness = 0
-        EnvironmentButton.Text = "Небо и Гамма: Стандарт"
     end
+    ColorButton.Text = "Гамма: " .. currentGammaMode
 end)
 
-UserInputService.TouchStarted:Connect(function(touch, processed)
-    if not processed then
-        isUserTouchingToFire = true
-    end
-end)
-
-UserInputService.TouchEnded:Connect(function(touch, processed)
-    isUserTouchingToFire = false
-end)
+local function getCharactersFolder()
+    return Workspace:FindFirstChild("Players") or Workspace:FindFirstChild("Entities") or Workspace
+end
 
 local function isEnemy(targetPlayer)
     if targetPlayer == LocalPlayer then return false end
     if targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team ~= LocalPlayer.Team then
         return true
     end
-    local localTeamAttr = LocalPlayer:GetAttribute("Team") or LocalPlayer:GetAttribute("Side")
-    local targetTeamAttr = targetPlayer:GetAttribute("Team") or targetPlayer:GetAttribute("Side")
+    local localTeamAttr = LocalPlayer:GetAttribute("Team")
+    local targetTeamAttr = targetPlayer:GetAttribute("Team")
     if localTeamAttr and targetTeamAttr and localTeamAttr ~= targetTeamAttr then
         return true
     end
@@ -618,7 +617,7 @@ local function isValidTarget(character)
         return false
     end
     local head = character:FindFirstChild("Head")
-    if head and head.Transparency >= 0.9 then
+    if head and head.Transparency == 1 then
         return false
     end
     return true
@@ -671,124 +670,125 @@ local function getClosestVisibleEnemy()
     return closestPlayer
 end
 
+local function createScreenLine(name)
+    local line = DrawingContainer:FindFirstChild(name)
+    if not line then
+        line = Instance.new("Frame")
+        line.Name = name
+        line.BorderSizePixel = 0
+        line.AnchorPoint = Vector2.new(0.5, 0)
+        line.Parent = DrawingContainer
+    end
+    return line
+end
+
 local function updatePlayerEsp(player, character, enemyVisible)
     local head = character:FindFirstChild("Head")
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not head or not humanoid or not hrp then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not head or not humanoid or not root then return end
     
-    local nameGui = head:FindFirstChild("NameDistanceEspGui")
-    if not nameGui then
-        nameGui = Instance.new("BillboardGui")
-        nameGui.Name = "NameDistanceEspGui"
-        nameGui.Size = UDim2.new(0, 150, 0, 25)
-        nameGui.StudsOffset = Vector3.new(0, 2.5, 0)
-        nameGui.AlwaysOnTop = true
-        
-        local label = Instance.new("TextLabel")
-        local stroke = Instance.new("UIStroke")
-        label.Name = "Label"
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Font = Enum.Font.SourceSansBold
-        label.TextSize = 13
-        stroke.Thickness = 1
-        stroke.Color = Color3.fromRGB(0, 0, 0)
-        stroke.Parent = label
-        label.Parent = nameGui
-        nameGui.Parent = head
-    end
-    
-    local myHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local distanceMeters = 0
-    if myHrp and hrp then
-        distanceMeters = (hrp.Position - myHrp.Position).Magnitude
-    end
-    
-    nameGui.Label.Text = string.format("%s [%dм]", player.Name, math.floor(distanceMeters))
-    nameGui.Label.TextColor3 = enemyVisible and colorVisible or colorHidden
-    
-    local billboardGui = hrp:FindFirstChild("MatrixBillboardEsp")
+    local billboardGui = head:FindFirstChild("AdvancedEspBillboard")
     if not billboardGui then
         billboardGui = Instance.new("BillboardGui")
-        billboardGui.Name = "MatrixBillboardEsp"
-        billboardGui.Size = UDim2.new(0, 50, 0, 80)
+        billboardGui.Name = "AdvancedEspBillboard"
+        billboardGui.Size = UDim2.new(0, 130, 0, 150)
         billboardGui.AlwaysOnTop = true
+        billboardGui.ExtentsOffset = Vector3.new(0, -1.5, 0)
         
         local boxFrame = Instance.new("Frame")
         boxFrame.Name = "BoxFrame"
         boxFrame.Size = UDim2.new(1, 0, 1, 0)
         boxFrame.BackgroundTransparency = 1
-        
-        local boxStroke = Instance.new("UIStroke")
-        boxStroke.Name = "BoxStroke"
-        boxStroke.Thickness = 2
-        boxStroke.Parent = boxFrame
-        
         boxFrame.Parent = billboardGui
         
-        local hpBg = Instance.new("Frame")
-        hpBg.Name = "RightHpBg"
-        hpBg.BackgroundColor3 = Color3.fromRGB(45, 10, 10)
-        hpBg.BorderSizePixel = 0
-        hpBg.Parent = boxFrame
+        local stroke = Instance.new("UIStroke")
+        stroke.Name = "BoxStroke"
+        stroke.Thickness = 2
+        stroke.Color = Color3.fromRGB(255, 0, 0)
+        stroke.Parent = boxFrame
+        
+        local hpBackground = Instance.new("Frame")
+        hpBackground.Name = "HpBackground"
+        hpBackground.Size = UDim2.new(0, 6, 1, 0)
+        hpBackground.Position = UDim2.new(1, 6, 0, 0)
+        hpBackground.BackgroundColor3 = Color3.fromRGB(60, 10, 10)
+        hpBackground.BorderSizePixel = 0
+        hpBackground.Parent = boxFrame
         
         local hpBar = Instance.new("Frame")
-        hpBar.Name = "RightHpFill"
+        hpBar.Name = "HpBar"
+        hpBar.Size = UDim2.new(1, 0, 1, 0)
+        hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
         hpBar.BorderSizePixel = 0
-        hpBar.Parent = hpBg
+        hpBar.Parent = hpBackground
         
-        billboardGui.Parent = hrp
+        local infoLabel = Instance.new("TextLabel")
+        infoLabel.Name = "InfoLabel"
+        infoLabel.Size = UDim2.new(1, 0, 0, 20)
+        infoLabel.Position = UDim2.new(0, 0, 0, -25)
+        infoLabel.BackgroundTransparency = 1
+        infoLabel.Font = Enum.Font.SourceSansBold
+        infoLabel.TextSize = 14
+        infoLabel.Parent = billboardGui
+        
+        billboardGui.Parent = head
     end
+    
+    local myHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local distanceMeters = 0
+    if myHrp and root then
+        distanceMeters = (root.Position - myHrp.Position).Magnitude
+    end
+    
+    billboardGui.InfoLabel.Text = string.format("%s [%dм]", player.Name, math.floor(distanceMeters))
+    billboardGui.InfoLabel.TextColor3 = enemyVisible and colorVisible or colorHidden
     
     local boxFrame = billboardGui:FindFirstChild("BoxFrame")
     if boxFrame then
-        local boxStroke = boxFrame:FindFirstChild("BoxStroke")
-        if boxStroke then
-            boxStroke.Color = enemyVisible and colorVisible or colorHidden
+        local stroke = boxFrame:FindFirstChild("BoxStroke")
+        if stroke then
+            stroke.Color = enemyVisible and colorVisible or colorHidden
         end
         
         local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-        local hpBg = boxFrame:FindFirstChild("RightHpBg")
-        local hpFill = hpBg and hpBg:FindFirstChild("RightHpFill")
-        if hpBg and hpFill then
-            hpBg.Size = UDim2.new(0, 5, 1, 0)
-            hpBg.Position = UDim2.new(1, 6, 0, 0)
-            hpFill.Size = UDim2.new(1, 0, healthRatio, 0)
-            hpFill.Position = UDim2.new(0, 0, 1 - healthRatio, 0)
-            hpFill.BackgroundColor3 = Color3.fromHSV(healthRatio * 0.33, 1, 1)
+        local hpBg = boxFrame:FindFirstChild("HpBackground")
+        local hpBar = hpBg and hpBg:FindFirstChild("HpBar")
+        if hpBg and hpBar then
+            hpBar.Size = UDim2.new(1, 0, healthRatio, 0)
+            hpBar.Position = UDim2.new(0, 0, 1 - healthRatio, 0)
+            hpBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
         end
     end
     
-    local enemyAttachment = hrp:FindFirstChild("EnemyTracerAttachment")
-    if not enemyAttachment then
-        enemyAttachment = Instance.new("Attachment")
-        enemyAttachment.Name = "EnemyTracerAttachment"
-        enemyAttachment.Parent = hrp
+    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+    local line = createScreenLine(player.Name .. "_Tracer")
+    
+    if onScreen then
+        local startX = Camera.ViewportSize.X / 2
+        local startY = Camera.ViewportSize.Y
+        local endX = rPos.X
+        local endY = rPos.Y
+        local distanceX = endX - startX
+        local distanceY = endY - startY
+        local lineLength = math.sqrt(distanceX * distanceX + distanceY * distanceY)
+        local angle = math.atan2(distanceY, distanceX)
+        
+        line.Visible = true
+        line.Size = UDim2.new(0, 2, 0, lineLength)
+        line.Position = UDim2.new(0, startX, 0, startY)
+        line.Rotation = math.deg(angle) - 90
+        line.BackgroundColor3 = enemyVisible and colorVisible or colorHidden
+    else
+        line.Visible = false
     end
     
-    local beam = Camera:FindFirstChild(player.Name .. "_BeamTracer")
-    if not beam then
-        beam = Instance.new("Beam")
-        beam.Name = player.Name .. "_BeamTracer"
-        beam.Width0 = 0.05
-        beam.Width1 = 0.05
-        beam.FaceCamera = true
-        beam.LightInfluence = 0
-        beam.Attachment0 = LocalTracerAttachment
-        beam.Attachment1 = enemyAttachment
-        beam.Parent = Camera
-    end
-    
-    beam.Color = ColorSequence.new(enemyVisible and colorVisible or colorHidden)
-    
-    local highlight = character:FindFirstChild("MatrixEspHighlight")
+    local highlight = character:FindFirstChild("EspPlayerHighlight")
     if not highlight then
         highlight = Instance.new("Highlight")
-        highlight.Name = "MatrixEspHighlight"
-        highlight.FillTransparency = 0.5
+        highlight.Name = "EspPlayerHighlight"
+        highlight.FillTransparency = 0.85
         highlight.OutlineTransparency = 0
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         highlight.Parent = character
     end
     highlight.OutlineColor = enemyVisible and colorVisible or colorHidden
@@ -801,28 +801,21 @@ local function removePlayerEsp(player)
     if char then
         local head = char:FindFirstChild("Head")
         if head then
-            local tGui = head:FindFirstChild("NameDistanceEspGui")
-            if tGui then tGui:Destroy() end
+            local billboardGui = head:FindFirstChild("AdvancedEspBillboard")
+            if billboardGui then billboardGui:Destroy() end
         end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local bGui = hrp:FindFirstChild("MatrixBillboardEsp")
-            if bGui then bGui:Destroy() end
-            local attachment = hrp:FindFirstChild("EnemyTracerAttachment")
-            if attachment then attachment:Destroy() end
-        end
-        local highlight = char:FindFirstChild("MatrixEspHighlight")
+        local highlight = char:FindFirstChild("EspPlayerHighlight")
         if highlight then highlight:Destroy() end
     end
-    local beam = Camera:FindFirstChild(player.Name .. "_BeamTracer")
-    if beam then beam:Destroy() end
+    local line = DrawingContainer:FindFirstChild(player.Name .. "_Tracer")
+    if line then line:Destroy() end
 end
 
 RunService.RenderStepped:Connect(function()
     local targetPlayer = getClosestVisibleEnemy()
     local folder = getCharactersFolder()
     
-    if thirdPersonActive then
+    if thirdPersonEnabled then
         LocalPlayer.CameraMaxZoomDistance = 12
         LocalPlayer.CameraMinZoomDistance = 12
     end
@@ -837,7 +830,7 @@ RunService.RenderStepped:Connect(function()
     
     if aimMode ~= "Выкл" and targetPlayer then
         FOVStroke.Color = Color3.fromRGB(0, 255, 0)
-        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0, 0.95)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
         
         local currentTargetPartName = aimTarget
         if aimMode == "Сайлент Аим" then
@@ -851,25 +844,22 @@ RunService.RenderStepped:Connect(function()
                 if aimMode == "Обычный Аим" then
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
                 elseif aimMode == "Сайлент Аим" then
-                    if isUserTouchingToFire or UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
-                        local originalCameraCFrame = Camera.CFrame
-                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                        task.defer(function()
-                            Camera.CFrame = originalCameraCFrame
-                        end)
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    if onScreen and (UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetMouseLocation() > 0) then
+                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), 1)
                     end
                 end
             end
         end
     else
         FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0, 0.95)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     end
     
     if bHopEnabled and myChar then
         local humanoid = myChar:FindFirstChildOfClass("Humanoid")
         if humanoid and humanoid.Health > 0 then
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) or isUserTouchingToFire then
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:GetMouseLocation() then
                 if humanoid.FloorMaterial ~= Enum.Material.Air then
                     humanoid.Jump = true
                 end
