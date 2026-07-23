@@ -1,9 +1,9 @@
 --!strict
 --[[
-    Block Strike Ultimate Monolith Engine (Perfected ESP & AimToHead)
-    Монолитный скрипт: Точные TikTok-боксы со сменой цвета, динамический индикатор видимости (красный/зеленый),
-    регулировка высоты прицела/круга через ползунок в меню, жесткий аим строго в голову,
-    и полное удаление отдачи/разброса внутри модуля оружия.
+    Block Strike Ultimate Monolith Engine (Silent Aim + Strict Team Check ESP)
+    Интегрирован Silent Aim с перехватом Mouse Hit/Target через hookmetamethod,
+    строгая проверка команд для ESP (союзники полностью игнорируются),
+    настройка No-Recoil/NoSpread для Delta, скинченджер и кастомизируемый FOV.
 ]]--
 
 local Players = game:GetService("Players")
@@ -15,25 +15,25 @@ local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
 -- Глобальные настройки
-_G.AimAssistEnabled = false
+_G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
 _G.SkinChangerEnabled = false
 _G.BulletTracersEnabled = false 
 _G.FullBrightEnabled = false
-_G.AimSmoothness = 0.18
+_G.SilentPrediction = 0.165
 _G.AimFOV = 140
-_G.TargetPart = "Head" -- Строго в голову
 _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.TracerColor = Color3.fromRGB(0, 255, 255)
 _G.ESPTheme = "Green" -- "Green", "Blue", "Yellow"
 _G.FOVYOffset = 0 -- Смещение круга FOV по вертикали через ползунок
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeUltimateMonolithFinal"
+ScreenGui.Name = "BlockStrikeSilentMonolith"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -77,8 +77,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 380, 0, 720)
-MainMenu.Position = UDim2.new(0.5, -190, 0.5, -360)
+MainMenu.Size = UDim2.new(0, 380, 0, 740)
+MainMenu.Position = UDim2.new(0.5, -190, 0.5, -370)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -96,7 +96,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ BLOCK STRIKE ULTIMATE (HEADSHOT EDITION) ⚡"
+TitleLabel.Text = "⚡ SILENT AIM & TEAM ESP EDITION ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 12
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -125,7 +125,7 @@ ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 900)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -158,11 +158,11 @@ local function createButton(name, text, defaultColor)
     return btn
 end
 
-local AimButton = createButton("AimButton", "Aim Assist (Строго в голову): ВЫКЛ")
+local SilentAimButton = createButton("SilentAimButton", "Silent Aim (В голову): ВЫКЛ")
 local NoSpreadButton = createButton("NoSpreadButton", "Удаление Отдачи/Разброса (Delta): ВЫКЛ")
 local TracersButton = createButton("TracersButton", "Трассеры Пуль: ВЫКЛ")
 local SkinButton = createButton("SkinButton", "Скинченджер (Оружие + Нож): ВЫКЛ")
-local ESPToggle = createButton("ESPToggle", "TikTok ESP (Как на скриншоте): ВКЛ", Color3.fromRGB(0, 100, 60))
+local ESPToggle = createButton("ESPToggle", "TikTok ESP (Без союзников): ВКЛ", Color3.fromRGB(0, 100, 60))
 local ThemeButton = createButton("ThemeButton", "Цвет ВХ (Зеленый / Синий / Желтый): Зеленый")
 local FullBrightButton = createButton("FullBrightButton", "Ночное Виденье: ВЫКЛ")
 
@@ -278,7 +278,6 @@ local function updateFOV(radius)
 end
 updateFOV(_G.AimFOV)
 
--- Управление слайдерами через мышь/тач
 SliderBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         draggingSlider = true
@@ -308,17 +307,114 @@ UserInputService.InputChanged:Connect(function(input)
         local rX = input.Position.X - YSliderBar.AbsolutePosition.X
         local percentage = math.clamp(rX / YSliderBar.AbsoluteSize.X, 0, 1)
         YSliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-        _G.FOVYOffset = (percentage - 0.5) * 400 -- смещение от -200 до +200 пикселей вверх/вниз
+        _G.FOVYOffset = (percentage - 0.5) * 400
         YSliderLabel.Text = "Высота круга (Y): " .. tostring(math.round(_G.FOVYOffset)) .. " px"
         updateCenter()
     end
 end)
 
--- Переключение кнопок
-AimButton.MouseButton1Click:Connect(function()
-    _G.AimAssistEnabled = not _G.AimAssistEnabled
-    AimButton.BackgroundColor3 = _G.AimAssistEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    AimButton.Text = _G.AimAssistEnabled and "Aim Assist (Строго в голову): ВКЛ" or "Aim Assist (Строго в голову): ВЫКЛ"
+-- Проверка врагов (Строгая проверка команды: союзники полностью игнорируются)
+local function isEnemy(targetPlayer)
+    if not targetPlayer or targetPlayer == LocalPlayer then return false end
+    if targetPlayer.Team and LocalPlayer.Team then
+        return targetPlayer.Team ~= LocalPlayer.Team
+    end
+    -- Если команды не заданы по цветам, но есть атрибуты или теги кланов
+    return true
+end
+
+local function getCharacter(player)
+    if player == LocalPlayer then return player.Character end
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") then 
+        return char 
+    end
+    for _, child in ipairs(Workspace:GetChildren()) do
+        if child:IsA("Model") and child.Name == player.Name then
+            if child:FindFirstChild("HumanoidRootPart") and child:FindFirstChild("Head") then
+                return child
+            end
+        end
+    end
+    return nil
+end
+
+-- Проверка видимости через рейкаст
+local function IsVisibleFast(targetPart)
+    local character = LocalPlayer.Character
+    if not character then return false end
+    local head = character:FindFirstChild("Head")
+    if not head then return false end
+    
+    local _, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+    if not onScreen then return false end
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {character, targetPart.Parent}
+    raycastParams.IgnoreWater = true
+    
+    local origin = Camera.CFrame.Position
+    local direction = targetPart.Position - origin
+    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+    
+    if raycastResult == nil or raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
+        return true
+    end
+    return false
+end
+
+-- Поиск лучшей цели в голову для Silent Aim
+local function GetSilentTargetHead()
+    local closestTarget = nil
+    local shortestDistance = _G.AimFOV
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if not isEnemy(player) then continue end
+        local char = getCharacter(player)
+        if char and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid.Health > 0 then
+                local headPart = char.Head
+                local screenPos, onScreen = Camera:WorldToViewportPoint(headPart.Position)
+                
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    if distance < shortestDistance then
+                        if IsVisibleFast(headPart) then
+                            shortestDistance = distance
+                            closestTarget = headPart
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+-- Перехватчик мыши для Silent Aim (в стиле скрипта со скриншота)
+local __index
+__index = hookmetamethod(game, "__index", function(t, k)
+    if _G.SilentAimEnabled and t:IsA("Mouse") and (k == "Hit" or k == "Target") then
+        local targetHead = GetSilentTargetHead()
+        if targetHead then
+            local predictedHit = targetHead.CFrame + (targetHead.AssemblyLinearVelocity * _G.SilentPrediction)
+            if k == "Hit" then
+                return predictedHit
+            elseif k == "Target" then
+                return targetHead
+            end
+        end
+    end
+    return __index(t, k)
+end)
+
+-- Кнопки интерфейса
+SilentAimButton.MouseButton1Click:Connect(function()
+    _G.SilentAimEnabled = not _G.SilentAimEnabled
+    SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim (В голову): ВКЛ" or "Silent Aim (В голову): ВЫКЛ"
 end)
 
 NoSpreadButton.MouseButton1Click:Connect(function()
@@ -375,102 +471,15 @@ ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
         ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        ESPToggle.Text = "TikTok ESP (Как на скриншоте): ВКЛ"
+        ESPToggle.Text = "TikTok ESP (Без союзников): ВКЛ"
     else
         ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-        ESPToggle.Text = "TikTok ESP (Как на скриншоте): ВЫКЛ"
+        ESPToggle.Text = "TikTok ESP (Без союзников): ВЫКЛ"
         for playerName, _ in pairs(cacheDrawingObjects) do
             removeEsp(playerName)
         end
     end
 end)
-
-local function isEnemy(targetPlayer)
-    if not targetPlayer or targetPlayer == LocalPlayer then return false end
-    if targetPlayer.Team and LocalPlayer.Team then
-        return targetPlayer.Team ~= LocalPlayer.Team
-    end
-    return true
-end
-
-local function getCharacter(player)
-    if player == LocalPlayer then return player.Character end
-    local char = player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") then 
-        return char 
-    end
-    for _, child in ipairs(Workspace:GetChildren()) do
-        if child:IsA("Model") and child.Name == player.Name then
-            if child:FindFirstChild("HumanoidRootPart") and child:FindFirstChild("Head") then
-                return child
-            end
-        end
-    end
-    return nil
-end
-
--- Проверка видимости через рейкаст (преграды)
-local function IsVisibleFast(targetPart)
-    local character = LocalPlayer.Character
-    if not character then return false end
-    local head = character:FindFirstChild("Head")
-    if not head then return false end
-    
-    local _, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-    if not onScreen then return false end
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {character, targetPart.Parent}
-    raycastParams.IgnoreWater = true
-    
-    local origin = Camera.CFrame.Position
-    local direction = targetPart.Position - origin
-    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
-    
-    if raycastResult == nil or raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
-        return true -- Виден (нет преград)
-    end
-    return false -- За препятствием
-end
-
-local cachedTarget = nil
-local lastTargetUpdate = 0
-local TARGET_UPDATE_INTERVAL = 0.05
-
--- Аим строго в голову (TargetPart всегда "Head")
-local function GetHeadTarget()
-    if tick() - lastTargetUpdate > TARGET_UPDATE_INTERVAL then
-        cachedTarget = nil
-        local closestTarget = nil
-        local shortestDistance = _G.AimFOV
-
-        for _, player in ipairs(Players:GetPlayers()) do
-            if not isEnemy(player) then continue end
-            local char = getCharacter(player)
-            if char and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid.Health > 0 then
-                    local headPart = char.Head
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(headPart.Position)
-                    
-                    if onScreen then
-                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        if distance < shortestDistance then
-                            if IsVisibleFast(headPart) then
-                                shortestDistance = distance
-                                closestTarget = headPart
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        cachedTarget = closestTarget
-        lastTargetUpdate = tick()
-    end
-    return cachedTarget
-end
 
 local function createPlayerDrawingObjects(playerName)
     if not DrawingSupported then return nil end
@@ -511,99 +520,19 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- Обработка стрельбы и трассеров
-local tracerPool = {}
-local MAX_TRACERS = 5
-local isShooting = false
-
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isShooting = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isShooting = false
-    end
-end)
-
-local function CreateBulletTracerOptimized(originPos, targetPos)
-    if #tracerPool >= MAX_TRACERS then
-        local old = table.remove(tracerPool, 1)
-        pcall(function()
-            if old.PartA then old.PartA:Destroy() end
-            if old.PartB then old.PartB:Destroy() end
-        end)
-    end
-    pcall(function()
-        local partA = Instance.new("Part")
-        partA.Size = Vector3.new(0.1, 0.1, 0.1)
-        partA.Position = originPos
-        partA.Transparency = 1
-        partA.Anchored = true
-        partA.CanCollide = false
-        partA.Parent = Workspace
-
-        local partB = Instance.new("Part")
-        partB.Size = Vector3.new(0.1, 0.1, 0.1)
-        partB.Position = targetPos
-        partB.Transparency = 1
-        partB.Anchored = true
-        partB.CanCollide = false
-        partB.Parent = Workspace
-
-        local attachmentA = Instance.new("Attachment", partA)
-        local attachmentB = Instance.new("Attachment", partB)
-
-        local beam = Instance.new("Beam")
-        beam.Attachment0 = attachmentA
-        beam.Attachment1 = attachmentB
-        beam.Color = ColorSequence.new(_G.TracerColor)
-        beam.Width0 = 0.12
-        beam.Width1 = 0.12
-        beam.Texture = "rbxassetid://6079958617" 
-        beam.TextureMode = Enum.TextureMode.Wrap
-        beam.TextureSpeed = 5
-        beam.LightEmission = 1
-        beam.LightInfluence = 0
-        beam.Parent = partA
-
-        table.insert(tracerPool, {PartA = partA, PartB = partB})
-
-        task.delay(0.08, function()
-            pcall(function()
-                partA:Destroy()
-                partB:Destroy()
-            end)
-            for i, v in ipairs(tracerPool) do
-                if v.PartA == partA then
-                    table.remove(tracerPool, i)
-                    break
-                end
-            end
-        end)
-    end)
-end
-
--- Главный цикл отрисовки и логики
+-- Логика подсветки FOV круга для Silent Aim
 RunService.RenderStepped:Connect(function()
-    -- Aim Assist в голову с проверкой FOV круга (зеленый если внутри, красный если пусто)
-    if _G.AimAssistEnabled then
-        local targetHead = GetHeadTarget()
+    if _G.SilentAimEnabled then
+        local targetHead = GetSilentTargetHead()
         if targetHead then
             FOVStroke.Color = Color3.fromRGB(0, 255, 150)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.AimSmoothness)
         else
             FOVStroke.Color = Color3.fromRGB(255, 0, 0)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         end
     end
 
-    -- Fullbright
     if _G.FullBrightEnabled then
         Lighting.Brightness = 2
         Lighting.ClockTime = 14
@@ -611,7 +540,7 @@ RunService.RenderStepped:Connect(function()
         Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     end
 
-    -- Удаление отдачи и разброса на карте Delta (внутри структуры оружия / ModuleScript / Attributes)
+    -- Удаление отдачи/разброса на карте Delta
     if _G.NoSpreadEnabled and LocalPlayer.Character then
         pcall(function()
             for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -624,7 +553,6 @@ RunService.RenderStepped:Connect(function()
                     tool:SetAttribute("Kickback", 0)
                     tool:SetAttribute("Sway", 0)
                     
-                    -- Попытка залезть в ModuleScript конфигурации оружия если таковой присутствует внутри Tool
                     for _, descendant in ipairs(tool:GetDescendants()) do
                         if descendant:IsA("ModuleScript") then
                             pcall(function()
@@ -673,7 +601,7 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
--- Отрисовка ESP (TikTok стиль: зеленый если виден, красный если за препятствием)
+-- Рендер ESP (Исключительно противники, союзники игнорируются)
 local lastEspUpdate = 0
 local ESP_THROTTLE = 0.03
 RunService.RenderStepped:Connect(function()
@@ -692,6 +620,8 @@ RunService.RenderStepped:Connect(function()
         if player == LocalPlayer then continue end
 
         local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
+        
+        -- СТРОГАЯ ПРОВЕРКА: Если игрок союзник, полностью убираем ВХ с него
         if not isEnemy(player) then
             removeEsp(player.Name)
             continue
@@ -711,7 +641,6 @@ RunService.RenderStepped:Connect(function()
                     local height = math.abs(topPos.Y - bottomPos.Y)
                     local width = height * 0.55
                     
-                    -- Проверка: за преградой или нет (Красный если за стеной, Цвет темы если виден)
                     local isVisible = IsVisibleFast(head)
                     local dynamicColor = isVisible and baseThemeColor or Color3.fromRGB(255, 40, 40)
                     
