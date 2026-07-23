@@ -328,13 +328,9 @@ local colorVisible = Color3.fromRGB(0, 255, 150)
 local colorHidden = Color3.fromRGB(255, 40, 40)
 
 local screenCenter = Vector2.new(0, 0)
-local cacheDrawingObjects = {}
-
-local ColorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
-if not ColorCorrection then
-    ColorCorrection = Instance.new("ColorCorrectionEffect")
-    ColorCorrection.Parent = Lighting
-end
+local espGuisContainer = {}
+local draggingSlider = false
+local draggingSpeedSlider = false
 
 local function updateCenter()
     local viewportSize = Camera.ViewportSize
@@ -378,15 +374,6 @@ end)
 CloseButton.MouseButton1Click:Connect(function()
     MainMenu.Visible = false
 end)
-
-local function updateFOV(radius)
-    fovRadius = radius
-    FOVCircle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
-    local roundedRadius = math.round(radius)
-    SliderLabel.Text = "Радиус FOV: " .. tostring(roundedRadius) .. " px"
-end
-
-updateFOV(fovRadius)
 
 SliderBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -460,35 +447,27 @@ TargetButton.MouseButton1Click:Connect(function()
 end)
 
 local function setDrawingVisibility(playerName, state)
-    if cacheDrawingObjects[playerName] then
-        local data = cacheDrawingObjects[playerName]
-        data.Box.Visible = state
-        data.HpBackground.Visible = state
-        data.HpFill.Visible = state
-        data.Text.Visible = state
+    if espGuisContainer[playerName] then
+        local data = espGuisContainer[playerName]
+        data.Billboard.Enabled = state
     end
 end
 
 local function cleanAllVisuals()
-    for name, _ in pairs(cacheDrawingObjects) do
-        if cacheDrawingObjects[name] then
-            local data = cacheDrawingObjects[name]
-            data.Box.Visible = false
-            data.HpBackground.Visible = false
-            data.HpFill.Visible = false
-            data.Text.Visible = false
+    for name, _ in pairs(espGuisContainer) do
+        if espGuisContainer[name] then
+            espGuisContainer[name].Billboard.Enabled = false
         end
     end
 end
 
 local function hardRemovePlayerDrawing(playerName)
-    if cacheDrawingObjects[playerName] then
-        local data = cacheDrawingObjects[playerName]
-        data.Box:Remove()
-        data.HpBackground:Remove()
-        data.HpFill:Remove()
-        data.Text:Remove()
-        cacheDrawingObjects[playerName] = nil
+    if espGuisContainer[playerName] then
+        local data = espGuisContainer[playerName]
+        if data.Billboard then
+            data.Billboard:Destroy()
+        end
+        espGuisContainer[playerName] = nil
     end
 end
 
@@ -522,14 +501,11 @@ ThirdPersonToggle.MouseButton1Click:Connect(function()
         thirdPersonEnabled = false
         ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         ThirdPersonToggle.Text = "3 ЛИЦО: ВЫКЛ"
-        LocalPlayer.CameraMaxZoomDistance = 0.5
-        LocalPlayer.CameraMinZoomDistance = 0.5
+        Camera.CameraType = Enum.CameraType.Custom
     else
         thirdPersonEnabled = true
         ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
         ThirdPersonToggle.Text = "3 ЛИЦО: ВКЛ"
-        LocalPlayer.CameraMaxZoomDistance = 12
-        LocalPlayer.CameraMinZoomDistance = 12
     end
 end)
 
@@ -573,18 +549,6 @@ ColorButton.MouseButton1Click:Connect(function()
     ColorButton.Text = "Гамма: " .. currentGammaMode
 end)
 
-local function getCharactersFolder()
-    local folderPlayers = Workspace:FindFirstChild("Players")
-    if folderPlayers then
-        return folderPlayers
-    end
-    local folderEntities = Workspace:FindFirstChild("Entities")
-    if folderEntities then
-        return folderEntities
-    end
-    return Workspace
-end
-
 local function isEnemy(targetPlayer)
     if targetPlayer == LocalPlayer then
         return false
@@ -605,10 +569,44 @@ local function isEnemy(targetPlayer)
             return false
         end
     end
+    local localSideAttr = LocalPlayer:GetAttribute("Side")
+    local targetSideAttr = targetPlayer:GetAttribute("Side")
+    if localSideAttr and targetSideAttr then
+        if localSideAttr ~= targetSideAttr then
+            return true
+        else
+            return false
+        end
+    end
+    local teamValueObj = targetPlayer:FindFirstChild("Team")
+    local localTeamValueObj = LocalPlayer:FindFirstChild("Team")
+    if teamValueObj and localTeamValueObj then
+        if teamValueObj.Value ~= localTeamValueObj.Value then
+            return true
+        else
+            return false
+        end
+    end
     if targetPlayer.TeamColor ~= LocalPlayer.TeamColor and targetPlayer.TeamColor ~= Color3.fromRGB(255, 255, 255) then
         return true
     end
     return false
+end
+
+local function scanCharacterModel(player)
+    local nameToSearch = player.Name
+    local workspaceDescendants = Workspace:GetDescendants()
+    for i = 1, #workspaceDescendants do
+        local object = workspaceDescendants[i]
+        if object:IsA("Model") and object.Name == nameToSearch then
+            local hum = object:FindFirstChildOfClass("Humanoid")
+            local hrp = object:FindFirstChild("HumanoidRootPart")
+            if hum and hrp then
+                return object
+            end
+        end
+    end
+    return nil
 end
 
 local function isValidTarget(character)
@@ -640,14 +638,14 @@ local function isValidTarget(character)
     return true
 end
 
-local function isVisible(targetPart)
-    local character = LocalPlayer.Character
-    if not character then
+local function isVisible(targetPart, charModel)
+    local localChar = LocalPlayer.Character
+    if not localChar then
         return false
     end
-    local originPart = character:FindFirstChild("Head")
+    local originPart = localChar:FindFirstChild("Head")
     if not originPart then
-        originPart = character:FindFirstChild("HumanoidRootPart")
+        originPart = localChar:FindFirstChild("HumanoidRootPart")
     end
     if not originPart then
         return false
@@ -657,7 +655,7 @@ local function isVisible(targetPart)
     local directionVector = targetPosition - originPosition
     local raycastParameters = RaycastParams.new()
     raycastParameters.FilterType = Enum.RaycastFilterType.Exclude
-    local exclusionList = {character, targetPart.Parent, getCharactersFolder()}
+    local exclusionList = {localChar, charModel, Camera}
     raycastParameters.FilterDescendantsInstances = exclusionList
     raycastParameters.IgnoreWater = true
     local raycastResult = workspace:Raycast(originPosition, directionVector, raycastParameters)
@@ -681,13 +679,12 @@ local function getClosestEnemyToTouch(inputCenter)
     if aimMode == "Сайлент Аим" then
         currentTargetPartName = "Head"
     end
-    local folder = getCharactersFolder()
     local playerList = Players:GetPlayers()
     for i = 1, #playerList do
         local player = playerList[i]
         local enemyCheck = isEnemy(player)
         if enemyCheck == true then
-            local char = folder:FindFirstChild(player.Name)
+            local char = scanCharacterModel(player)
             if char then
                 local targetValidation = isValidTarget(char)
                 if targetValidation == true then
@@ -698,7 +695,7 @@ local function getClosestEnemyToTouch(inputCenter)
                             local mousePos = Vector2.new(screenPos.X, screenPos.Y)
                             local distance = (mousePos - inputCenter).Magnitude
                             if distance <= fovRadius and distance < shortestDistance then
-                                local wallCheck = isVisible(targetPart)
+                                local wallCheck = isVisible(targetPart, char)
                                 if wallCheck == true then
                                     shortestDistance = distance
                                     closestPlayer = player
@@ -713,111 +710,121 @@ local function getClosestEnemyToTouch(inputCenter)
     return closestPlayer
 end
 
-local function createPlayerDrawingObjects(playerName)
-    if not cacheDrawingObjects[playerName] then
+local function createPlayerNativeEsp(player, charModel)
+    if not espGuisContainer[player.Name] then
         local data = {}
-        local squareBox = Drawing.new("Square")
-        squareBox.Thickness = 2
-        squareBox.Filled = false
-        squareBox.Transparency = 1
-        squareBox.Visible = false
-        data.Box = squareBox
+        local bGui = Instance.new("BillboardGui")
+        bGui.Name = "BS_Esp_Billboard"
+        bGui.Size = UDim2.new(0, 150, 0, 100)
+        bGui.AlwaysOnTop = true
+        bGui.ResetOnSpawn = false
         
-        local bgSquare = Drawing.new("Square")
-        bgSquare.Thickness = 1
-        bgSquare.Filled = true
-        bgSquare.Color = Color3.fromRGB(60, 10, 10)
-        bgSquare.Transparency = 0.8
-        bgSquare.Visible = false
-        data.HpBackground = bgSquare
+        local boxFrame = Instance.new("Frame")
+        boxFrame.Name = "BoxFrame"
+        boxFrame.Size = UDim2.new(0.6, 0, 0.8, 0)
+        boxFrame.Position = UDim2.new(0.2, 0, 0.1, 0)
+        boxFrame.BackgroundTransparency = 1
+        boxFrame.Parent = bGui
         
-        local fillSquare = Drawing.new("Square")
-        fillSquare.Thickness = 1
-        fillSquare.Filled = true
-        fillSquare.Color = Color3.fromRGB(0, 255, 150)
-        fillSquare.Transparency = 1
-        fillSquare.Visible = false
-        data.HpFill = fillSquare
+        local stroke = Instance.new("UIStroke")
+        stroke.Name = "BoxStroke"
+        stroke.Thickness = 2
+        stroke.Color = colorHidden
+        stroke.Parent = boxFrame
         
-        local textObject = Drawing.new("Text")
-        textObject.Size = 14
-        textObject.Center = true
-        textObject.Outline = true
-        textObject.OutlineColor = Color3.fromRGB(0, 0, 0)
-        textObject.Color = Color3.fromRGB(255, 255, 255)
-        textObject.Transparency = 1
-        textObject.Visible = false
-        data.Text = textObject
+        local hpBg = Instance.new("Frame")
+        hpBg.Name = "HpBg"
+        hpBg.Size = UDim2.new(0, 4, 1, 0)
+        hpBg.Position = UDim2.new(1, 4, 0, 0)
+        hpBg.BackgroundColor3 = Color3.fromRGB(60, 10, 10)
+        hpBg.BorderSizePixel = 0
+        hpBg.Parent = boxFrame
         
-        cacheDrawingObjects[playerName] = data
+        local hpFill = Instance.new("Frame")
+        hpFill.Name = "HpFill"
+        hpFill.Size = UDim2.new(1, 0, 1, 0)
+        hpFill.Position = UDim2.new(0, 0, 0, 0)
+        hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+        hpFill.BorderSizePixel = 0
+        hpFill.Parent = hpBg
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Name = "InfoLabel"
+        textLabel.Size = UDim2.new(1, 0, 0, 15)
+        textLabel.Position = UDim2.new(0, 0, 0, -18)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.TextSize = 13
+        textLabel.TextColor3 = colorHidden
+        textLabel.TextStrokeTransparency = 0
+        textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.Parent = boxFrame
+        
+        local rootPart = charModel:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            bGui.Parent = rootPart
+        end
+        
+        data.Billboard = bGui
+        data.Box = boxFrame
+        data.Stroke = stroke
+        data.HpBg = hpBg
+        data.HpFill = hpFill
+        data.Text = textLabel
+        
+        espGuisContainer[player.Name] = data
     end
-    return cacheDrawingObjects[playerName]
+    return espGuisContainer[player.Name]
 end
 
-local function drawPlayerEspOverlay(player, character, enemyVisible)
-    local head = character:FindFirstChild("Head")
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not head or not humanoid or not root then
-        if cacheDrawingObjects[player.Name] then
-            local data = cacheDrawingObjects[player.Name]
-            data.Box.Visible = false
-            data.HpBackground.Visible = false
-            data.HpFill.Visible = false
-            data.Text.Visible = false
+local function removeNativeEsp(playerName)
+    if espGuisContainer[playerName] then
+        local data = espGuisContainer[playerName]
+        if data.Billboard then
+            data.Billboard:Destroy()
         end
+        espGuisContainer[playerName] = nil
+    end
+end
+
+local function updateNativeEspLogic(player, charModel, enemyVisible)
+    local root = charModel:FindFirstChild("HumanoidRootPart")
+    local head = charModel:FindFirstChild("Head")
+    local humanoid = charModel:FindFirstChildOfClass("Humanoid")
+    if not root or not head or not humanoid then
         return
     end
     
-    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-    local data = createPlayerDrawingObjects(player.Name)
+    local data = createPlayerNativeEsp(player, charModel)
+    if data.Billboard.Parent ~= root then
+        data.Billboard.Parent = root
+    end
     
-    if onScreen == true and espEnabled == true then
-        local topPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
-        local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-        local height = math.abs(topPos.Y - bottomPos.Y)
-        local width = height * 0.55
+    if espEnabled == true then
+        data.Billboard.Enabled = true
+        
+        local myChar = LocalPlayer.Character
+        local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local distance = 0
+        if myHrp then
+            distance = (root.Position - myHrp.Position).Magnitude
+        end
+        local roundedDist = math.floor(distance)
+        data.Text.Text = player.Name .. " [" .. tostring(roundedDist) .. "м]"
+        
         local currentBoxColor = colorHidden
         if enemyVisible == true then
             currentBoxColor = colorVisible
         end
+        data.Stroke.Color = currentBoxColor
+        data.Text.TextColor3 = currentBoxColor
         
-        data.Box.Size = Vector2.new(width, height)
-        data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
-        data.Box.Color = currentBoxColor
-        data.Box.Visible = true
-        
-        local barWidth = 4
-        local barOffset = 6
         local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-        
-        data.HpBackground.Size = Vector2.new(barWidth, height)
-        data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - barOffset - barWidth, topPos.Y)
-        data.HpBackground.Visible = true
-        
-        local fillHeight = height * healthRatio
-        data.HpFill.Size = Vector2.new(barWidth, fillHeight)
-        data.HpFill.Position = Vector2.new(rPos.X - width / 2 - barOffset - barWidth, topPos.Y + (height - fillHeight))
-        local redFactor = 255 * (1 - healthRatio)
-        local greenFactor = 255 * healthRatio
-        data.HpFill.Color = Color3.fromRGB(redFactor, greenFactor, 0)
-        data.HpFill.Visible = true
-        
-        local myHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local distanceMeters = 0
-        if myHrp and root then
-            distanceMeters = (root.Position - myHrp.Position).Magnitude
-        end
-        local floorDistance = math.floor(distanceMeters)
-        data.Text.Text = player.Name .. " [" .. tostring(floorDistance) .. "м]"
-        data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
-        data.Text.Color = currentBoxColor
-        data.Text.Visible = true
+        data.HpFill.Size = UDim2.new(1, 0, healthRatio, 0)
+        data.HpFill.Position = UDim2.new(0, 0, 1 - healthRatio, 0)
+        data.HpFill.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
     else
-        data.Box.Visible = false
-        data.HpBackground.Visible = false
-        data.HpFill.Visible = false
-        data.Text.Visible = false
+        data.Billboard.Enabled = false
     end
 end
 
@@ -826,7 +833,10 @@ for i = 1, #initialPlayers do
     local p = initialPlayers[i]
     local check = isEnemy(p)
     if check == true then
-        createPlayerDrawingObjects(p.Name)
+        local char = scanCharacterModel(p)
+        if char then
+            createPlayerNativeEsp(p, char)
+        end
     end
 end
 
@@ -835,25 +845,39 @@ Players.PlayerAdded:Connect(function(player)
         task.wait(0.5)
         local check = isEnemy(player)
         if check == true then
-            createPlayerDrawingObjects(player.Name)
+            local char = scanCharacterModel(player)
+            if char then
+                createPlayerNativeEsp(player.Name, char)
+            end
         end
     end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    hardRemovePlayerDrawing(player.Name)
 end)
 
 RunService.RenderStepped:Connect(function()
     local currentTouchPos = getTouchOrMousePosition()
     local targetPlayer = getClosestEnemyToTouch(currentTouchPos)
     local folder = getCharactersFolder()
+    local myChar = LocalPlayer.Character
     
-    if thirdPersonEnabled == true then
-        LocalPlayer.CameraMaxZoomDistance = 12
-        LocalPlayer.CameraMinZoomDistance = 12
+    if thirdPersonEnabled == true and myChar then
+        local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+        if myHrp then
+            Camera.CameraType = Enum.CameraType.Scriptable
+            local targetCamCFrame = myHrp.CFrame * CFrame.new(0, 3.5, 12)
+            Camera.CFrame = CFrame.new(targetCamCFrame.Position, myHrp.Position + Vector3.new(0, 1.5, 0))
+        end
     else
-        LocalPlayer.CameraMaxZoomDistance = 0.5
-        LocalPlayer.CameraMinZoomDistance = 0.5
+        if Camera.CameraType == Enum.CameraType.Scriptable and aimMode == "Выкл" then
+            Camera.CameraType = Enum.CameraType.Custom
+            LocalPlayer.CameraMaxZoomDistance = 0.5
+            LocalPlayer.CameraMinZoomDistance = 0.5
+        end
     end
     
-    local myChar = LocalPlayer.Character
     if myChar then
         local myHumanoid = myChar:FindFirstChildOfClass("Humanoid")
         if myHumanoid then
@@ -871,7 +895,7 @@ RunService.RenderStepped:Connect(function()
             currentTargetPartName = aimTarget
         end
         
-        local char = folder:FindFirstChild(targetPlayer.Name)
+        local char = scanCharacterModel(targetPlayer)
         if char then
             local validCheck = isValidTarget(char)
             if validCheck == true then
@@ -886,8 +910,10 @@ RunService.RenderStepped:Connect(function()
                             local isPressed = UserInputService:IsMouseButtonPressed(Enum.MouseButton1)
                             local activeTouches = UserInputService:GetMouseLocation()
                             if isPressed == true or #activeTouches > 0 then
-                                local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.25)
+                                local originalCameraCFrame = Camera.CFrame
+                                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+                                task.wait()
+                                Camera.CFrame = originalCameraCFrame
                             end
                         end
                     end
@@ -918,7 +944,7 @@ RunService.RenderStepped:Connect(function()
     for i = 1, #allPlayers do
         local player = allPlayers[i]
         if player ~= LocalPlayer then
-            local char = folder:FindFirstChild(player.Name)
+            local char = scanCharacterModel(player)
             if char then
                 if espEnabled == true then
                     local enemyCheck = isEnemy(player)
@@ -927,57 +953,33 @@ RunService.RenderStepped:Connect(function()
                         if targetValidation == true then
                             local root = char:FindFirstChild("HumanoidRootPart")
                             if root then
-                                local enemyVisible = isVisible(root)
-                                drawPlayerEspOverlay(player, char, enemyVisible)
+                                local enemyVisible = isVisible(root, char)
+                                updateNativeEspLogic(player, char, enemyVisible)
                             else
-                                if cacheDrawingObjects[player.Name] then
-                                    local data = cacheDrawingObjects[player.Name]
-                                    data.Box.Visible = false
-                                    data.HpBackground.Visible = false
-                                    data.HpFill.Visible = false
-                                    data.Text.Visible = false
+                                if espGuisContainer[player.Name] then
+                                    espGuisContainer[player.Name].Billboard.Enabled = false
                                 end
                             end
                         else
-                            if cacheDrawingObjects[player.Name] then
-                                local data = cacheDrawingObjects[player.Name]
-                                data.Box.Visible = false
-                                data.HpBackground.Visible = false
-                                data.HpFill.Visible = false
-                                data.Text.Visible = false
+                            if espGuisContainer[player.Name] then
+                                espGuisContainer[player.Name].Billboard.Enabled = false
                             end
                         end
                     else
-                        if cacheDrawingObjects[player.Name] then
-                            local data = cacheDrawingObjects[player.Name]
-                            data.Box.Visible = false
-                            data.HpBackground.Visible = false
-                            data.HpFill.Visible = false
-                            data.Text.Visible = false
+                        if espGuisContainer[player.Name] then
+                            espGuisContainer[player.Name].Billboard.Enabled = false
                         end
                     end
                 else
-                    if cacheDrawingObjects[player.Name] then
-                        local data = cacheDrawingObjects[player.Name]
-                        data.Box.Visible = false
-                        data.HpBackground.Visible = false
-                        data.HpFill.Visible = false
-                        data.Text.Visible = false
+                    if espGuisContainer[player.Name] then
+                        espGuisContainer[player.Name].Billboard.Enabled = false
                     end
                 end
             else
-                if cacheDrawingObjects[player.Name] then
-                    local data = cacheDrawingObjects[player.Name]
-                    data.Box.Visible = false
-                    data.HpBackground.Visible = false
-                    data.HpFill.Visible = false
-                    data.Text.Visible = false
+                if espGuisContainer[player.Name] then
+                    espGuisContainer[player.Name].Billboard.Enabled = false
                 end
             end
         end
     end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    hardRemovePlayerDrawing(player.Name)
 end)
