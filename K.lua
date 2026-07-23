@@ -1,7 +1,7 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Complete Version with Namecall Silent Aim & Multi-Layer Team Check)
-    Без сокращений и пропусков. Полный монолитный скрипт для Delta / iPad.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Optimized Complete Version with Cached Namecall Silent Aim & Multi-Layer Team Check)
+    Без сокращений и пропусков. Полный монолитный оптимизированный скрипт для Delta / iPad.
 ]]--
 
 local Players = game:GetService("Players")
@@ -463,36 +463,72 @@ local function IsVisible(targetPart)
     return raycastResult == nil
 end
 
--- Единый выбор цели (строго по хедшотам внутри FOV и с проверкой isEnemy)
+-- Оптимизированная проверка видимости с лимитом дистанции
+local function IsVisibleFast(targetPart)
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local head = character:FindFirstChild("Head")
+    if not head then return false end
+    
+    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+    if not onScreen then return false end
+    
+    local distance = (targetPart.Position - head.Position).Magnitude
+    if distance < 50 then
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.FilterDescendantsInstances = {character, targetPart.Parent}
+        raycastParams.IgnoreWater = true
+        
+        local origin = Camera.CFrame.Position
+        local direction = targetPart.Position - origin
+        local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+        return raycastResult == nil or raycastResult.Instance:IsDescendantOf(targetPart.Parent)
+    end
+    
+    return true
+end
+
+-- Кэшированная функция выбора цели (интервал 50мс для устранения лагов)
+local cachedTarget = nil
+local lastTargetUpdate = 0
+local TARGET_UPDATE_INTERVAL = 0.05
+
 local function GetUnifiedTarget()
-    local closestTarget = nil
-    local shortestDistance = _G.AimFOV
+    if tick() - lastTargetUpdate > TARGET_UPDATE_INTERVAL then
+        cachedTarget = nil
+        local closestTarget = nil
+        local shortestDistance = _G.AimFOV
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if not isEnemy(player) then
-            continue
-        end
+        for _, player in ipairs(Players:GetPlayers()) do
+            if not isEnemy(player) then
+                continue
+            end
 
-        local char = getCharacter(player)
-        if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid.Health > 0 then
-                local targetPart = char[_G.TargetPart]
-                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                    if distance < shortestDistance then
-                        if IsVisible(targetPart) then
-                            shortestDistance = distance
-                            closestTarget = targetPart
+            local char = getCharacter(player)
+            if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid.Health > 0 then
+                    local targetPart = char[_G.TargetPart]
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    
+                    if onScreen then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if distance < shortestDistance then
+                            if IsVisibleFast(targetPart) then
+                                shortestDistance = distance
+                                closestTarget = targetPart
+                            end
                         end
                     end
                 end
             end
         end
+        cachedTarget = closestTarget
+        lastTargetUpdate = tick()
     end
-    return closestTarget
+    return cachedTarget
 end
 
 local function createPlayerDrawingObjects(playerName)
@@ -570,27 +606,56 @@ local function CreateBulletTracer(originPos, targetPos)
     end)
 end
 
--- Хук Namecall для перехвата лучей (FindPartOnRayWithIgnoreList и им подобных) под Silent Aim
+-- Отслеживание выстрелов для оптимизированного хука Namecall
+local isShooting = false
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isShooting = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isShooting = false
+    end
+end)
+
+-- Оптимизированный хук Namecall для перехвата лучей строго во время выстрела
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
     local Arguments = {...}
     
-    if _G.SilentAimEnabled and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FindPartOnRayWithWhitelist") then
-        local target = GetUnifiedTarget()
-        if target then
-            local origin = Arguments[1].Origin
-            local direction = (target.Position - origin)
-            
-            if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRayWithWhitelist" then
-                -- Аргумент 2 = Ray.new(Origin, Direction * UnitLength)
-                local unitLength = Arguments[2].Direction.Magnitude
-                Arguments[2] = Ray.new(origin, direction.Unit * unitLength)
-            elseif Method == "FindPartOnRay" then
-                Arguments[1] = Ray.new(origin, direction)
+    if _G.SilentAimEnabled and isShooting and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FindPartOnRayWithWhitelist") then
+        local caller = self
+        local isValidCaller = false
+        
+        if caller and caller.Parent then
+            local char = LocalPlayer.Character
+            if char then
+                local tool = caller.Parent
+                if (tool:IsA("Tool") and tool.Parent == char) or (caller.Parent == char) then
+                    isValidCaller = true
+                end
             end
-            
-            return oldNamecall(self, unpack(Arguments))
+        end
+        
+        if isValidCaller then
+            local target = GetUnifiedTarget()
+            if target then
+                local origin = Arguments[1].Origin
+                local direction = (target.Position - origin)
+                
+                if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRayWithWhitelist" then
+                    local unitLength = Arguments[2].Direction.Magnitude
+                    Arguments[2] = Ray.new(origin, direction.Unit * unitLength)
+                elseif Method == "FindPartOnRay" then
+                    Arguments[1] = Ray.new(origin, direction)
+                end
+                
+                return oldNamecall(self, unpack(Arguments))
+            end
         end
     end
     
@@ -616,7 +681,6 @@ RunService.RenderStepped:Connect(function()
 
     -- 2. Визуализация трассеров пуль при выстреле
     if _G.BulletTracersEnabled then
-        local isShooting = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled
         if isShooting and (tick() - lastShotTick > 0.08) then
             lastShotTick = tick()
             pcall(function()
@@ -685,7 +749,6 @@ RunService.RenderStepped:Connect(function()
 
         local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
 
-        -- Строгая проверка: если игрок — союзник, мгновенно убираем бокс и пропускаем
         if not isEnemy(player) then
             removeEsp(player.Name)
             continue
