@@ -34,11 +34,11 @@ FOVCorner.Parent = FOVCircle
 
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "MenuButton"
-MenuButton.Size = UDim2.new(0, 55, 0, 55)
-MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
-MenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MenuButton.Size = UDim2.new(0, 60, 0, 60)
+MenuButton.Position = UDim2.new(0, 20, 0, 20)
+MenuButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MenuButton.Text = "⚙️"
-MenuButton.TextSize = 26
+MenuButton.TextSize = 28
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuButton.Parent = ScreenGui
 
@@ -48,45 +48,45 @@ MenuButtonCorner.Parent = MenuButton
 
 local MenuButtonStroke = Instance.new("UIStroke")
 MenuButtonStroke.Thickness = 2
-MenuButtonStroke.Color = Color3.fromRGB(100, 100, 100)
+MenuButtonStroke.Color = Color3.fromRGB(0, 255, 150)
 MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 340, 0, 680)
-MainMenu.Position = UDim2.new(0.5, -170, 0.5, -340)
-MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainMenu.Size = UDim2.new(0, 360, 0, 640)
+MainMenu.Position = UDim2.new(0.5, -180, 0.5, -320)
+MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
 
 local MainMenuCorner = Instance.new("UICorner")
-MainMenuCorner.CornerRadius = UDim.new(0.04, 0)
+MainMenuCorner.CornerRadius = UDim.new(0.05, 0)
 MainMenuCorner.Parent = MainMenu
 
 local MainMenuStroke = Instance.new("UIStroke")
 MainMenuStroke.Thickness = 2
-MainMenuStroke.Color = Color3.fromRGB(60, 60, 60)
+MainMenuStroke.Color = Color3.fromRGB(0, 255, 150)
 MainMenuStroke.Parent = MainMenu
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, 0, 0, 45)
-TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-TitleLabel.Text = "iPad Pro 11 Ultimate Menu"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Size = UDim2.new(1, 0, 0, 50)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+TitleLabel.Text = "⚡ BLOCK STRIKE ULTIMATE ⚡"
+TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainMenu
 
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0.15, 0)
+TitleCorner.CornerRadius = UDim.new(0.2, 0)
 TitleCorner.Parent = TitleLabel
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 32, 0, 32)
-CloseButton.Position = UDim2.new(1, -38, 0, 6)
-CloseButton.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+CloseButton.Size = UDim2.new(0, 34, 0, 34)
+CloseButton.Position = UDim2.new(1, -42, 0, 8)
+CloseButton.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
 CloseButton.Text = "❌"
 CloseButton.TextSize = 14
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -96,64 +96,79 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0.3, 0)
 CloseCorner.Parent = CloseButton
 
+local ContentFrame = Instance.new("ScrollingFrame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, -20, 1, -70)
+ContentFrame.Position = UDim2.new(0, 10, 0, 60)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
+ContentFrame.ScrollBarThickness = 4
+ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
+ContentFrame.Parent = MainMenu
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 12)
+UIListLayout.Parent = ContentFrame
+
 local ModeButton = Instance.new("TextButton")
 ModeButton.Name = "ModeButton"
-ModeButton.Size = UDim2.new(0, 300, 0, 45)
-ModeButton.Position = UDim2.new(0.5, -150, 0, 65)
-ModeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ModeButton.Size = UDim2.new(1, 0, 0, 45)
+ModeButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 ModeButton.Text = "Режим: Выкл"
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ModeButton.TextSize = 16
 ModeButton.Font = Enum.Font.SourceSansBold
-ModeButton.Parent = MainMenu
-
 local ModeCorner = Instance.new("UICorner")
 ModeCorner.CornerRadius = UDim.new(0.2, 0)
 ModeCorner.Parent = ModeButton
-
 local ModeStroke = Instance.new("UIStroke")
 ModeStroke.Thickness = 1
-ModeStroke.Color = Color3.fromRGB(80, 80, 80)
+ModeStroke.Color = Color3.fromRGB(40, 40, 45)
 ModeStroke.Parent = ModeButton
+ModeButton.Parent = ContentFrame
 
 local TargetButton = Instance.new("TextButton")
 TargetButton.Name = "TargetButton"
-TargetButton.Size = UDim2.new(0, 300, 0, 45)
-TargetButton.Position = UDim2.new(0.5, -150, 0, 125)
-TargetButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TargetButton.Size = UDim2.new(1, 0, 0, 45)
+TargetButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 TargetButton.Text = "Цель: Head"
 TargetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 TargetButton.TextSize = 16
 TargetButton.Font = Enum.Font.SourceSansBold
-TargetButton.Parent = MainMenu
-
 local TargetCorner = Instance.new("UICorner")
 TargetCorner.CornerRadius = UDim.new(0.2, 0)
 TargetCorner.Parent = TargetButton
-
 local TargetStroke = Instance.new("UIStroke")
 TargetStroke.Thickness = 1
-TargetStroke.Color = Color3.fromRGB(80, 80, 80)
+TargetStroke.Color = Color3.fromRGB(40, 40, 45)
 TargetStroke.Parent = TargetButton
+TargetButton.Parent = ContentFrame
+
+local SliderContainer = Instance.new("Frame")
+SliderContainer.Name = "SliderContainer"
+SliderContainer.Size = UDim2.new(1, 0, 0, 55)
+SliderContainer.BackgroundTransparency = 1
+SliderContainer.Parent = ContentFrame
 
 local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Name = "SliderLabel"
-SliderLabel.Size = UDim2.new(0, 300, 0, 25)
-SliderLabel.Position = UDim2.new(0.5, -150, 0, 190)
+SliderLabel.Size = UDim2.new(1, 0, 0, 20)
 SliderLabel.BackgroundTransparency = 1
 SliderLabel.Text = "Радиус FOV: 100 px"
-SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SliderLabel.TextSize = 16
+SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+SliderLabel.TextSize = 14
 SliderLabel.Font = Enum.Font.SourceSansBold
-SliderLabel.Parent = MainMenu
+SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+SliderLabel.Parent = SliderContainer
 
 local SliderBar = Instance.new("Frame")
 SliderBar.Name = "SliderBar"
-SliderBar.Size = UDim2.new(0, 300, 0, 12)
-SliderBar.Position = UDim2.new(0.5, -150, 0, 225)
-SliderBar.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+SliderBar.Size = UDim2.new(1, 0, 0, 8)
+SliderBar.Position = UDim2.new(0, 0, 0, 30)
+SliderBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 SliderBar.BorderSizePixel = 0
-SliderBar.Parent = MainMenu
+SliderBar.Parent = SliderContainer
 
 local SliderBarCorner = Instance.new("UICorner")
 SliderBarCorner.CornerRadius = UDim.new(1, 0)
@@ -161,10 +176,10 @@ SliderBarCorner.Parent = SliderBar
 
 local SliderBtn = Instance.new("TextButton")
 SliderBtn.Name = "SliderBtn"
-SliderBtn.Size = UDim2.new(0, 22, 0, 22)
+SliderBtn.Size = UDim2.new(0, 20, 0, 20)
 SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 SliderBtn.Position = UDim2.new(0.318, 0, 0.5, 0)
-SliderBtn.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
+SliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
 SliderBtn.Text = ""
 SliderBtn.Parent = SliderBar
 
@@ -172,109 +187,98 @@ local SliderBtnCorner = Instance.new("UICorner")
 SliderBtnCorner.CornerRadius = UDim.new(1, 0)
 SliderBtnCorner.Parent = SliderBtn
 
-local SliderBtnStroke = Instance.new("UIStroke")
-SliderBtnStroke.Thickness = 1
-SliderBtnStroke.Color = Color3.fromRGB(0, 0, 0)
-SliderBtnStroke.Parent = SliderBtn
-
 local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
-ESPToggle.Size = UDim2.new(0, 300, 0, 45)
-ESPToggle.Position = UDim2.new(0.5, -150, 0, 265)
-ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+ESPToggle.Size = UDim2.new(1, 0, 0, 45)
+ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
 ESPToggle.Text = "ESP: ВКЛ"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.TextSize = 16
 ESPToggle.Font = Enum.Font.SourceSansBold
-ESPToggle.Parent = MainMenu
-
-local ESPToggleCorner = Instance.new("UICorner")
-ESPToggleCorner.CornerRadius = UDim.new(0.2, 0)
-ESPToggleCorner.Parent = ESPToggle
-
-local ESPToggleStroke = Instance.new("UIStroke")
-ESPToggleStroke.Thickness = 1
-ESPToggleStroke.Color = Color3.fromRGB(80, 80, 80)
-ESPToggleStroke.Parent = ESPToggle
+local ESPCorner = Instance.new("UICorner")
+ESPCorner.CornerRadius = UDim.new(0.2, 0)
+ESPCorner.Parent = ESPToggle
+local ESPStroke = Instance.new("UIStroke")
+ESPStroke.Thickness = 1
+ESPStroke.Color = Color3.fromRGB(40, 40, 45)
+ESPStroke.Parent = ESPToggle
+ESPToggle.Parent = ContentFrame
 
 local BHopToggle = Instance.new("TextButton")
 BHopToggle.Name = "BHopToggle"
-BHopToggle.Size = UDim2.new(0, 300, 0, 45)
-BHopToggle.Position = UDim2.new(0.5, -150, 0, 325)
-BHopToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+BHopToggle.Size = UDim2.new(1, 0, 0, 45)
+BHopToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
 BHopToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 BHopToggle.TextSize = 16
 BHopToggle.Font = Enum.Font.SourceSansBold
-BHopToggle.Parent = MainMenu
-
-local BHopToggleCorner = Instance.new("UICorner")
-BHopToggleCorner.CornerRadius = UDim.new(0.2, 0)
-BHopToggleCorner.Parent = BHopToggle
-
-local BHopToggleStroke = Instance.new("UIStroke")
-BHopToggleStroke.Thickness = 1
-BHopToggleStroke.Color = Color3.fromRGB(80, 80, 80)
-BHopToggleStroke.Parent = BHopToggle
+local BHopCorner = Instance.new("UICorner")
+BHopCorner.CornerRadius = UDim.new(0.2, 0)
+BHopCorner.Parent = BHopToggle
+local BHopStroke = Instance.new("UIStroke")
+BHopStroke.Thickness = 1
+BHopStroke.Color = Color3.fromRGB(40, 40, 45)
+BHopStroke.Parent = BHopToggle
+BHopToggle.Parent = ContentFrame
 
 local ThirdPersonToggle = Instance.new("TextButton")
 ThirdPersonToggle.Name = "ThirdPersonToggle"
-ThirdPersonToggle.Size = UDim2.new(0, 300, 0, 45)
-ThirdPersonToggle.Position = UDim2.new(0.5, -150, 0, 385)
-ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+ThirdPersonToggle.Size = UDim2.new(1, 0, 0, 45)
+ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 ThirdPersonToggle.Text = "3 ЛИЦО: ВЫКЛ"
 ThirdPersonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ThirdPersonToggle.TextSize = 16
 ThirdPersonToggle.Font = Enum.Font.SourceSansBold
-ThirdPersonToggle.Parent = MainMenu
-
 local ThirdPersonCorner = Instance.new("UICorner")
 ThirdPersonCorner.CornerRadius = UDim.new(0.2, 0)
 ThirdPersonCorner.Parent = ThirdPersonToggle
-
 local ThirdPersonStroke = Instance.new("UIStroke")
 ThirdPersonStroke.Thickness = 1
-ThirdPersonStroke.Color = Color3.fromRGB(80, 80, 80)
+ThirdPersonStroke.Color = Color3.fromRGB(40, 40, 45)
 ThirdPersonStroke.Parent = ThirdPersonToggle
+ThirdPersonToggle.Parent = ContentFrame
 
 local SkyButton = Instance.new("TextButton")
 SkyButton.Name = "SkyButton"
-SkyButton.Size = UDim2.new(0, 300, 0, 45)
-SkyButton.Position = UDim2.new(0.5, -150, 0, 445)
-SkyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SkyButton.Size = UDim2.new(1, 0, 0, 45)
+SkyButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 SkyButton.Text = "Небо: Обычное"
 SkyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SkyButton.TextSize = 16
 SkyButton.Font = Enum.Font.SourceSansBold
-SkyButton.Parent = MainMenu
-
 local SkyCorner = Instance.new("UICorner")
 SkyCorner.CornerRadius = UDim.new(0.2, 0)
 SkyCorner.Parent = SkyButton
-
 local SkyStroke = Instance.new("UIStroke")
 SkyStroke.Thickness = 1
-SkyStroke.Color = Color3.fromRGB(80, 80, 80)
+SkyStroke.Color = Color3.fromRGB(40, 40, 45)
 SkyStroke.Parent = SkyButton
+SkyButton.Parent = ContentFrame
+
+local SpeedContainer = Instance.new("Frame")
+SpeedContainer.Name = "SpeedContainer"
+SpeedContainer.Size = UDim2.new(1, 0, 0, 55)
+SpeedContainer.BackgroundTransparency = 1
+SpeedContainer.Parent = ContentFrame
 
 local SpeedLabel = Instance.new("TextLabel")
 SpeedLabel.Name = "SpeedLabel"
-SpeedLabel.Size = UDim2.new(0, 300, 0, 25)
-SpeedLabel.Position = UDim2.new(0.5, -150, 0, 505)
+SpeedLabel.Size = UDim2.new(1, 0, 0, 20)
 SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Text = "Множитель Скорости: x1"
-SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedLabel.TextSize = 16
+SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+SpeedLabel.TextSize = 14
 SpeedLabel.Font = Enum.Font.SourceSansBold
-SpeedLabel.Parent = MainMenu
+SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+SpeedLabel.Parent = SpeedContainer
 
 local SpeedBar = Instance.new("Frame")
 SpeedBar.Name = "SpeedBar"
-SpeedBar.Size = UDim2.new(0, 300, 0, 12)
-SpeedBar.Position = UDim2.new(0.5, -150, 0, 540)
-SpeedBar.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+SpeedBar.Size = UDim2.new(1, 0, 0, 8)
+SpeedBar.Position = UDim2.new(0, 0, 0, 30)
+SpeedBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 SpeedBar.BorderSizePixel = 0
-SpeedBar.Parent = MainMenu
+SpeedBar.Parent = SpeedContainer
 
 local SpeedBarCorner = Instance.new("UICorner")
 SpeedBarCorner.CornerRadius = UDim.new(1, 0)
@@ -282,10 +286,10 @@ SpeedBarCorner.Parent = SpeedBar
 
 local SpeedBtn = Instance.new("TextButton")
 SpeedBtn.Name = "SpeedBtn"
-SpeedBtn.Size = UDim2.new(0, 22, 0, 22)
+SpeedBtn.Size = UDim2.new(0, 20, 0, 20)
 SpeedBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 SpeedBtn.Position = UDim2.new(0, 0, 0.5, 0)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
 SpeedBtn.Text = ""
 SpeedBtn.Parent = SpeedBar
 
@@ -293,41 +297,22 @@ local SpeedBtnCorner = Instance.new("UICorner")
 SpeedBtnCorner.CornerRadius = UDim.new(1, 0)
 SpeedBtnCorner.Parent = SpeedBtn
 
-local SpeedBtnStroke = Instance.new("UIStroke")
-SpeedBtnStroke.Thickness = 1
-SpeedBtnStroke.Color = Color3.fromRGB(0, 0, 0)
-SpeedBtnStroke.Parent = SpeedBtn
-
 local ColorButton = Instance.new("TextButton")
 ColorButton.Name = "ColorButton"
-ColorButton.Size = UDim2.new(0, 300, 0, 45)
-ColorButton.Position = UDim2.new(0.5, -150, 0, 580)
-ColorButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ColorButton.Size = UDim2.new(1, 0, 0, 45)
+ColorButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 ColorButton.Text = "Гамма: Стандарт"
 ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ColorButton.TextSize = 16
 ColorButton.Font = Enum.Font.SourceSansBold
-ColorButton.Parent = MainMenu
-
 local ColorCorner = Instance.new("UICorner")
 ColorCorner.CornerRadius = UDim.new(0.2, 0)
 ColorCorner.Parent = ColorButton
-
 local ColorStroke = Instance.new("UIStroke")
 ColorStroke.Thickness = 1
-ColorStroke.Color = Color3.fromRGB(80, 80, 80)
+ColorStroke.Color = Color3.fromRGB(40, 40, 45)
 ColorStroke.Parent = ColorButton
-
-local CreditLabel = Instance.new("TextLabel")
-CreditLabel.Name = "CreditLabel"
-CreditLabel.Size = UDim2.new(1, 0, 0, 30)
-CreditLabel.Position = UDim2.new(0, 0, 1, -35)
-CreditLabel.BackgroundTransparency = 1
-CreditLabel.Text = "Premium Multi-Hack Setup for iPad Pro"
-CreditLabel.TextColor3 = Color3.fromRGB(130, 130, 130)
-CreditLabel.TextSize = 13
-CreditLabel.Font = Enum.Font.SourceSansItalic
-CreditLabel.Parent = MainMenu
+ColorButton.Parent = ContentFrame
 
 local fovRadius = 100
 local aimMode = "Выкл"
@@ -339,11 +324,10 @@ local currentSkyMode = "Обычное"
 local currentGammaMode = "Стандарт"
 local speedMultiplier = 1
 
-local colorVisible = Color3.fromRGB(0, 255, 0)
-local colorHidden = Color3.fromRGB(255, 0, 0)
+local colorVisible = Color3.fromRGB(0, 255, 150)
+local colorHidden = Color3.fromRGB(255, 40, 40)
 
 local screenCenter = Vector2.new(0, 0)
-local menuButtonPosition = nil
 local cacheDrawingObjects = {}
 
 local ColorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
@@ -355,58 +339,39 @@ end
 local function updateCenter()
     local viewportSize = Camera.ViewportSize
     local guiInset = GuiService:GetGuiInset()
-    screenCenter = Vector2.new(viewportSize.X / 2, (viewportSize.Y + guiInset.Y) / 2)
-    FOVCircle.Position = UDim2.new(0, screenCenter.X, 0, screenCenter.Y)
-    if not menuButtonPosition then
-        MenuButton.Position = UDim2.new(0, screenCenter.X, 0, screenCenter.Y)
-    end
+    local calculatedX = viewportSize.X / 2
+    local calculatedY = (viewportSize.Y + guiInset.Y) / 2
+    screenCenter = Vector2.new(calculatedX, calculatedY)
+    FOVCircle.Position = UDim2.new(0, calculatedX, 0, calculatedY)
 end
 
-Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateCenter)
+Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    local viewportSize = Camera.ViewportSize
+    local guiInset = GuiService:GetGuiInset()
+    local calculatedX = viewportSize.X / 2
+    local calculatedY = (viewportSize.Y + guiInset.Y) / 2
+    screenCenter = Vector2.new(calculatedX, calculatedY)
+    FOVCircle.Position = UDim2.new(0, calculatedX, 0, calculatedY)
+end)
+
 updateCenter()
 
 task.spawn(function()
     while task.wait(0.5) do
-        updateCenter()
-    end
-end)
-
-local draggingButton = false
-local dragInputButton = nil
-local dragStartButton = nil
-local startPosButton = nil
-
-MenuButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingButton = true
-        dragStartButton = input.Position
-        startPosButton = MenuButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingButton = false
-            end
-        end)
-    end
-end)
-
-MenuButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInputButton = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInputButton and draggingButton then
-        local delta = input.Position - dragStartButton
-        local newPos = UDim2.new(startPosButton.X.Scale, startPosButton.X.Offset + delta.X, startPosButton.Y.Scale, startPosButton.Y.Offset + delta.Y)
-        MenuButton.Position = newPos
-        menuButtonPosition = newPos
+        local viewportSize = Camera.ViewportSize
+        local guiInset = GuiService:GetGuiInset()
+        local calculatedX = viewportSize.X / 2
+        local calculatedY = (viewportSize.Y + guiInset.Y) / 2
+        screenCenter = Vector2.new(calculatedX, calculatedY)
+        FOVCircle.Position = UDim2.new(0, calculatedX, 0, calculatedY)
     end
 end)
 
 MenuButton.MouseButton1Click:Connect(function()
-    if not draggingButton then
-        MainMenu.Visible = not MainMenu.Visible
+    if MainMenu.Visible == true then
+        MainMenu.Visible = false
+    else
+        MainMenu.Visible = true
     end
 end)
 
@@ -417,20 +382,11 @@ end)
 local function updateFOV(radius)
     fovRadius = radius
     FOVCircle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
-    SliderLabel.Text = "Радиус FOV: " .. tostring(math.round(radius)) .. " px"
+    local roundedRadius = math.round(radius)
+    SliderLabel.Text = "Радиус FOV: " .. tostring(roundedRadius) .. " px"
 end
 
 updateFOV(fovRadius)
-
-local draggingSlider = false
-
-local function moveSlider(input)
-    local rX = input.Position.X - SliderBar.AbsolutePosition.X
-    local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
-    SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-    local newRadius = 30 + (percentage * 220)
-    updateFOV(newRadius)
-end
 
 SliderBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -445,20 +401,17 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        moveSlider(input)
+    if draggingSlider == true and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local rX = input.Position.X - SliderBar.AbsolutePosition.X
+        local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
+        SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
+        local newRadius = 30 + (percentage * 220)
+        fovRadius = newRadius
+        FOVCircle.Size = UDim2.new(0, newRadius * 2, 0, newRadius * 2)
+        local roundedRadius = math.round(newRadius)
+        SliderLabel.Text = "Радиус FOV: " .. tostring(roundedRadius) .. " px"
     end
 end)
-
-local draggingSpeedSlider = false
-
-local function moveSpeedSlider(input)
-    local rX = input.Position.X - SpeedBar.AbsolutePosition.X
-    local percentage = math.clamp(rX / SpeedBar.AbsoluteSize.X, 0, 1)
-    SpeedBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-    speedMultiplier = 1 + (percentage * 4)
-    SpeedLabel.Text = "Множитель Скорости: x" .. string.format("%.1f", speedMultiplier)
-end
 
 SpeedBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -473,21 +426,26 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if draggingSpeedSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        moveSpeedSlider(input)
+    if draggingSpeedSlider == true and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local rX = input.Position.X - SpeedBar.AbsolutePosition.X
+        local percentage = math.clamp(rX / SpeedBar.AbsoluteSize.X, 0, 1)
+        SpeedBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
+        local calculatedMultiplier = 1 + (percentage * 4)
+        speedMultiplier = calculatedMultiplier
+        SpeedLabel.Text = "Множитель Скорости: x" .. string.format("%.1f", calculatedMultiplier)
     end
 end)
 
 ModeButton.MouseButton1Click:Connect(function()
     if aimMode == "Выкл" then
         aimMode = "Обычный Аим"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
+        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
     elseif aimMode == "Обычный Аим" then
         aimMode = "Сайлент Аим"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 0, 140)
+        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 60, 140)
     else
         aimMode = "Выкл"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        ModeButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     end
     ModeButton.Text = "Режим: " .. aimMode
 end)
@@ -501,56 +459,77 @@ TargetButton.MouseButton1Click:Connect(function()
     TargetButton.Text = "Цель: " .. aimTarget
 end)
 
-local function clearDrawingForPlayer(playerName)
+local function setDrawingVisibility(playerName, state)
     if cacheDrawingObjects[playerName] then
         local data = cacheDrawingObjects[playerName]
-        if data.Box then data.Box:Remove() end
-        if data.HpBackground then data.HpBackground:Remove() end
-        if data.HpFill then data.HpFill:Remove() end
-        if data.Text then data.Text:Remove() end
-        cacheDrawingObjects[playerName] = nil
+        data.Box.Visible = state
+        data.HpBackground.Visible = state
+        data.HpFill.Visible = state
+        data.Text.Visible = state
     end
 end
 
 local function cleanAllVisuals()
     for name, _ in pairs(cacheDrawingObjects) do
-        clearDrawingForPlayer(name)
+        if cacheDrawingObjects[name] then
+            local data = cacheDrawingObjects[name]
+            data.Box.Visible = false
+            data.HpBackground.Visible = false
+            data.HpFill.Visible = false
+            data.Text.Visible = false
+        end
+    end
+end
+
+local function hardRemovePlayerDrawing(playerName)
+    if cacheDrawingObjects[playerName] then
+        local data = cacheDrawingObjects[playerName]
+        data.Box:Remove()
+        data.HpBackground:Remove()
+        data.HpFill:Remove()
+        data.Text:Remove()
+        cacheDrawingObjects[playerName] = nil
     end
 end
 
 ESPToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    if espEnabled then
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
-        ESPToggle.Text = "ESP: ВКЛ"
-    else
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+    if espEnabled == true then
+        espEnabled = false
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
         ESPToggle.Text = "ESP: ВЫКЛ"
         cleanAllVisuals()
+    else
+        espEnabled = true
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
+        ESPToggle.Text = "ESP: ВКЛ"
     end
 end)
 
 BHopToggle.MouseButton1Click:Connect(function()
-    bHopEnabled = not bHopEnabled
-    if bHopEnabled then
-        BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛ"
-    else
-        BHopToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+    if bHopEnabled == true then
+        bHopEnabled = false
+        BHopToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
+    else
+        bHopEnabled = true
+        BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
+        BHopToggle.Text = "BUNNYHOP: ВКЛ"
     end
 end)
 
 ThirdPersonToggle.MouseButton1Click:Connect(function()
-    thirdPersonEnabled = not thirdPersonEnabled
-    if thirdPersonEnabled then
-        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
-        ThirdPersonToggle.Text = "3 ЛИЦО: ВКЛ"
-    else
-        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+    if thirdPersonEnabled == true then
+        thirdPersonEnabled = false
+        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         ThirdPersonToggle.Text = "3 ЛИЦО: ВЫКЛ"
         LocalPlayer.CameraMaxZoomDistance = 0.5
         LocalPlayer.CameraMinZoomDistance = 0.5
+    else
+        thirdPersonEnabled = true
+        ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
+        ThirdPersonToggle.Text = "3 ЛИЦО: ВКЛ"
+        LocalPlayer.CameraMaxZoomDistance = 12
+        LocalPlayer.CameraMinZoomDistance = 12
     end
 end)
 
@@ -595,29 +574,55 @@ ColorButton.MouseButton1Click:Connect(function()
 end)
 
 local function getCharactersFolder()
-    return Workspace:FindFirstChild("Players") or Workspace:FindFirstChild("Entities") or Workspace
+    local folderPlayers = Workspace:FindFirstChild("Players")
+    if folderPlayers then
+        return folderPlayers
+    end
+    local folderEntities = Workspace:FindFirstChild("Entities")
+    if folderEntities then
+        return folderEntities
+    end
+    return Workspace
 end
 
 local function isEnemy(targetPlayer)
-    if targetPlayer == LocalPlayer then return false end
-    if targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team ~= LocalPlayer.Team then
-        return true
+    if targetPlayer == LocalPlayer then
+        return false
+    end
+    if targetPlayer.Team and LocalPlayer.Team then
+        if targetPlayer.Team ~= LocalPlayer.Team then
+            return true
+        else
+            return false
+        end
     end
     local localTeamAttr = LocalPlayer:GetAttribute("Team")
     local targetTeamAttr = targetPlayer:GetAttribute("Team")
-    if localTeamAttr and targetTeamAttr and localTeamAttr ~= targetTeamAttr then
-        return true
+    if localTeamAttr and targetTeamAttr then
+        if localTeamAttr ~= targetTeamAttr then
+            return true
+        else
+            return false
+        end
     end
-    if targetPlayer.TeamColor ~= LocalPlayer.TeamColor and targetPlayer.TeamColor ~= string.format("White") then
+    if targetPlayer.TeamColor ~= LocalPlayer.TeamColor and targetPlayer.TeamColor ~= Color3.fromRGB(255, 255, 255) then
         return true
     end
     return false
 end
 
 local function isValidTarget(character)
-    if not character then return false end
+    if not character then
+        return false
+    end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 or humanoid:GetState() == Enum.HumanoidStateType.Dead then
+    if not humanoid then
+        return false
+    end
+    if humanoid.Health <= 0 then
+        return false
+    end
+    if humanoid:GetState() == Enum.HumanoidStateType.Dead then
         return false
     end
     local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -625,7 +630,11 @@ local function isValidTarget(character)
         return false
     end
     local head = character:FindFirstChild("Head")
-    if head and head.Transparency == 1 then
+    if head then
+        if head.Transparency == 1 then
+            return false
+        end
+    else
         return false
     end
     return true
@@ -633,22 +642,36 @@ end
 
 local function isVisible(targetPart)
     local character = LocalPlayer.Character
-    if not character then return false end
-    local originPart = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
-    if not originPart then return false end
-    local origin = originPart.Position
-    local direction = targetPart.Position - origin
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {character, targetPart.Parent, getCharactersFolder()}
-    params.IgnoreWater = true
-    local result = workspace:Raycast(origin, direction, params)
-    return result == nil
+    if not character then
+        return false
+    end
+    local originPart = character:FindFirstChild("Head")
+    if not originPart then
+        originPart = character:FindFirstChild("HumanoidRootPart")
+    end
+    if not originPart then
+        return false
+    end
+    local originPosition = originPart.Position
+    local targetPosition = targetPart.Position
+    local directionVector = targetPosition - originPosition
+    local raycastParameters = RaycastParams.new()
+    raycastParameters.FilterType = Enum.RaycastFilterType.Exclude
+    local exclusionList = {character, targetPart.Parent, getCharactersFolder()}
+    raycastParameters.FilterDescendantsInstances = exclusionList
+    raycastParameters.IgnoreWater = true
+    local raycastResult = workspace:Raycast(originPosition, directionVector, raycastParameters)
+    if raycastResult == nil then
+        return true
+    else
+        return false
+    end
 end
 
 local function getTouchOrMousePosition()
     local activePositions = UserInputService:GetMouseLocation()
-    return Vector2.new(activePositions.X, activePositions.Y)
+    local positionVector2 = Vector2.new(activePositions.X, activePositions.Y)
+    return positionVector2
 end
 
 local function getClosestEnemyToTouch(inputCenter)
@@ -659,20 +682,27 @@ local function getClosestEnemyToTouch(inputCenter)
         currentTargetPartName = "Head"
     end
     local folder = getCharactersFolder()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if isEnemy(player) then
+    local playerList = Players:GetPlayers()
+    for i = 1, #playerList do
+        local player = playerList[i]
+        local enemyCheck = isEnemy(player)
+        if enemyCheck == true then
             local char = folder:FindFirstChild(player.Name)
-            if char and isValidTarget(char) then
-                local targetPart = char:FindFirstChild(currentTargetPartName)
-                if targetPart then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                    if onScreen then
-                        local mousePos = Vector2.new(screenPos.X, screenPos.Y)
-                        local distance = (mousePos - inputCenter).Magnitude
-                        if distance <= fovRadius and distance < shortestDistance then
-                            if isVisible(targetPart) then
-                                shortestDistance = distance
-                                closestPlayer = player
+            if char then
+                local targetValidation = isValidTarget(char)
+                if targetValidation == true then
+                    local targetPart = char:FindFirstChild(currentTargetPartName)
+                    if targetPart then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen == true then
+                            local mousePos = Vector2.new(screenPos.X, screenPos.Y)
+                            local distance = (mousePos - inputCenter).Magnitude
+                            if distance <= fovRadius and distance < shortestDistance then
+                                local wallCheck = isVisible(targetPart)
+                                if wallCheck == true then
+                                    shortestDistance = distance
+                                    closestPlayer = player
+                                end
                             end
                         end
                     end
@@ -686,34 +716,38 @@ end
 local function createPlayerDrawingObjects(playerName)
     if not cacheDrawingObjects[playerName] then
         local data = {}
-        data.Box = Drawing.new("Square")
-        data.Box.Thickness = 2
-        data.Box.Filled = false
-        data.Box.Transparency = 1
-        data.Box.Visible = false
+        local squareBox = Drawing.new("Square")
+        squareBox.Thickness = 2
+        squareBox.Filled = false
+        squareBox.Transparency = 1
+        squareBox.Visible = false
+        data.Box = squareBox
         
-        data.HpBackground = Drawing.new("Square")
-        data.HpBackground.Thickness = 1
-        data.HpBackground.Filled = true
-        data.HpBackground.Color = Color3.fromRGB(60, 10, 10)
-        data.HpBackground.Transparency = 0.8
-        data.HpBackground.Visible = false
+        local bgSquare = Drawing.new("Square")
+        bgSquare.Thickness = 1
+        bgSquare.Filled = true
+        bgSquare.Color = Color3.fromRGB(60, 10, 10)
+        bgSquare.Transparency = 0.8
+        bgSquare.Visible = false
+        data.HpBackground = bgSquare
         
-        data.HpFill = Drawing.new("Square")
-        data.HpFill.Thickness = 1
-        data.HpFill.Filled = true
-        data.HpFill.Color = Color3.fromRGB(0, 255, 0)
-        data.HpFill.Transparency = 1
-        data.HpFill.Visible = false
+        local fillSquare = Drawing.new("Square")
+        fillSquare.Thickness = 1
+        fillSquare.Filled = true
+        fillSquare.Color = Color3.fromRGB(0, 255, 150)
+        fillSquare.Transparency = 1
+        fillSquare.Visible = false
+        data.HpFill = fillSquare
         
-        data.Text = Drawing.new("Text")
-        data.Text.Size = 14
-        data.Text.Center = true
-        data.Text.Outline = true
-        data.Text.OutlineColor = Color3.fromRGB(0, 0, 0)
-        data.Text.Color = Color3.fromRGB(255, 255, 255)
-        data.Text.Transparency = 1
-        data.Text.Visible = false
+        local textObject = Drawing.new("Text")
+        textObject.Size = 14
+        textObject.Center = true
+        textObject.Outline = true
+        textObject.OutlineColor = Color3.fromRGB(0, 0, 0)
+        textObject.Color = Color3.fromRGB(255, 255, 255)
+        textObject.Transparency = 1
+        textObject.Visible = false
+        data.Text = textObject
         
         cacheDrawingObjects[playerName] = data
     end
@@ -725,20 +759,28 @@ local function drawPlayerEspOverlay(player, character, enemyVisible)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     local root = character:FindFirstChild("HumanoidRootPart")
     if not head or not humanoid or not root then
-        clearDrawingForPlayer(player.Name)
+        if cacheDrawingObjects[player.Name] then
+            local data = cacheDrawingObjects[player.Name]
+            data.Box.Visible = false
+            data.HpBackground.Visible = false
+            data.HpFill.Visible = false
+            data.Text.Visible = false
+        end
         return
     end
     
     local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
     local data = createPlayerDrawingObjects(player.Name)
     
-    if onScreen and espEnabled then
+    if onScreen == true and espEnabled == true then
         local topPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
         local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
         local height = math.abs(topPos.Y - bottomPos.Y)
         local width = height * 0.55
-        
-        local currentBoxColor = enemyVisible and colorVisible or colorHidden
+        local currentBoxColor = colorHidden
+        if enemyVisible == true then
+            currentBoxColor = colorVisible
+        end
         
         data.Box.Size = Vector2.new(width, height)
         data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
@@ -756,7 +798,9 @@ local function drawPlayerEspOverlay(player, character, enemyVisible)
         local fillHeight = height * healthRatio
         data.HpFill.Size = Vector2.new(barWidth, fillHeight)
         data.HpFill.Position = Vector2.new(rPos.X - width / 2 - barOffset - barWidth, topPos.Y + (height - fillHeight))
-        data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+        local redFactor = 255 * (1 - healthRatio)
+        local greenFactor = 255 * healthRatio
+        data.HpFill.Color = Color3.fromRGB(redFactor, greenFactor, 0)
         data.HpFill.Visible = true
         
         local myHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -764,8 +808,8 @@ local function drawPlayerEspOverlay(player, character, enemyVisible)
         if myHrp and root then
             distanceMeters = (root.Position - myHrp.Position).Magnitude
         end
-        
-        data.Text.Text = string.format("%s [%dм]", player.Name, math.floor(distanceMeters))
+        local floorDistance = math.floor(distanceMeters)
+        data.Text.Text = player.Name .. " [" .. tostring(floorDistance) .. "м]"
         data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
         data.Text.Color = currentBoxColor
         data.Text.Visible = true
@@ -777,27 +821,50 @@ local function drawPlayerEspOverlay(player, character, enemyVisible)
     end
 end
 
+local initialPlayers = Players:GetPlayers()
+for i = 1, #initialPlayers do
+    local p = initialPlayers[i]
+    local check = isEnemy(p)
+    if check == true then
+        createPlayerDrawingObjects(p.Name)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    task.spawn(function()
+        task.wait(0.5)
+        local check = isEnemy(player)
+        if check == true then
+            createPlayerDrawingObjects(player.Name)
+        end
+    end)
+end)
+
 RunService.RenderStepped:Connect(function()
     local currentTouchPos = getTouchOrMousePosition()
     local targetPlayer = getClosestEnemyToTouch(currentTouchPos)
     local folder = getCharactersFolder()
     
-    if thirdPersonEnabled then
+    if thirdPersonEnabled == true then
         LocalPlayer.CameraMaxZoomDistance = 12
         LocalPlayer.CameraMinZoomDistance = 12
+    else
+        LocalPlayer.CameraMaxZoomDistance = 0.5
+        LocalPlayer.CameraMinZoomDistance = 0.5
     end
     
     local myChar = LocalPlayer.Character
     if myChar then
         local myHumanoid = myChar:FindFirstChildOfClass("Humanoid")
         if myHumanoid then
-            myHumanoid.WalkSpeed = 16 * speedMultiplier
+            local targetSpeed = 16 * speedMultiplier
+            myHumanoid.WalkSpeed = targetSpeed
         end
     end
     
     if aimMode ~= "Выкл" and targetPlayer then
-        FOVStroke.Color = Color3.fromRGB(0, 255, 0)
-        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        FOVStroke.Color = Color3.fromRGB(0, 255, 150)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
         
         local currentTargetPartName = "Head"
         if aimMode == "Обычный Аим" then
@@ -805,17 +872,24 @@ RunService.RenderStepped:Connect(function()
         end
         
         local char = folder:FindFirstChild(targetPlayer.Name)
-        if char and isValidTarget(char) then
-            local targetPart = char:FindFirstChild(currentTargetPartName)
-            if targetPart then
-                if aimMode == "Обычный Аим" then
-                    local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.15)
-                elseif aimMode == "Сайлент Аим" then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                    if onScreen and (UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetMouseLocation() > 0) then
+        if char then
+            local validCheck = isValidTarget(char)
+            if validCheck == true then
+                local targetPart = char:FindFirstChild(currentTargetPartName)
+                if targetPart then
+                    if aimMode == "Обычный Аим" then
                         local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.25)
+                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.15)
+                    elseif aimMode == "Сайлент Аим" then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen == true then
+                            local isPressed = UserInputService:IsMouseButtonPressed(Enum.MouseButton1)
+                            local activeTouches = UserInputService:GetMouseLocation()
+                            if isPressed == true or #activeTouches > 0 then
+                                local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+                                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.25)
+                            end
+                        end
                     end
                 end
             end
@@ -825,43 +899,85 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     end
     
-    if bHopEnabled and myChar then
+    if bHopEnabled == true and myChar then
         local humanoid = myChar:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.Health > 0 then
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:GetMouseLocation() then
-                if humanoid.FloorMaterial ~= Enum.Material.Air then
-                    humanoid.Jump = true
+        if humanoid then
+            if humanoid.Health > 0 then
+                local spacePressed = UserInputService:IsKeyDown(Enum.KeyCode.Space)
+                local touchActive = UserInputService:GetMouseLocation()
+                if spacePressed == true or touchActive then
+                    if humanoid.FloorMaterial ~= Enum.Material.Air then
+                        humanoid.Jump = true
+                    end
                 end
             end
         end
     end
     
-    for _, player in ipairs(Players:GetPlayers()) do
+    local allPlayers = Players:GetPlayers()
+    for i = 1, #allPlayers do
+        local player = allPlayers[i]
         if player ~= LocalPlayer then
             local char = folder:FindFirstChild(player.Name)
             if char then
-                if espEnabled and isEnemy(player) then
-                    if isValidTarget(char) then
-                        local root = char:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            local enemyVisible = isVisible(root)
-                            drawPlayerEspOverlay(player, char, enemyVisible)
+                if espEnabled == true then
+                    local enemyCheck = isEnemy(player)
+                    if enemyCheck == true then
+                        local targetValidation = isValidTarget(char)
+                        if targetValidation == true then
+                            local root = char:FindFirstChild("HumanoidRootPart")
+                            if root then
+                                local enemyVisible = isVisible(root)
+                                drawPlayerEspOverlay(player, char, enemyVisible)
+                            else
+                                if cacheDrawingObjects[player.Name] then
+                                    local data = cacheDrawingObjects[player.Name]
+                                    data.Box.Visible = false
+                                    data.HpBackground.Visible = false
+                                    data.HpFill.Visible = false
+                                    data.Text.Visible = false
+                                end
+                            end
                         else
-                            clearDrawingForPlayer(player.Name)
+                            if cacheDrawingObjects[player.Name] then
+                                local data = cacheDrawingObjects[player.Name]
+                                data.Box.Visible = false
+                                data.HpBackground.Visible = false
+                                data.HpFill.Visible = false
+                                data.Text.Visible = false
+                            end
                         end
                     else
-                        clearDrawingForPlayer(player.Name)
+                        if cacheDrawingObjects[player.Name] then
+                            local data = cacheDrawingObjects[player.Name]
+                            data.Box.Visible = false
+                            data.HpBackground.Visible = false
+                            data.HpFill.Visible = false
+                            data.Text.Visible = false
+                        end
                     end
                 else
-                    clearDrawingForPlayer(player.Name)
+                    if cacheDrawingObjects[player.Name] then
+                        local data = cacheDrawingObjects[player.Name]
+                        data.Box.Visible = false
+                        data.HpBackground.Visible = false
+                        data.HpFill.Visible = false
+                        data.Text.Visible = false
+                    end
                 end
             else
-                clearDrawingForPlayer(player.Name)
+                if cacheDrawingObjects[player.Name] then
+                    local data = cacheDrawingObjects[player.Name]
+                    data.Box.Visible = false
+                    data.HpBackground.Visible = false
+                    data.HpFill.Visible = false
+                    data.Text.Visible = false
+                end
             end
         end
     end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-    clearDrawingForPlayer(player.Name)
+    hardRemovePlayerDrawing(player.Name)
 end)
