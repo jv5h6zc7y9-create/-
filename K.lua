@@ -7,7 +7,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UniversalAimbotAndEspSystem"
+ScreenGui.Name = "UltraAimbotAndEspSystem"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -16,13 +16,13 @@ local FOVCircle = Instance.new("Frame")
 FOVCircle.Name = "FOVCircle"
 FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
 FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-FOVCircle.BackgroundTransparency = 0.85
+FOVCircle.BackgroundTransparency = 0.9
 FOVCircle.BorderSizePixel = 0
 FOVCircle.Visible = true
 FOVCircle.Parent = ScreenGui
 
 local FOVStroke = Instance.new("UIStroke")
-FOVStroke.Thickness = 2
+FOVStroke.Thickness = 1.5
 FOVStroke.Color = Color3.fromRGB(255, 0, 0)
 FOVStroke.Parent = FOVCircle
 
@@ -34,9 +34,9 @@ local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "MenuButton"
 MenuButton.Size = UDim2.new(0, 55, 0, 55)
 MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
-MenuButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MenuButton.Text = "⚙️"
-MenuButton.TextSize = 28
+MenuButton.TextSize = 26
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuButton.Parent = ScreenGui
 
@@ -46,14 +46,14 @@ MenuButtonCorner.Parent = MenuButton
 
 local MenuButtonStroke = Instance.new("UIStroke")
 MenuButtonStroke.Thickness = 2
-MenuButtonStroke.Color = Color3.fromRGB(120, 120, 120)
+MenuButtonStroke.Color = Color3.fromRGB(100, 100, 100)
 MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 340, 0, 470)
-MainMenu.Position = UDim2.new(0.5, -170, 0.5, -235)
-MainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainMenu.Size = UDim2.new(0, 340, 0, 460)
+MainMenu.Position = UDim2.new(0.5, -170, 0.5, -230)
+MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
 
@@ -63,14 +63,14 @@ MainMenuCorner.Parent = MainMenu
 
 local MainMenuStroke = Instance.new("UIStroke")
 MainMenuStroke.Thickness = 2
-MainMenuStroke.Color = Color3.fromRGB(70, 70, 70)
+MainMenuStroke.Color = Color3.fromRGB(60, 60, 60)
 MainMenuStroke.Parent = MainMenu
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 45)
-TitleLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-TitleLabel.Text = "iPad Pro 11 Premium Menu"
+TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TitleLabel.Text = "iPad Pro 11 Ultra Cheat Engine"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -84,7 +84,7 @@ local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
 CloseButton.Size = UDim2.new(0, 32, 0, 32)
 CloseButton.Position = UDim2.new(1, -38, 0, 6)
-CloseButton.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 CloseButton.Text = "❌"
 CloseButton.TextSize = 14
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -98,7 +98,7 @@ local ModeButton = Instance.new("TextButton")
 ModeButton.Name = "ModeButton"
 ModeButton.Size = UDim2.new(0, 300, 0, 45)
 ModeButton.Position = UDim2.new(0.5, -150, 0, 65)
-ModeButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+ModeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 ModeButton.Text = "Режим: Выкл"
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ModeButton.TextSize = 16
@@ -111,14 +111,14 @@ ModeCorner.Parent = ModeButton
 
 local ModeStroke = Instance.new("UIStroke")
 ModeStroke.Thickness = 1
-ModeStroke.Color = Color3.fromRGB(90, 90, 90)
+ModeStroke.Color = Color3.fromRGB(80, 80, 80)
 ModeStroke.Parent = ModeButton
 
 local TargetButton = Instance.new("TextButton")
 TargetButton.Name = "TargetButton"
 TargetButton.Size = UDim2.new(0, 300, 0, 45)
 TargetButton.Position = UDim2.new(0.5, -150, 0, 125)
-TargetButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+TargetButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 TargetButton.Text = "Цель: Head"
 TargetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 TargetButton.TextSize = 16
@@ -131,7 +131,7 @@ TargetCorner.Parent = TargetButton
 
 local TargetStroke = Instance.new("UIStroke")
 TargetStroke.Thickness = 1
-TargetStroke.Color = Color3.fromRGB(90, 90, 90)
+TargetStroke.Color = Color3.fromRGB(80, 80, 80)
 TargetStroke.Parent = TargetButton
 
 local SliderLabel = Instance.new("TextLabel")
@@ -149,7 +149,7 @@ local SliderBar = Instance.new("Frame")
 SliderBar.Name = "SliderBar"
 SliderBar.Size = UDim2.new(0, 300, 0, 12)
 SliderBar.Position = UDim2.new(0.5, -150, 0, 225)
-SliderBar.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+SliderBar.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 SliderBar.BorderSizePixel = 0
 SliderBar.Parent = MainMenu
 
@@ -162,7 +162,7 @@ SliderBtn.Name = "SliderBtn"
 SliderBtn.Size = UDim2.new(0, 22, 0, 22)
 SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 SliderBtn.Position = UDim2.new(0.318, 0, 0.5, 0)
-SliderBtn.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+SliderBtn.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
 SliderBtn.Text = ""
 SliderBtn.Parent = SliderBar
 
@@ -192,7 +192,7 @@ ESPToggleCorner.Parent = ESPToggle
 
 local ESPToggleStroke = Instance.new("UIStroke")
 ESPToggleStroke.Thickness = 1
-ESPToggleStroke.Color = Color3.fromRGB(90, 90, 90)
+ESPToggleStroke.Color = Color3.fromRGB(80, 80, 80)
 ESPToggleStroke.Parent = ESPToggle
 
 local BHopToggle = Instance.new("TextButton")
@@ -212,7 +212,7 @@ BHopToggleCorner.Parent = BHopToggle
 
 local BHopToggleStroke = Instance.new("UIStroke")
 BHopToggleStroke.Thickness = 1
-BHopToggleStroke.Color = Color3.fromRGB(90, 90, 90)
+BHopToggleStroke.Color = Color3.fromRGB(80, 80, 80)
 BHopToggleStroke.Parent = BHopToggle
 
 local CreditLabel = Instance.new("TextLabel")
@@ -220,15 +220,11 @@ CreditLabel.Name = "CreditLabel"
 CreditLabel.Size = UDim2.new(1, 0, 0, 30)
 CreditLabel.Position = UDim2.new(0, 0, 1, -35)
 CreditLabel.BackgroundTransparency = 1
-CreditLabel.Text = "iPad Pro 11 Premium Multi-Cheat Setup"
-CreditLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+CreditLabel.Text = "Optimized Anti-Lag & Anti-Crash Mobile System"
+CreditLabel.TextColor3 = Color3.fromRGB(130, 130, 130)
 CreditLabel.TextSize = 13
 CreditLabel.Font = Enum.Font.SourceSansItalic
 CreditLabel.Parent = MainMenu
-
-local DrawingContainer = Instance.new("Folder")
-DrawingContainer.Name = "DrawingContainer"
-DrawingContainer.Parent = ScreenGui
 
 local fovRadius = 100
 local aimMode = "Выкл"
@@ -349,7 +345,7 @@ ModeButton.MouseButton1Click:Connect(function()
 		ModeButton.BackgroundColor3 = Color3.fromRGB(0, 0, 140)
 	else
 		aimMode = "Выкл"
-		ModeButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+		ModeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 	end
 	ModeButton.Text = "Режим: " .. aimMode
 end)
@@ -363,6 +359,25 @@ TargetButton.MouseButton1Click:Connect(function()
 	TargetButton.Text = "Цель: " .. aimTarget
 end)
 
+local function cleanAllVisuals()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Character then
+			local head = player.Character:FindFirstChild("Head")
+			if head then
+				local bGui = head:FindFirstChild("CustomEspGui")
+				if bGui then bGui:Destroy() end
+			end
+			local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				local tracer = hrp:FindFirstChild("TracerEspGui")
+				if tracer then tracer:Destroy() end
+			end
+			local highlight = player.Character:FindFirstChild("EspPlayerHighlight")
+			if highlight then highlight:Destroy() end
+		end
+	end
+end
+
 ESPToggle.MouseButton1Click:Connect(function()
 	espEnabled = not espEnabled
 	if espEnabled then
@@ -371,18 +386,7 @@ ESPToggle.MouseButton1Click:Connect(function()
 	else
 		ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 		ESPToggle.Text = "ESP: ВЫКЛ"
-		DrawingContainer:ClearAllChildren()
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player.Character then
-				local head = player.Character:FindFirstChild("Head")
-				if head then
-					local bGui = head:FindFirstChild("CustomEspGui")
-					if bGui then bGui:Destroy() end
-				end
-				local highlight = player.Character:FindFirstChild("EspPlayerHighlight")
-				if highlight then highlight:Destroy() end
-			end
-		end
+		cleanAllVisuals()
 	end
 end)
 
@@ -396,6 +400,13 @@ BHopToggle.MouseButton1Click:Connect(function()
 		BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
 	end
 end)
+
+local function isEnemy(player)
+	if player == LocalPlayer then return false end
+	if LocalPlayer.Team and player.Team == LocalPlayer.Team then return false end
+	if player.TeamColor == LocalPlayer.TeamColor and player.TeamColor ~= string.format("White") then return false end
+	return true
+end
 
 local function isVisible(targetPart)
 	local character = LocalPlayer.Character
@@ -420,22 +431,20 @@ local function getClosestVisibleEnemy()
 		currentTargetPartName = "Head"
 	end
 	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer then
-			if not player.Team or player.Team ~= LocalPlayer.Team then
-				local char = player.Character
-				if char then
-					local humanoid = char:FindFirstChildOfClass("Humanoid")
-					local targetPart = char:FindFirstChild(currentTargetPartName)
-					if humanoid and humanoid.Health > 0 and targetPart then
-						local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-						if onScreen then
-							local mousePos = Vector2.new(screenPos.X, screenPos.Y)
-							local distance = (mousePos - screenCenter).Magnitude
-							if distance <= fovRadius and distance < shortestDistance then
-								if isVisible(targetPart) then
-									shortestDistance = distance
-									closestPlayer = player
-								end
+		if isEnemy(player) then
+			local char = player.Character
+			if char then
+				local humanoid = char:FindFirstChildOfClass("Humanoid")
+				local targetPart = char:FindFirstChild(currentTargetPartName)
+				if humanoid and humanoid.Health > 0 and targetPart then
+					local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+					if onScreen then
+						local mousePos = Vector2.new(screenPos.X, screenPos.Y)
+						local distance = (mousePos - screenCenter).Magnitude
+						if distance <= fovRadius and distance < shortestDistance then
+							if isVisible(targetPart) then
+								shortestDistance = distance
+								closestPlayer = player
 							end
 						end
 					end
@@ -446,75 +455,34 @@ local function getClosestVisibleEnemy()
 	return closestPlayer
 end
 
-local function createScreenLine(name)
-	local line = DrawingContainer:FindFirstChild(name)
-	if not line then
-		line = Instance.new("Frame")
-		line.Name = name
-		line.BorderSizePixel = 0
-		line.AnchorPoint = Vector2.new(0.5, 0)
-		line.Parent = DrawingContainer
-	end
-	return line
-end
-
-local function createEspBoxGui(player)
-	local name = player.Name .. "_BoxGui"
-	local boxFrame = DrawingContainer:FindFirstChild(name)
-	if not boxFrame then
-		boxFrame = Instance.new("Frame")
-		boxFrame.Name = name
-		boxFrame.BackgroundTransparency = 1
-		boxFrame.Size = UDim2.new(0, 100, 0, 100)
-		boxFrame.Parent = DrawingContainer
-		
-		local stroke = Instance.new("UIStroke")
-		stroke.Name = "BoxStroke"
-		stroke.Thickness = 1.5
-		stroke.Color = Color3.fromRGB(255, 0, 0)
-		stroke.Parent = boxFrame
-		
-		local hpBg = Instance.new("Frame")
-		hpBg.Name = "RightHpBg"
-		hpBg.BackgroundColor3 = Color3.fromRGB(40, 10, 10)
-		hpBg.BorderSizePixel = 0
-		hpBg.Parent = boxFrame
-		
-		local hpBar = Instance.new("Frame")
-		hpBar.Name = "RightHpFill"
-		hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-		hpBar.BorderSizePixel = 0
-		hpBar.Parent = hpBg
-	end
-	return boxFrame
-end
-
 local function updatePlayerEsp(player, character, enemyVisible)
 	local head = character:FindFirstChild("Head")
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if not head or not humanoid or not root then return end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not head or not humanoid or not hrp then return end
 	
 	local billboardGui = head:FindFirstChild("CustomEspGui")
 	if not billboardGui then
 		billboardGui = Instance.new("BillboardGui")
 		billboardGui.Name = "CustomEspGui"
-		billboardGui.Size = UDim2.new(0, 140, 0, 45)
-		billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+		billboardGui.Size = UDim2.new(0, 160, 0, 60)
+		billboardGui.StudsOffset = Vector3.new(3, 1, 0)
 		billboardGui.AlwaysOnTop = true
 		
 		local infoLabel = Instance.new("TextLabel")
 		infoLabel.Name = "InfoLabel"
 		infoLabel.Size = UDim2.new(1, 0, 0, 20)
+		infoLabel.Position = UDim2.new(0, 0, 0, 0)
 		infoLabel.BackgroundTransparency = 1
 		infoLabel.Font = Enum.Font.SourceSansBold
-		infoLabel.TextSize = 13
+		infoLabel.TextSize = 14
+		infoLabel.TextXAlignment = Enum.TextXAlignment.Left
 		infoLabel.Parent = billboardGui
 		
 		local hpBackground = Instance.new("Frame")
 		hpBackground.Name = "HpBackground"
-		hpBackground.Size = UDim2.new(0.8, 0, 0, 4)
-		hpBackground.Position = UDim2.new(0.1, 0, 0, 22)
+		hpBackground.Size = UDim2.new(0, 6, 0, 35)
+		hpBackground.Position = UDim2.new(0, -12, 0, 4)
 		hpBackground.BackgroundColor3 = Color3.fromRGB(60, 10, 10)
 		hpBackground.BorderSizePixel = 0
 		hpBackground.Parent = billboardGui
@@ -531,163 +499,68 @@ local function updatePlayerEsp(player, character, enemyVisible)
 	
 	local myHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 	local distanceMeters = 0
-	if myHrp and root then
-		distanceMeters = (root.Position - myHrp.Position).Magnitude
+	if myHrp and hrp then
+		distanceMeters = (hrp.Position - myHrp.Position).Magnitude
 	end
 	
-	billboardGui.InfoLabel.Text = string.format("%s [%dм]", player.Name, math.floor(distanceMeters))
+	billboardGui.InfoLabel.Text = string.format("%s\n[%dм]", player.Name, math.floor(distanceMeters))
 	billboardGui.InfoLabel.TextColor3 = enemyVisible and colorVisible or colorHidden
 	
 	local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-	billboardGui.HpBackground.HpBar.Size = UDim2.new(healthRatio, 0, 1, 0)
+	billboardGui.HpBackground.HpBar.Size = UDim2.new(1, 0, healthRatio, 0)
+	billboardGui.HpBackground.HpBar.Position = UDim2.new(0, 0, 1 - healthRatio, 0)
 	billboardGui.HpBackground.HpBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+	
+	local tracerGui = hrp:FindFirstChild("TracerEspGui")
+	if not tracerGui then
+		tracerGui = Instance.new("BillboardGui")
+		tracerGui.Name = "TracerEspGui"
+		tracerGui.Size = UDim2.new(0, 2, 0, 2000)
+		tracerGui.AlwaysOnTop = true
+		tracerGui.LightInfluence = 0
+		tracerGui.StudsOffset = Vector3.new(0, -1000, 0)
+		
+		local tracerFrame = Instance.new("Frame")
+		tracerFrame.Name = "TracerFrame"
+		tracerFrame.Size = UDim2.new(1, 0, 1, 0)
+		tracerFrame.BorderSizePixel = 0
+		tracerFrame.Parent = tracerGui
+		
+		tracerGui.Parent = hrp
+	end
+	tracerGui.TracerFrame.BackgroundColor3 = enemyVisible and colorVisible or colorHidden
 	
 	local highlight = character:FindFirstChild("EspPlayerHighlight")
 	if not highlight then
 		highlight = Instance.new("Highlight")
 		highlight.Name = "EspPlayerHighlight"
-		highlight.FillTransparency = 1
+		highlight.FillTransparency = 0.85
 		highlight.OutlineTransparency = 0
 		highlight.Parent = character
 	end
 	highlight.OutlineColor = enemyVisible and colorVisible or colorHidden
-	
-	local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-	local boxGui = createEspBoxGui(player)
-	local line = createScreenLine(player.Name .. "_Tracer")
-	
-	if onScreen then
-		local topPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
-		local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-		local height = math.abs(topPos.Y - bottomPos.Y)
-		local width = height * 0.6
-		
-		boxGui.Visible = true
-		boxGui.Size = UDim2.new(0, width, 0, height)
-		boxGui.Position = UDim2.new(0, rPos.X - width / 2, 0, topPos.Y)
-		
-		local stroke = boxGui:FindFirstChild("BoxStroke")
-		if stroke then
-			stroke.Color = enemyVisible and colorVisible or colorHidden
-		end
-		
-		local hpBg = boxGui:FindFirstChild("RightHpBg")
-		local hpFill = hpBg and hpBg:FindFirstChild("RightHpFill")
-		if hpBg and hpFill then
-			hpBg.Size = UDim2.new(0, 4, 1, 0)
-			hpBg.Position = UDim2.new(1, 4, 0, 0)
-			hpFill.Size = UDim2.new(1, 0, healthRatio, 0)
-			hpFill.Position = UDim2.new(0, 0, 1 - healthRatio, 0)
-			hpFill.BackgroundColor3 = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
-		end
-		
-		local startX = Camera.ViewportSize.X / 2
-		local startY = Camera.ViewportSize.Y
-		local endX = rPos.X
-		local endY = rPos.Y
-		local distanceX = endX - startX
-		local distanceY = endY - startY
-		local lineLength = math.sqrt(distanceX * distanceX + distanceY * distanceY)
-		local angle = math.atan2(distanceY, distanceX)
-		
-		line.Visible = true
-		line.Size = UDim2.new(0, 2, 0, lineLength)
-		line.Position = UDim2.new(0, startX, 0, startY)
-		line.Rotation = math.deg(angle) - 90
-		line.BackgroundColor3 = enemyVisible and colorVisible or colorHidden
-		
-		local parts = {"UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}
-		
-		for _, partName in ipairs(parts) do
-			local limb = character:FindFirstChild(partName)
-			if limb and limb:IsA("BasePart") then
-				local jointLine = DrawingContainer:FindFirstChild(player.Name .. "" .. partName .. "Joint")
-				if not jointLine then
-					jointLine = Instance.new("Frame")
-					jointLine.Name = player.Name .. "" .. partName .. "_Joint"
-					jointLine.BorderSizePixel = 0
-					jointLine.AnchorPoint = Vector2.new(0.5, 0)
-					jointLine.Parent = DrawingContainer
-				end
-				
-				local lPos, lOnScreen = Camera:WorldToViewportPoint(limb.Position)
-				if lOnScreen then
-					local jDistX = lPos.X - rPos.X
-					local jDistY = lPos.Y - rPos.Y
-					local jLength = math.sqrt(jDistX * jDistX + jDistY * jDistY)
-					local jAngle = math.atan2(jDistY, jDistX)
-					
-					jointLine.Visible = true
-					jointLine.Size = UDim2.new(0, 1.5, 0, jLength)
-					jointLine.Position = UDim2.new(0, rPos.X, 0, rPos.Y)
-					jointLine.Rotation = math.deg(jAngle) - 90
-					jointLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-					jointLine.BackgroundTransparency = 0.3
-				else
-					jointLine.Visible = false
-				end
-			end
-		end
-	else
-		boxGui.Visible = false
-		line.Visible = false
-		
-		local parts = {"UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}
-		
-		for _, partName in ipairs(parts) do
-			local jointLine = DrawingContainer:FindFirstChild(player.Name .. "" .. partName .. "_Joint")
-			if jointLine then jointLine.Visible = false end
-		end
-	end
+	highlight.FillColor = enemyVisible and colorVisible or colorHidden
 end
 
-local function cleanPlayerVisuals(player)
+local function removePlayerEsp(player)
 	if player.Character then
 		local head = player.Character:FindFirstChild("Head")
 		if head then
 			local bGui = head:FindFirstChild("CustomEspGui")
 			if bGui then bGui:Destroy() end
 		end
+		local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local tracer = hrp:FindFirstChild("TracerEspGui")
+			if tracer then tracer:Destroy() end
+		end
 		local highlight = player.Character:FindFirstChild("EspPlayerHighlight")
 		if highlight then highlight:Destroy() end
 	end
-	
-	local boxGui = DrawingContainer:FindFirstChild(player.Name .. "_BoxGui")
-	if boxGui then boxGui:Destroy() end
-	
-	local line = DrawingContainer:FindFirstChild(player.Name .. "_Tracer")
-	if line then line:Destroy() end
-	
-	local parts = {"UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}
-	
-	for _, partName in ipairs(parts) do
-		local jointLine = DrawingContainer:FindFirstChild(player.Name .. "" .. partName .. "_Joint")
-		if jointLine then jointLine:Destroy() end
-	end
 end
-
-local currentSilentTarget = nil
-
-task.spawn(function()
-	local indexHook
-	local success, err = pcall(function()
-		indexHook = hookmetamethod(game, "__index", function(self, key)
-			if aimMode == "Сайлент Аим" and currentSilentTarget and currentSilentTarget.Parent then
-				if self == UserInputService and key == "GetMouseLocation" then
-					local screenPos, onScreen = Camera:WorldToViewportPoint(currentSilentTarget.Position)
-					if onScreen then
-						return Vector2.new(screenPos.X, screenPos.Y)
-					end
-				end
-			end
-			return indexHook(self, key)
-		end)
-	end)
-end)
 
 RunService.RenderStepped:Connect(function()
 	local targetPlayer = getClosestVisibleEnemy()
-	currentSilentTarget = nil
 	
 	if aimMode ~= "Выкл" and targetPlayer then
 		FOVStroke.Color = Color3.fromRGB(0, 255, 0)
@@ -703,13 +576,9 @@ RunService.RenderStepped:Connect(function()
 			if aimMode == "Обычный Аим" then
 				Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
 			elseif aimMode == "Сайлент Аим" then
-				currentSilentTarget = targetPart
-				local char = LocalPlayer.Character
-				if char then
-					local tool = char:FindFirstChildOfClass("Tool")
-					if tool and UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
-						Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-					end
+				local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+				if onScreen and (UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetMouseLocation() > 0) then
+					Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
 				end
 			end
 		end
@@ -722,7 +591,7 @@ RunService.RenderStepped:Connect(function()
 		local char = LocalPlayer.Character
 		local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 		if humanoid and humanoid.Health > 0 then
-			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:GetMouseLocation() then
 				if humanoid.FloorMaterial ~= Enum.Material.Air then
 					humanoid.Jump = true
 				end
@@ -734,25 +603,23 @@ RunService.RenderStepped:Connect(function()
 		if player ~= LocalPlayer then
 			local char = player.Character
 			if char then
-				if espEnabled and (not player.Team or player.Team ~= LocalPlayer.Team) then
+				if espEnabled and isEnemy(player) then
 					local humanoid = char:FindFirstChildOfClass("Humanoid")
 					local root = char:FindFirstChild("HumanoidRootPart")
 					if humanoid and humanoid.Health > 0 and root then
 						local enemyVisible = isVisible(root)
 						updatePlayerEsp(player, char, enemyVisible)
 					else
-						cleanPlayerVisuals(player)
+						removePlayerEsp(player)
 					end
 				else
-					cleanPlayerVisuals(player)
+					removePlayerEsp(player)
 				end
-			else
-				cleanPlayerVisuals(player)
 			end
 		end
 	end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-	cleanPlayerVisuals(player)
+	removePlayerEsp(player)
 end)
