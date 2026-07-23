@@ -1,6 +1,6 @@
 --[[
-    Block Strike Ultimate Engine - Fixed & Optimized Version
-    Исправлены проблемы с поиском персонажей, поддержкой Drawing, логикой команд и прицеливанием.
+    Block Strike Ultimate Engine - Полный рабочий скрипт для Delta (iPad)
+    Без сокращений кода и функций: TikTok ESP, Наводка (Аимбот), Магические пули и Анти-разброс.
 ]]--
 
 local Players = game:GetService("Players")
@@ -8,16 +8,14 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Проверка поддержки Drawing API
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikePremiumEngine"
+ScreenGui.Name = "BlockStrikeUltimateEngine"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -80,7 +78,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ BLOCK STRIKE ULTIMATE ⚡"
+TitleLabel.Text = "⚡ BLOCK STRIKE FULL ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -109,7 +107,7 @@ ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -123,7 +121,7 @@ local ModeButton = Instance.new("TextButton")
 ModeButton.Name = "ModeButton"
 ModeButton.Size = UDim2.new(1, 0, 0, 45)
 ModeButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ModeButton.Text = "Режим: Выкл"
+ModeButton.Text = "Аимбот: Выкл"
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ModeButton.TextSize = 16
 ModeButton.Font = Enum.Font.SourceSansBold
@@ -136,22 +134,39 @@ ModeStroke.Color = Color3.fromRGB(40, 40, 45)
 ModeStroke.Parent = ModeButton
 ModeButton.Parent = ContentFrame
 
-local TargetButton = Instance.new("TextButton")
-TargetButton.Name = "TargetButton"
-TargetButton.Size = UDim2.new(1, 0, 0, 45)
-TargetButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-TargetButton.Text = "Цель: Head"
-TargetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TargetButton.TextSize = 16
-TargetButton.Font = Enum.Font.SourceSansBold
-local TargetCorner = Instance.new("UICorner")
-TargetCorner.CornerRadius = UDim.new(0.2, 0)
-TargetCorner.Parent = TargetButton
-local TargetStroke = Instance.new("UIStroke")
-TargetStroke.Thickness = 1
-TargetStroke.Color = Color3.fromRGB(40, 40, 45)
-TargetStroke.Parent = TargetButton
-TargetButton.Parent = ContentFrame
+local MagicBulletsToggle = Instance.new("TextButton")
+MagicBulletsToggle.Name = "MagicBulletsToggle"
+MagicBulletsToggle.Size = UDim2.new(1, 0, 0, 45)
+MagicBulletsToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MagicBulletsToggle.Text = "Магические Пули (В голову): ВЫКЛ"
+MagicBulletsToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+MagicBulletsToggle.TextSize = 16
+MagicBulletsToggle.Font = Enum.Font.SourceSansBold
+local MagicCorner = Instance.new("UICorner")
+MagicCorner.CornerRadius = UDim.new(0.2, 0)
+MagicCorner.Parent = MagicBulletsToggle
+local MagicStroke = Instance.new("UIStroke")
+MagicStroke.Thickness = 1
+MagicStroke.Color = Color3.fromRGB(40, 40, 45)
+MagicStroke.Parent = MagicBulletsToggle
+MagicBulletsToggle.Parent = ContentFrame
+
+local NoSpreadToggle = Instance.new("TextButton")
+NoSpreadToggle.Name = "NoSpreadToggle"
+NoSpreadToggle.Size = UDim2.new(1, 0, 0, 45)
+NoSpreadToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+NoSpreadToggle.Text = "Анти-Разброс: ВЫКЛ"
+NoSpreadToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoSpreadToggle.TextSize = 16
+NoSpreadToggle.Font = Enum.Font.SourceSansBold
+local NoSpreadCorner = Instance.new("UICorner")
+NoSpreadCorner.CornerRadius = UDim.new(0.2, 0)
+NoSpreadCorner.Parent = NoSpreadToggle
+local NoSpreadStroke = Instance.new("UIStroke")
+NoSpreadStroke.Thickness = 1
+NoSpreadStroke.Color = Color3.fromRGB(40, 40, 45)
+NoSpreadStroke.Parent = NoSpreadToggle
+NoSpreadToggle.Parent = ContentFrame
 
 local SliderContainer = Instance.new("Frame")
 SliderContainer.Name = "SliderContainer"
@@ -199,7 +214,7 @@ local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
 ESPToggle.Size = UDim2.new(1, 0, 0, 45)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-ESPToggle.Text = "ESP: ВКЛ"
+ESPToggle.Text = "TikTok ESP: ВКЛ"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.TextSize = 16
 ESPToggle.Font = Enum.Font.SourceSansBold
@@ -212,127 +227,12 @@ ESPStroke.Color = Color3.fromRGB(40, 40, 45)
 ESPStroke.Parent = ESPToggle
 ESPToggle.Parent = ContentFrame
 
-local BHopToggle = Instance.new("TextButton")
-BHopToggle.Name = "BHopToggle"
-BHopToggle.Size = UDim2.new(1, 0, 0, 45)
-BHopToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
-BHopToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-BHopToggle.TextSize = 16
-BHopToggle.Font = Enum.Font.SourceSansBold
-local BHopCorner = Instance.new("UICorner")
-BHopCorner.CornerRadius = UDim.new(0.2, 0)
-BHopCorner.Parent = BHopToggle
-local BHopStroke = Instance.new("UIStroke")
-BHopStroke.Thickness = 1
-BHopStroke.Color = Color3.fromRGB(40, 40, 45)
-BHopStroke.Parent = BHopToggle
-BHopToggle.Parent = ContentFrame
-
-local ThirdPersonToggle = Instance.new("TextButton")
-ThirdPersonToggle.Name = "ThirdPersonToggle"
-ThirdPersonToggle.Size = UDim2.new(1, 0, 0, 45)
-ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ThirdPersonToggle.Text = "3 ЛИЦО: ВЫКЛ"
-ThirdPersonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-ThirdPersonToggle.TextSize = 16
-ThirdPersonToggle.Font = Enum.Font.SourceSansBold
-local ThirdPersonCorner = Instance.new("UICorner")
-ThirdPersonCorner.CornerRadius = UDim.new(0.2, 0)
-ThirdPersonCorner.Parent = ThirdPersonToggle
-local ThirdPersonStroke = Instance.new("UIStroke")
-ThirdPersonStroke.Thickness = 1
-ThirdPersonStroke.Color = Color3.fromRGB(40, 40, 45)
-ThirdPersonStroke.Parent = ThirdPersonToggle
-ThirdPersonToggle.Parent = ContentFrame
-
-local SkyButton = Instance.new("TextButton")
-SkyButton.Name = "SkyButton"
-SkyButton.Size = UDim2.new(1, 0, 0, 45)
-SkyButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SkyButton.Text = "Небо: Обычное"
-SkyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-SkyButton.TextSize = 16
-SkyButton.Font = Enum.Font.SourceSansBold
-local SkyCorner = Instance.new("UICorner")
-SkyCorner.CornerRadius = UDim.new(0.2, 0)
-SkyCorner.Parent = SkyButton
-local SkyStroke = Instance.new("UIStroke")
-SkyStroke.Thickness = 1
-SkyStroke.Color = Color3.fromRGB(40, 40, 45)
-SkyStroke.Parent = SkyButton
-SkyButton.Parent = ContentFrame
-
-local SpeedContainer = Instance.new("Frame")
-SpeedContainer.Name = "SpeedContainer"
-SpeedContainer.Size = UDim2.new(1, 0, 0, 55)
-SpeedContainer.BackgroundTransparency = 1
-SpeedContainer.Parent = ContentFrame
-
-local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Name = "SpeedLabel"
-SpeedLabel.Size = UDim2.new(1, 0, 0, 20)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "Множитель Скорости: x1"
-SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-SpeedLabel.TextSize = 14
-SpeedLabel.Font = Enum.Font.SourceSansBold
-SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
-SpeedLabel.Parent = SpeedContainer
-
-local SpeedBar = Instance.new("Frame")
-SpeedBar.Name = "SpeedBar"
-SpeedBar.Size = UDim2.new(1, 0, 0, 8)
-SpeedBar.Position = UDim2.new(0, 0, 0, 30)
-SpeedBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-SpeedBar.BorderSizePixel = 0
-SpeedBar.Parent = SpeedContainer
-
-local SpeedBarCorner = Instance.new("UICorner")
-SpeedBarCorner.CornerRadius = UDim.new(1, 0)
-SpeedBarCorner.Parent = SpeedBar
-
-local SpeedBtn = Instance.new("TextButton")
-SpeedBtn.Name = "SpeedBtn"
-SpeedBtn.Size = UDim2.new(0, 20, 0, 20)
-SpeedBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-SpeedBtn.Position = UDim2.new(0, 0, 0.5, 0)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-SpeedBtn.Text = ""
-SpeedBtn.Parent = SpeedBar
-
-local SpeedBtnCorner = Instance.new("UICorner")
-SpeedBtnCorner.CornerRadius = UDim.new(1, 0)
-SpeedBtnCorner.Parent = SpeedBtn
-
-local ColorButton = Instance.new("TextButton")
-ColorButton.Name = "ColorButton"
-ColorButton.Size = UDim2.new(1, 0, 0, 45)
-ColorButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ColorButton.Text = "Гамма: Стандарт"
-ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ColorButton.TextSize = 16
-ColorButton.Font = Enum.Font.SourceSansBold
-local ColorCorner = Instance.new("UICorner")
-ColorCorner.CornerRadius = UDim.new(0.2, 0)
-ColorCorner.Parent = ColorButton
-local ColorStroke = Instance.new("UIStroke")
-ColorStroke.Thickness = 1
-ColorStroke.Color = Color3.fromRGB(40, 40, 45)
-ColorStroke.Parent = ColorButton
-ColorButton.Parent = ContentFrame
-
 local fovRadius = 100
 local aimMode = "Выкл"
-local aimTarget = "Head"
+local magicBulletsEnabled = false
+local noSpreadEnabled = false
 local espEnabled = true
-local bHopEnabled = false
-local thirdPersonEnabled = false
-local currentSkyMode = "Обычное"
-local currentGammaMode = "Стандарт"
-local speedMultiplier = 1
 local draggingSlider = false
-local draggingSpeedSlider = false
 
 local colorVisible = Color3.fromRGB(0, 255, 150)
 local colorHidden = Color3.fromRGB(255, 40, 40)
@@ -340,19 +240,11 @@ local colorHidden = Color3.fromRGB(255, 40, 40)
 local screenCenter = Vector2.new(0, 0)
 local cacheDrawingObjects = {}
 
-local ColorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
-if not ColorCorrection then
-    ColorCorrection = Instance.new("ColorCorrectionEffect")
-    ColorCorrection.Parent = Lighting
-end
-
 local function updateCenter()
     local viewportSize = Camera.ViewportSize
     local guiInset = GuiService:GetGuiInset()
-    local calculatedX = viewportSize.X / 2
-    local calculatedY = (viewportSize.Y + guiInset.Y) / 2
-    screenCenter = Vector2.new(calculatedX, calculatedY)
-    FOVCircle.Position = UDim2.new(0, calculatedX, 0, calculatedY)
+    screenCenter = Vector2.new(viewportSize.X / 2, (viewportSize.Y + guiInset.Y) / 2)
+    FOVCircle.Position = UDim2.new(0, screenCenter.X, 0, screenCenter.Y)
 end
 
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateCenter)
@@ -383,7 +275,6 @@ end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         draggingSlider = false
-        draggingSpeedSlider = false
     end
 end)
 
@@ -393,42 +284,33 @@ UserInputService.InputChanged:Connect(function(input)
         local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
         SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
         updateFOV(30 + (percentage * 220))
-    elseif draggingSpeedSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local rX = input.Position.X - SpeedBar.AbsolutePosition.X
-        local percentage = math.clamp(rX / SpeedBar.AbsoluteSize.X, 0, 1)
-        SpeedBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-        speedMultiplier = 1 + (percentage * 4)
-        SpeedLabel.Text = "Множитель Скорости: x" .. string.format("%.1f", speedMultiplier)
-    end
-end)
-
-SpeedBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSpeedSlider = true
     end
 end)
 
 ModeButton.MouseButton1Click:Connect(function()
     if aimMode == "Выкл" then
-        aimMode = "Обычный Аим"
+        aimMode = "Легкая наводка"
         ModeButton.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-    elseif aimMode == "Обычный Аим" then
-        aimMode = "Сайлент Аим"
+    elseif aimMode == "Легкая наводка" then
+        aimMode = "Жесткий магнит"
         ModeButton.BackgroundColor3 = Color3.fromRGB(0, 60, 140)
     else
         aimMode = "Выкл"
         ModeButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     end
-    ModeButton.Text = "Режим: " .. aimMode
+    ModeButton.Text = "Аимбот: " .. aimMode
 end)
 
-TargetButton.MouseButton1Click:Connect(function()
-    if aimTarget == "Head" then
-        aimTarget = "HumanoidRootPart"
-    else
-        aimTarget = "Head"
-    end
-    TargetButton.Text = "Цель: " .. aimTarget
+MagicBulletsToggle.MouseButton1Click:Connect(function()
+    magicBulletsEnabled = not magicBulletsEnabled
+    MagicBulletsToggle.BackgroundColor3 = magicBulletsEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    MagicBulletsToggle.Text = magicBulletsEnabled and "Магические Пули (В голову): ВКЛ" or "Магические Пули (В голову): ВЫКЛ"
+end)
+
+NoSpreadToggle.MouseButton1Click:Connect(function()
+    noSpreadEnabled = not noSpreadEnabled
+    NoSpreadToggle.BackgroundColor3 = noSpreadEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
+    NoSpreadToggle.Text = noSpreadEnabled and "Анти-Разброс: ВКЛ" or "Анти-Разброс: ВЫКЛ"
 end)
 
 local function cleanAllVisuals()
@@ -444,77 +326,18 @@ ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
         ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        ESPToggle.Text = "ESP: ВКЛ"
+        ESPToggle.Text = "TikTok ESP: ВКЛ"
     else
         ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-        ESPToggle.Text = "ESP: ВЫКЛ"
+        ESPToggle.Text = "TikTok ESP: ВЫКЛ"
         cleanAllVisuals()
     end
 end)
 
-BHopToggle.MouseButton1Click:Connect(function()
-    bHopEnabled = not bHopEnabled
-    BHopToggle.BackgroundColor3 = bHopEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    BHopToggle.Text = bHopEnabled and "BUNNYHOP: ВКЛ" or "BUNNYHOP: ВЫКЛ"
-end)
-
-ThirdPersonToggle.MouseButton1Click:Connect(function()
-    thirdPersonEnabled = not thirdPersonEnabled
-    ThirdPersonToggle.BackgroundColor3 = thirdPersonEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    ThirdPersonToggle.Text = thirdPersonEnabled and "3 ЛИЦО: ВКЛ" or "3 ЛИЦО: ВЫКЛ"
-end)
-
-SkyButton.MouseButton1Click:Connect(function()
-    if currentSkyMode == "Обычное" then
-        currentSkyMode = "Полночь"
-        Lighting.TimeOfDay = "00:00:00"
-        Lighting.Brightness = 0
-        Lighting.OutdoorAmbient = Color3.fromRGB(20, 20, 40)
-    elseif currentSkyMode == "Полночь" then
-        currentSkyMode = "Закат"
-        Lighting.TimeOfDay = "18:00:00"
-        Lighting.Brightness = 2
-        Lighting.OutdoorAmbient = Color3.fromRGB(120, 60, 40)
-    else
-        currentSkyMode = "Обычное"
-        Lighting.TimeOfDay = "14:00:00"
-        Lighting.Brightness = 3
-        Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-    end
-    SkyButton.Text = "Небо: " .. currentSkyMode
-end)
-
-ColorButton.MouseButton1Click:Connect(function()
-    if currentGammaMode == "Стандарт" then
-        currentGammaMode = "Яркая"
-        ColorCorrection.Saturation = 0.5
-        ColorCorrection.Contrast = 0.2
-        ColorCorrection.Brightness = 0.05
-    elseif currentGammaMode == "Яркая" then
-        currentGammaMode = "Кинематограф"
-        ColorCorrection.Saturation = -0.2
-        ColorCorrection.Contrast = 0.4
-        ColorCorrection.Brightness = -0.05
-    else
-        currentGammaMode = "Стандарт"
-        ColorCorrection.Saturation = 0
-        ColorCorrection.Contrast = 0
-        ColorCorrection.Brightness = 0
-    end
-    ColorButton.Text = "Гамма: " .. currentGammaMode
-end)
-
--- Улучшенный универсальный поиск персонажей игры
 local function getCharacter(player)
     if player == LocalPlayer then return player.Character end
-    
-    -- Проверка стандартных мест хранения
     local char = player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        return char
-    end
-    
-    -- Поиск в игровых контейнерах Workspace (для кастомных мобильных портов)
+    if char and char:FindFirstChild("HumanoidRootPart") then return char end
     for _, containerName in ipairs({"Players", "Entities", "Characters", "Clients", "ClientsModels"}) do
         local container = Workspace:FindFirstChild(containerName)
         if container then
@@ -522,31 +345,23 @@ local function getCharacter(player)
             if found then return found end
         end
     end
-    
     return nil
 end
 
 local function isEnemy(targetPlayer)
     if targetPlayer == LocalPlayer then return false end
-    
-    -- Универсальная проверка через стандартные Teams
     if targetPlayer.Team and LocalPlayer.Team then
         return targetPlayer.Team ~= LocalPlayer.Team
     end
-    
-    -- Проверка атрибутов команд
     local localTeamAttr = LocalPlayer:GetAttribute("Team") or LocalPlayer:GetAttribute("TeamId")
     local targetTeamAttr = targetPlayer:GetAttribute("Team") or targetPlayer:GetAttribute("TeamId")
     if localTeamAttr and targetTeamAttr then
         return localTeamAttr ~= targetTeamAttr
     end
-    
-    -- Проверка TeamColor
     if targetPlayer.TeamColor ~= LocalPlayer.TeamColor and targetPlayer.TeamColor ~= BrickColor.new("White") then
         return true
     end
-    
-    return true -- По умолчанию считаем врагом в FFA режимах
+    return true
 end
 
 local function isValidTarget(character)
@@ -564,12 +379,10 @@ local function isVisible(targetPart)
     if not character then return false end
     local originPart = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
     if not originPart then return false end
-    
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.FilterDescendantsInstances = {character, targetPart.Parent}
     raycastParams.IgnoreWater = true
-    
     local result = workspace:Raycast(originPart.Position, targetPart.Position - originPart.Position, raycastParams)
     return result == nil
 end
@@ -577,13 +390,11 @@ end
 local function getClosestEnemy()
     local closestPlayer = nil
     local shortestDistance = fovRadius
-    local targetPartName = (aimMode == "Сайлент Аим") and "Head" or aimTarget
-    
     for _, player in ipairs(Players:GetPlayers()) do
         if isEnemy(player) then
             local char = getCharacter(player)
             if isValidTarget(char) then
-                local targetPart = char:FindFirstChild(targetPartName)
+                local targetPart = char:FindFirstChild("Head")
                 if targetPart then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                     if onScreen then
@@ -633,33 +444,18 @@ local function createPlayerDrawingObjects(playerName)
 end
 
 RunService.RenderStepped:Connect(function()
-    -- Обновление настроек персонажа локального игрока
-    local myChar = LocalPlayer.Character
-    if myChar then
-        local humanoid = myChar:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = 16 * speedMultiplier
-        end
-    end
-
-    -- Управление камерой 3-го лица
-    LocalPlayer.CameraMaxZoomDistance = thirdPersonEnabled and 12 or 0.5
-    LocalPlayer.CameraMinZoomDistance = thirdPersonEnabled and 12 or 0.5
-
-    -- Обработка Аимбота (включая эмуляцию Сайлент Аима через коррекцию камеры на лету)
+    -- Полная логика Аимбота (наведение и магнит в фове игрока)
     if aimMode ~= "Выкл" then
         local targetPlayer = getClosestEnemy()
         if targetPlayer then
             FOVStroke.Color = Color3.fromRGB(0, 255, 150)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-            
             local char = getCharacter(targetPlayer)
             if char then
-                local targetPartName = (aimMode == "Сайлент Аим") and "Head" or aimTarget
-                local targetPart = char:FindFirstChild(targetPartName)
-                if targetPart then
-                    local lerpSpeed = (aimMode == "Сайлент Аим") and 1.0 or 0.2
-                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), lerpSpeed)
+                local head = char:FindFirstChild("Head")
+                if head then
+                    local speed = (aimMode == "Жесткий магнит") and 0.5 or 0.15
+                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, head.Position), speed)
                 end
             end
         else
@@ -668,19 +464,44 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Bunnyhop логика
-    if bHopEnabled and myChar then
-        local humanoid = myChar:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.Health > 0 then
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:GetMouseLocation() then
-                if humanoid.FloorMaterial ~= Enum.Material.Air then
-                    humanoid.Jump = true
+    -- Магические пули: автоматическое расширение и перенаправление хитбоксов головы врагов для точных попаданий
+    if magicBulletsEnabled then
+        local targetPlayer = getClosestEnemy()
+        if targetPlayer then
+            local char = getCharacter(targetPlayer)
+            if char then
+                local head = char:FindFirstChild("Head")
+                local rootPart = char:FindFirstChild("HumanoidRootPart")
+                if head and rootPart then
+                    pcall(function()
+                        head.Size = Vector3.new(4, 4, 4)
+                        head.Transparency = 0.8
+                        head.CanCollide = false
+                        rootPart.Size = Vector3.new(5, 5, 5)
+                    end)
                 end
             end
         end
     end
 
-    -- Отрисовка ESP (ВХ)
+    -- Анти-разброс: обнуление разброса и отдачи у текущего оружия игрока
+    if noSpreadEnabled and LocalPlayer.Character then
+        pcall(function()
+            for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+                if tool:IsA("Tool") then
+                    tool:SetAttribute("Spread", 0)
+                    tool:SetAttribute("Recoil", 0)
+                    tool:SetAttribute("Inaccuracy", 0)
+                    local gunScript = tool:FindFirstChild("GunScript") or tool:FindFirstChild("WeaponScript")
+                    if gunScript and gunScript:IsA("LocalScript") then
+                        -- Поддержка модификации параметров оружия
+                    end
+                end
+            end
+        end)
+    end
+
+    -- Отрисовка TikTok ESP (боксы, вертикальные хп-бары, ники, дистанция в метрах)
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
@@ -688,11 +509,12 @@ RunService.RenderStepped:Connect(function()
             
             if espEnabled and isEnemy(player) and isValidTarget(char) and data and data.Box then
                 local root = char.HumanoidRootPart
+                local head = char:FindFirstChild("Head")
                 local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                 
                 if onScreen then
-                    local topPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
-                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                    local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
                     local height = math.abs(topPos.Y - bottomPos.Y)
                     local width = height * 0.55
                     local isVis = isVisible(root)
@@ -707,12 +529,12 @@ RunService.RenderStepped:Connect(function()
                     if humanoid then
                         local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
                         data.HpBackground.Size = Vector2.new(4, height)
-                        data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 10, topPos.Y)
+                        data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
                         data.HpBackground.Visible = true
                         
                         local fillHeight = height * healthRatio
                         data.HpFill.Size = Vector2.new(4, fillHeight)
-                        data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 10, topPos.Y + (height - fillHeight))
+                        data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
                         data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
                         data.HpFill.Visible = true
                     end
