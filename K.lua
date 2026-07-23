@@ -1,7 +1,7 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Optimized Throttle Edition)
-    Оптимизирована производительность ESP и хуков для стабильных 60 FPS на мобильных устройствах.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Ultimate Optimized Edition)
+    Внедрены все исправления: тач-таймаут, убран GetDescendants, оптимизирован ESP и трейсеры.
 ]]--
 
 local Players = game:GetService("Players")
@@ -91,7 +91,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ OPTIMIZED ENGINE ⚡"
+TitleLabel.Text = "⚡ ULTIMATE OPTIMIZED ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleLabel.TextSize = 14
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -428,6 +428,7 @@ local function isEnemy(targetPlayer)
     return true
 end
 
+-- ИСПРАВЛЕНИЕ №3: Безопасный поиск персонажа БЕЗ Workspace:GetDescendants()
 local function getCharacter(player)
     if player == LocalPlayer then 
         return player.Character 
@@ -438,10 +439,10 @@ local function getCharacter(player)
         return char 
     end
 
-    for _, descendant in ipairs(Workspace:GetDescendants()) do
-        if descendant:IsA("Model") and descendant.Name == player.Name then
-            if descendant:FindFirstChild("HumanoidRootPart") and descendant:FindFirstChild("Head") then
-                return descendant
+    for _, child in ipairs(Workspace:GetChildren()) do
+        if child:IsA("Model") and child.Name == player.Name then
+            if child:FindFirstChild("HumanoidRootPart") and child:FindFirstChild("Head") then
+                return child
             end
         end
     end
@@ -449,6 +450,13 @@ local function getCharacter(player)
     return nil
 end
 
+-- ИСПРАВЛЕНИЕ №2: Упрощенная проверка видимости для ESP БЕЗ тяжелых raycast-запросов
+local function IsVisibleForESP(head)
+    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+    return onScreen
+end
+
+-- Отдельная легкая проверка для аима (только если действительно нужна)
 local function IsVisibleFast(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
@@ -547,7 +555,19 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
-local function CreateBulletTracer(originPos, targetPos)
+-- ИСПРАВЛЕНИЕ №4: Пул объектов для трассеров (предотвращает спам уничтожения/создания партов)
+local tracerPool = {}
+local MAX_TRACERS = 5
+
+local function CreateBulletTracerOptimized(originPos, targetPos)
+    if #tracerPool >= MAX_TRACERS then
+        local old = table.remove(tracerPool, 1)
+        pcall(function()
+            if old.PartA then old.PartA:Destroy() end
+            if old.PartB then old.PartB:Destroy() end
+        end)
+    end
+    
     pcall(function()
         local partA = Instance.new("Part")
         partA.Size = Vector3.new(0.1, 0.1, 0.1)
@@ -581,22 +601,37 @@ local function CreateBulletTracer(originPos, targetPos)
         beam.LightInfluence = 0
         beam.Parent = partA
 
+        table.insert(tracerPool, {PartA = partA, PartB = partB})
+
         task.delay(0.08, function()
             pcall(function()
                 partA:Destroy()
                 partB:Destroy()
             end)
+            for i, v in ipairs(tracerPool) do
+                if v.PartA == partA then
+                    table.remove(tracerPool, i)
+                    break
+                end
+            end
         end)
     end)
 end
 
 local isShooting = false
 
+-- ИСПРАВЛЕНИЕ №1: Безопасный ввод с защитой для мобильного тача через таймаут
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     local inputType = input.UserInputType
-    if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
+    
+    if inputType == Enum.UserInputType.MouseButton1 then
         isShooting = true
+    elseif inputType == Enum.UserInputType.Touch then
+        isShooting = true
+        task.delay(0.1, function()
+            isShooting = false
+        end)
     end
 end)
 
@@ -643,7 +678,8 @@ end)
 
 local lastShotTick = 0
 local lastEspUpdate = 0
-local ESP_THROTTLE = 0.1 -- Обновляем ESP 10 раз в секунду, убирая лаги интерфейса
+local ESP_THROTTLE = 0.1
+local lastSkinApplied = {}
 
 RunService.RenderStepped:Connect(function()
     if _G.AimAssistEnabled then
@@ -671,7 +707,7 @@ RunService.RenderStepped:Connect(function()
                 end
                 local target = GetUnifiedTarget()
                 local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
-                CreateBulletTracer(gunOrigin, targetPos)
+                CreateBulletTracerOptimized(gunOrigin, targetPos)
             end)
         end
     end
@@ -700,25 +736,30 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
+    -- ИСПРАВЛЕНИЕ №5: Кэширование применения скинов, чтобы не перебирать GetDescendants каждый кадр
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
                 if item:IsA("Tool") then
-                    for _, part in ipairs(item:GetDescendants()) do
-                        if part:IsA("BasePart") or part:IsA("MeshPart") then
-                            part.Color = _G.SelectedSkinColor
-                            part.Material = Enum.Material.Neon
-                            if part:IsA("MeshPart") then
-                                part.TextureID = ""
+                    if not lastSkinApplied[item] then
+                        for _, part in ipairs(item:GetDescendants()) do
+                            if part:IsA("BasePart") or part:IsA("MeshPart") then
+                                part.Color = _G.SelectedSkinColor
+                                part.Material = Enum.Material.Neon
+                                if part:IsA("MeshPart") then
+                                    part.TextureID = ""
+                                end
                             end
                         end
+                        lastSkinApplied[item] = true
                     end
                 end
             end
         end)
+    else
+        lastSkinApplied = {}
     end
 
-    -- Оптимизированный рендер ESP по таймеру
     if tick() - lastEspUpdate >= ESP_THROTTLE then
         lastEspUpdate = tick()
         for _, player in ipairs(Players:GetPlayers()) do
@@ -747,7 +788,9 @@ RunService.RenderStepped:Connect(function()
                         local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
                         local height = math.abs(topPos.Y - bottomPos.Y)
                         local width = height * 0.55
-                        local isVis = IsVisibleFast(head)
+                        
+                        -- Используем легкую проверку без raycast для отрисовки боксов
+                        local isVis = IsVisibleForESP(head)
                         local boxColor = isVis and colorVisible or colorHidden
                         
                         data.Box.Size = Vector2.new(width, height)
