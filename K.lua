@@ -1,728 +1,606 @@
+-- Roblox LocalScript для Block Strike (Delta Executor / iPad Pro 11)
+-- Вся логика в одном сплошном файле без сокращений и пропусков
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeMatrixEngine"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.DisplayOrder = 999999
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- НАСТРОЙКИ СЛИТНОГО МОДУЛЯ
+local Settings = {
+    AimbotEnabled = true,
+    SilentAimEnabled = true,
+    FovRadius = 120,
+    FovColorEmpty = Color3.fromRGB(255, 0, 0),
+    FovColorLock = Color3.fromRGB(0, 255, 0),
+    EspEnabled = true,
+    TeamCheck = true,
+    StretchMode = "16:9" -- "16:9", "4:3", "5:4"
+}
 
-local FOVCircle = Instance.new("Frame")
-FOVCircle.Name = "FOVCircle"
-FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-FOVCircle.BackgroundTransparency = 0.95
-FOVCircle.BorderSizePixel = 0
-FOVCircle.Visible = true
-FOVCircle.Parent = ScreenGui
-
-local FOVStroke = Instance.new("UIStroke")
-FOVStroke.Thickness = 1.5
-FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-FOVStroke.Parent = FOVCircle
-
-local FOVCorner = Instance.new("UICorner")
-FOVCorner.CornerRadius = UDim.new(1, 0)
-FOVCorner.Parent = FOVCircle
-
-local MenuButton = Instance.new("TextButton")
-MenuButton.Name = "MenuButton"
-MenuButton.Size = UDim2.new(0, 60, 0, 60)
-MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
-MenuButton.Position = UDim2.new(0.5, 0, 0.5, 0)
-MenuButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-MenuButton.Text = "⚙️"
-MenuButton.TextSize = 28
-MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MenuButton.ZIndex = 10
-MenuButton.Parent = ScreenGui
-
-local MenuButtonCorner = Instance.new("UICorner")
-MenuButtonCorner.CornerRadius = UDim.new(0.3, 0)
-MenuButtonCorner.Parent = MenuButton
-
-local MenuButtonStroke = Instance.new("UIStroke")
-MenuButtonStroke.Thickness = 2
-MenuButtonStroke.Color = Color3.fromRGB(0, 150, 255)
-MenuButtonStroke.Parent = MenuButton
-
-local MainMenu = Instance.new("Frame")
-MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 350, 0, 620)
-MainMenu.Position = UDim2.new(0.5, -175, 0.5, -310)
-MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-MainMenu.Visible = false
-MainMenu.ZIndex = 100
-MainMenu.Parent = ScreenGui
-
-local MainMenuCorner = Instance.new("UICorner")
-MainMenuCorner.CornerRadius = UDim.new(0.04, 0)
-MainMenuCorner.Parent = MainMenu
-
-local MainMenuStroke = Instance.new("UIStroke")
-MainMenuStroke.Thickness = 2
-MainMenuStroke.Color = Color3.fromRGB(45, 45, 55)
-MainMenuStroke.Parent = MainMenu
-
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, 0, 0, 50)
-TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-TitleLabel.Text = "Block Strike iPad Pro Matrix"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 18
-TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Parent = MainMenu
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0.15, 0)
-TitleCorner.Parent = TitleLabel
-
-local CloseButton = Instance.new("TextButton")
-CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 34, 0, 34)
-CloseButton.Position = UDim2.new(1, -42, 0, 8)
-CloseButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-CloseButton.Text = "❌"
-CloseButton.TextSize = 14
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.ZIndex = 101
-CloseButton.Parent = MainMenu
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0.3, 0)
-CloseCorner.Parent = CloseButton
-
-local ModeButton = Instance.new("TextButton")
-ModeButton.Name = "ModeButton"
-ModeButton.Size = UDim2.new(0, 310, 0, 45)
-ModeButton.Position = UDim2.new(0.5, -155, 0, 70)
-ModeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-ModeButton.Text = "Режим: Выкл"
-ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ModeButton.TextSize = 16
-ModeButton.Font = Enum.Font.SourceSansBold
-ModeButton.ZIndex = 101
-ModeButton.Parent = MainMenu
-
-local ModeCorner = Instance.new("UICorner")
-ModeCorner.CornerRadius = UDim.new(0.2, 0)
-ModeCorner.Parent = ModeButton
-
-local TargetButton = Instance.new("TextButton")
-TargetButton.Name = "TargetButton"
-TargetButton.Size = UDim2.new(0, 310, 0, 45)
-TargetButton.Position = UDim2.new(0.5, -155, 0, 130)
-TargetButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-TargetButton.Text = "Цель: Head"
-TargetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TargetButton.TextSize = 16
-TargetButton.Font = Enum.Font.SourceSansBold
-TargetButton.ZIndex = 101
-TargetButton.Parent = MainMenu
-
-local TargetCorner = Instance.new("UICorner")
-TargetCorner.CornerRadius = UDim.new(0.2, 0)
-TargetCorner.Parent = TargetButton
-
-local SliderLabel = Instance.new("TextLabel")
-SliderLabel.Name = "SliderLabel"
-SliderLabel.Size = UDim2.new(0, 310, 0, 25)
-SliderLabel.Position = UDim2.new(0.5, -155, 0, 195)
-SliderLabel.BackgroundTransparency = 1
-SliderLabel.Text = "Радиус FOV: 100 px"
-SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SliderLabel.TextSize = 16
-SliderLabel.Font = Enum.Font.SourceSansBold
-SliderLabel.ZIndex = 101
-SliderLabel.Parent = MainMenu
-
-local SliderBar = Instance.new("Frame")
-SliderBar.Name = "SliderBar"
-SliderBar.Size = UDim2.new(0, 310, 0, 12)
-SliderBar.Position = UDim2.new(0.5, -155, 0, 230)
-SliderBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
-SliderBar.BorderSizePixel = 0
-SliderBar.ZIndex = 101
-SliderBar.Parent = MainMenu
-
-local SliderBarCorner = Instance.new("UICorner")
-SliderBarCorner.CornerRadius = UDim.new(1, 0)
-SliderBarCorner.Parent = SliderBar
-
-local SliderBtn = Instance.new("TextButton")
-SliderBtn.Name = "SliderBtn"
-SliderBtn.Size = UDim2.new(0, 22, 0, 22)
-SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-SliderBtn.Position = UDim2.new(0.318, 0, 0.5, 0)
-SliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-SliderBtn.Text = ""
-SliderBtn.ZIndex = 102
-SliderBtn.Parent = SliderBar
-
-local SliderBtnCorner = Instance.new("UICorner")
-SliderBtnCorner.CornerRadius = UDim.new(1, 0)
-SliderBtnCorner.Parent = SliderBtn
-
-local ESPToggle = Instance.new("TextButton")
-ESPToggle.Name = "ESPToggle"
-ESPToggle.Size = UDim2.new(0, 310, 0, 45)
-ESPToggle.Position = UDim2.new(0.5, -155, 0, 270)
-ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-ESPToggle.Text = "ESP (ВХ): ВКЛЮЧЕНО"
-ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-ESPToggle.TextSize = 16
-ESPToggle.Font = Enum.Font.SourceSansBold
-ESPToggle.ZIndex = 101
-ESPToggle.Parent = MainMenu
-
-local ESPToggleCorner = Instance.new("UICorner")
-ESPToggleCorner.CornerRadius = UDim.new(0.2, 0)
-ESPToggleCorner.Parent = ESPToggle
-
-local BHopToggle = Instance.new("TextButton")
-BHopToggle.Name = "BHopToggle"
-BHopToggle.Size = UDim2.new(0, 310, 0, 45)
-BHopToggle.Position = UDim2.new(0.5, -155, 0, 330)
-BHopToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
-BHopToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-BHopToggle.TextSize = 16
-BHopToggle.Font = Enum.Font.SourceSansBold
-BHopToggle.ZIndex = 101
-BHopToggle.Parent = MainMenu
-
-local BHopToggleCorner = Instance.new("UICorner")
-BHopToggleCorner.CornerRadius = UDim.new(0.2, 0)
-BHopToggleCorner.Parent = BHopToggle
-
-local AspectButton = Instance.new("TextButton")
-AspectButton.Name = "AspectButton"
-AspectButton.Size = UDim2.new(0, 310, 0, 45)
-AspectButton.Position = UDim2.new(0.5, -155, 0, 390)
-AspectButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-AspectButton.Text = "Растяг: Стандарт (16:9)"
-AspectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AspectButton.TextSize = 16
-AspectButton.Font = Enum.Font.SourceSansBold
-AspectButton.ZIndex = 101
-AspectButton.Parent = MainMenu
-
-local AspectCorner = Instance.new("UICorner")
-AspectCorner.CornerRadius = UDim.new(0.2, 0)
-AspectCorner.Parent = AspectButton
-
-local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Name = "SpeedLabel"
-SpeedLabel.Size = UDim2.new(0, 310, 0, 25)
-SpeedLabel.Position = UDim2.new(0.5, -155, 0, 450)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "Скорость бега: x1.0"
-SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedLabel.TextSize = 16
-SpeedLabel.Font = Enum.Font.SourceSansBold
-SpeedLabel.ZIndex = 101
-SpeedLabel.Parent = MainMenu
-
-local SpeedBar = Instance.new("Frame")
-SpeedBar.Name = "SpeedBar"
-SpeedBar.Size = UDim2.new(0, 310, 0, 12)
-SpeedBar.Position = UDim2.new(0.5, -155, 0, 485)
-SpeedBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
-SpeedBar.BorderSizePixel = 0
-SpeedBar.ZIndex = 101
-SpeedBar.Parent = MainMenu
-
-local SpeedBarCorner = Instance.new("UICorner")
-SpeedBarCorner.CornerRadius = UDim.new(1, 0)
-SpeedBarCorner.Parent = SpeedBar
-
-local SpeedBtn = Instance.new("TextButton")
-SpeedBtn.Name = "SpeedBtn"
-SpeedBtn.Size = UDim2.new(0, 22, 0, 22)
-SpeedBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-SpeedBtn.Position = UDim2.new(0, 0, 0.5, 0)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-SpeedBtn.Text = ""
-SpeedBtn.ZIndex = 102
-SpeedBtn.Parent = SpeedBar
-
-local SpeedBtnCorner = Instance.new("UICorner")
-SpeedBtnCorner.CornerRadius = UDim.new(1, 0)
-SpeedBtnCorner.Parent = SpeedBtn
-
-local AttachmentOrigin = Instance.new("Attachment")
-AttachmentOrigin.Name = "MatrixOriginAttachment"
-AttachmentOrigin.Position = Vector3.new(0, -2.5, -1)
-AttachmentOrigin.Parent = Camera
-
+-- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ЭКРАНА И ЦЕНТРА
 local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-local FOV_RADIUS = 100
-local AIM_SMOOTHNESS = 1
+local GuiInset = GuiService:GetGuiInset()
 
-local aimMode = "Выкл"
-local aimTarget = "Head"
-local espEnabled = true
-local bHopEnabled = false
-local aspectState = 1
-local speedMultiplier = 1
-
-local function getCharactersFolder()
-    local checkPlayers = Workspace:FindFirstChild("Players")
-    if checkPlayers then return checkPlayers end
-    local checkEntities = Workspace:FindFirstChild("Entities")
-    if checkEntities then return checkEntities end
-    return Workspace
+local function UpdateScreenMetrics()
+    local size = Camera.ViewportSize
+    GuiInset = GuiService:GetGuiInset()
+    ScreenCenter = Vector2.new(size.X / 2, (size.Y - GuiInset.Y) / 2)
 end
 
-local function UpdateViewportCenter()
-    local insetTop, insetBottom = GuiService:GetGuiInset()
-    ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, (Camera.ViewportSize.Y - (insetTop + insetBottom)) / 2)
-    if FOVCircle then
-        FOVCircle.Position = UDim2.new(0, ScreenCenter.X, 0, ScreenCenter.Y)
+Camera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScreenMetrics)
+UpdateScreenMetrics()
+
+-- ПОЛУЧЕНИЕ ВСЕХ ПЕРСОНАЖЕЙ (BLOCK STRIKE АДАПТАЦИЯ)
+local function GetEntitiesFolder()
+    local folder = workspace:FindFirstChild("Players") or workspace:FindFirstChild("Entities")
+    if not folder then
+        folder = workspace
     end
+    return folder
 end
 
-Camera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateViewportCenter)
-UpdateViewportCenter()
-
-local draggingMenu = false
-local dragStartPos = nil
-local menuStartPos = nil
-local hasMoved = false
-
-MenuButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingMenu = true
-        hasMoved = false
-        dragStartPos = input.Position
-        menuStartPos = MenuButton.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if draggingMenu and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = input.Position - dragStartPos
-        if delta.Magnitude > 5 then
-            hasMoved = true
-        end
-        MenuButton.Position = UDim2.new(
-            menuStartPos.X.Scale, 
-            menuStartPos.X.Offset + delta.X, 
-            menuStartPos.Y.Scale, 
-            menuStartPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if draggingMenu and not hasMoved then
-            MainMenu.Visible = not MainMenu.Visible
-        end
-        draggingMenu = false
-    end
-end)
-
-CloseButton.MouseButton1Click:Connect(function()
-    MainMenu.Visible = false
-end)
-
-local function updateFOV(radius)
-    FOV_RADIUS = radius
-    FOVCircle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
-    SliderLabel.Text = "Радиус FOV: " .. tostring(math.round(radius)) .. " px"
-end
-
-updateFOV(FOV_RADIUS)
-
-local draggingSlider = false
-SliderBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSlider = true
-    end
-end)
-
-local draggingSpeedSlider = false
-SpeedBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSpeedSlider = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSlider = false
-        draggingSpeedSlider = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if (draggingSlider or draggingSpeedSlider) and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        if draggingSlider then
-            local rX = input.Position.X - SliderBar.AbsolutePosition.X
-            local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
-            SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-            updateFOV(30 + (percentage * 220))
-        elseif draggingSpeedSlider then
-            local rX = input.Position.X - SpeedBar.AbsolutePosition.X
-            local percentage = math.clamp(rX / SpeedBar.AbsoluteSize.X, 0, 1)
-            SpeedBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
-            speedMultiplier = 1 + (percentage * 4)
-            SpeedLabel.Text = "Скорость бега: x" .. string.format("%.1f", speedMultiplier)
-        end
-    end
-end)
-
-ModeButton.MouseButton1Click:Connect(function()
-    if aimMode == "Выкл" then
-        aimMode = "Обычный Аим"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-    elseif aimMode == "Обычный Аим" then
-        aimMode = "Сайлент Аим"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(0, 0, 150)
-    else
-        aimMode = "Выкл"
-        ModeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    end
-    ModeButton.Text = "Режим: " .. aimMode
-end)
-
-TargetButton.MouseButton1Click:Connect(function()
-    if aimTarget == "Head" then
-        aimTarget = "HumanoidRootPart"
-    else
-        aimTarget = "Head"
-    end
-    TargetButton.Text = "Цель: " .. aimTarget
-end)
-
-AspectButton.MouseButton1Click:Connect(function()
-    if aspectState == 1 then
-        aspectState = 2
-        Camera.TargetAspectRatio = 4 / 3
-        AspectButton.Text = "Растяг: 4:3"
-    elseif aspectState == 2 then
-        aspectState = 3
-        Camera.TargetAspectRatio = 5 / 4
-        AspectButton.Text = "Растяг: 5:4"
-    else
-        aspectState = 1
-        Camera.TargetAspectRatio = 16 / 9
-        AspectButton.Text = "Растяг: Стандарт (16:9)"
-    end
-end)
-
-local function removePlayerEsp(player)
-    local folder = getCharactersFolder()
-    local char = folder:FindFirstChild(player.Name)
-    if char then
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
-            local bb = root:FindFirstChild("MatrixBillboard")
-            if bb then bb:Destroy() end
-            local tAtt = root:FindFirstChild("MatrixTracerAttachment")
-            if tAtt then tAtt:Destroy() end
-            local beam = root:FindFirstChild("MatrixTracerBeam")
-            if beam then beam:Destroy() end
-        end
-        local hl = char:FindFirstChild("MatrixHighlight")
-        if hl then hl:Destroy() end
-    end
-end
-
-local function cleanAllVisuals()
-    local currentPlayers = Players:GetPlayers()
-    for index = 1, #currentPlayers do
-        removePlayerEsp(currentPlayers[index])
-    end
-end
-
-ESPToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    if espEnabled then
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        ESPToggle.Text = "ESP (ВХ): ВКЛЮЧЕНО"
-    else
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        ESPToggle.Text = "ESP (ВХ): ВЫКЛЮЧЕНО"
-        cleanAllVisuals()
-    end
-end)
-
-BHopToggle.MouseButton1Click:Connect(function()
-    bHopEnabled = not bHopEnabled
-    if bHopEnabled then
-        BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛЮЧЕН"
-    else
-        BHopToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
-    end
-end)
-
-local function IsEnemy(targetPlayer)
-    if targetPlayer == LocalPlayer then return false end
-    
-    local localTeam = LocalPlayer:GetAttribute("Team")
-    local targetTeam = targetPlayer:GetAttribute("Team")
-    if localTeam ~= nil and targetTeam ~= nil then
-        return localTeam ~= targetTeam
-    end
-    
-    if targetPlayer.Team and LocalPlayer.Team then
-        return targetPlayer.Team ~= LocalPlayer.Team
-    end
-    
-    if targetPlayer.TeamColor ~= LocalPlayer.TeamColor and targetPlayer.TeamColor ~= BrickColor.new("White") then
-        return true
-    end
-    
-    return false
-end
-
-local function ValidatedTarget(character)
-    local hum = character:FindFirstChildOfClass("Humanoid")
-    local head = character:FindFirstChild("Head")
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if hum and head and root and hum.Health > 0 and character.Name ~= "Dead" and head.Transparency ~= 1 then
-        return hum, head, root
-    end
+-- КОРРЕКТНОЕ ОПРЕДЕЛЕНИЕ КОМАНДЫ (АТРИБУТЫ + СТАНДАРТ)
+local function GetPlayerTeam(player)
+    if not player then return nil end
+    local customTeam = player:GetAttribute("Team")
+    if customTeam then return tostring(customTeam) end
+    if player.Team then return player.Team.Name end
+    if player:FindFirstChild("Team") then return player.Team.Value end
     return nil
 end
 
-local function IsVisibleCheck(targetPart)
-    local character = LocalPlayer.Character
-    if not character then return false end
-    local originPart = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
-    if not originPart then return false end
+local function IsEnemy(targetPlayer)
+    if not Settings.TeamCheck then return true end
+    if targetPlayer == LocalPlayer then return false end
+    
+    local lpTeam = GetPlayerTeam(LocalPlayer)
+    local targetTeam = GetPlayerTeam(targetPlayer)
+    
+    if lpTeam and targetTeam then
+        return lpTeam ~= targetTeam
+    end
+    
+    if LocalPlayer.TeamColor and targetPlayer.TeamColor then
+        return LocalPlayer.TeamColor ~= targetPlayer.TeamColor
+    end
+    
+    return true
+end
+
+-- ВАЛИДАЦИЯ ЦЕЛИ (ТРОЙНАЯ ПРОВЕРКА И АНТИ-КРАШ)
+local function IsValidTarget(model)
+    if not model then return false end
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    local head = model:FindFirstChild("Head")
+    local root = model:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not head or not root then return false end
+    if humanoid.Health <= 0 then return false end
+    if head.Transparency >= 0.9 then return false end
+    if humanoid:GetState() == Enum.HumanoidStateType.Dead then return false end
+    
+    -- Поиск игрока по модели
+    local targetPlayer = Players:GetPlayerFromCharacter(model)
+    if not targetPlayer then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character == model or p.Name == model.Name then
+                targetPlayer = p
+                break
+            end
+        end
+    end
+    
+    if targetPlayer and not IsEnemy(targetPlayer) then
+        return false
+    end
+    
+    return true
+end
+
+-- ПРОВЕРКА ВИДИМОСТИ (RAYCAST)
+local function IsVisible(targetPart, character)
+    local origin = Camera.CFrame.Position
+    local direction = targetPart.Position - origin
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {character, targetPart.Parent, getCharactersFolder()}
+    params.FilterDescendantsInstances = {LocalPlayer.Character, Camera, character}
     params.IgnoreWater = true
-    local result = workspace:Raycast(originPart.Position, targetPart.Position - originPart.Position, params)
+    
+    local result = workspace:Raycast(origin, direction, params)
     return result == nil
 end
 
-local function ApplyVisuals(target, occluded, dist)
-    local visibilityColor = occluded and Color3.fromRGB(255, 30, 30) or Color3.fromRGB(30, 255, 30)
-    
-    local hl = target.Char:FindFirstChild("MatrixHighlight") or Instance.new("Highlight")
-    if not hl.Parent then
-        hl.Name = "MatrixHighlight"
-        hl.FillTransparency = 0.85
-        hl.OutlineTransparency = 0
-        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        hl.Parent = target.Char
-    end
-    hl.FillColor = visibilityColor
-    hl.OutlineColor = visibilityColor
-    
-    local bb = target.Root:FindFirstChild("MatrixBillboard") or Instance.new("BillboardGui")
-    if not bb.Parent then
-        bb.Name = "MatrixBillboard"
-        bb.AlwaysOnTop = true
-        bb.Size = UDim2.new(0, 130, 0, 150)
-        bb.Adornee = target.Root
-        bb.Parent = target.Root
-    end
-    
-    local box = bb:FindFirstChild("BoundingBox") or Instance.new("Frame")
-    if not box.Parent then
-        box.Name = "BoundingBox"
-        box.Size = UDim2.new(0, 65, 0, 95)
-        box.Position = UDim2.new(0.5, -32, 0.5, -47)
-        box.BackgroundTransparency = 1
-        box.Parent = bb
-    end
-    
-    local stroke = box:FindFirstChild("UIStroke") or Instance.new("UIStroke")
-    if not stroke.Parent then
-        stroke.Thickness = 1.5
-        stroke.Parent = box
-    end
-    stroke.Color = visibilityColor
-    
-    local track = box:FindFirstChild("HealthTrack") or Instance.new("Frame")
-    if not track.Parent then
-        track.Name = "HealthTrack"
-        track.Size = UDim2.new(0, 4, 0, 95)
-        track.Position = UDim2.new(1, 4, 0, 0)
-        track.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-        track.BorderSizePixel = 0
-        track.Parent = box
-    end
-    
-    local fill = track:FindFirstChild("HealthFill") or Instance.new("Frame")
-    if not fill.Parent then
-        fill.Name = "HealthFill"
-        fill.AnchorPoint = Vector2.new(0, 1)
-        fill.Position = UDim2.new(0, 0, 1, 0)
-        fill.BorderSizePixel = 0
-        fill.Parent = track
-    end
-    
-    local hpPct = math.clamp(target.Hum.Health / target.Hum.MaxHealth, 0, 1)
-    fill.Size = UDim2.new(1, 0, hpPct, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(255 * (1 - hpPct), hpPct * 255, 0)
-    
-    local lbl = box:FindFirstChild("InfoLabel") or Instance.new("TextLabel")
-    if not lbl.Parent then
-        lbl.Name = "InfoLabel"
-        lbl.Size = UDim2.new(2, 0, 0, 18)
-        lbl.Position = UDim2.new(-0.5, 0, 0, -22)
-        lbl.BackgroundTransparency = 1
-        lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-        lbl.TextStrokeTransparency = 0
-        lbl.Font = Enum.Font.GothamBold
-        lbl.TextSize = 10
-        lbl.Parent = box
-    end
-    lbl.Text = string.format("%s [%dm]", target.Player and target.Player.Name or target.Char.Name, math.floor(dist))
-    
-    local tAtt = target.Root:FindFirstChild("MatrixTracerAttachment") or Instance.new("Attachment")
-    if not tAtt.Parent then
-        tAtt.Name = "MatrixTracerAttachment"
-        tAtt.Parent = target.Root
-    end
-    
-    local beam = target.Root:FindFirstChild("MatrixTracerBeam") or Instance.new("Beam")
-    if not beam.Parent then
-        beam.Name = "MatrixTracerBeam"
-        beam.Attachment0 = AttachmentOrigin
-        beam.Attachment1 = tAtt
-        beam.Width0 = 0.04
-        beam.Width1 = 0.04
-        beam.FaceCamera = true
-        beam.LightInfluence = 0
-        beam.Parent = target.Root
-    end
-    beam.Color = ColorSequence.new(visibilityColor)
+-- СОЗДАНИЕ PREMIUM UI (СКРИН СТРУКТУРА)
+local CoreGui = game:GetService("CoreGui")
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PremiumDeltaMenu"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = CoreGui
+
+-- FOV КРУГ (ДЛЯ IPAD)
+local FovGui = Instance.new("ScreenGui")
+FovGui.Name = "FovDisplay"
+FovGui.ResetOnSpawn = false
+FovGui.Parent = CoreGui
+
+local FovFrame = Instance.new("Frame")
+FovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+FovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+FovFrame.Size = UDim2.new(0, Settings.FovRadius * 2, 0, Settings.FovRadius * 2)
+FovFrame.BackgroundTransparency = 1
+FovFrame.Parent = FovGui
+
+local FovCorner = Instance.new("UICorner")
+FovCorner.CornerRadius = UDim.new(1, 0)
+FovCorner.Parent = FovFrame
+
+local FovStroke = Instance.new("UIStroke")
+FovStroke.Color = Settings.FovColorEmpty
+FovStroke.Thickness = 2
+FovStroke.Parent = FovFrame
+
+-- КНОПКА-ШЕСТЕРЕНКА (СПАВН СТРОГО В ЦЕНТРЕ ПО ИНСТРУКЦИИ)
+local GearButton = Instance.new("TextButton")
+GearButton.Name = "GearButton"
+GearButton.Size = UDim2.new(0, 50, 0, 50)
+GearButton.AnchorPoint = Vector2.new(0.5, 0.5)
+GearButton.Position = UDim2.new(0.5, 0, 0.5, 0) -- Строго в центре прицела при первом запуске
+GearButton.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+GearButton.Text = "⚙️"
+GearButton.TextSize = 25
+GearButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+GearButton.Parent = ScreenGui
+
+local GearCorner = Instance.new("UICorner")
+GearCorner.CornerRadius = UDim.new(0.5, 0)
+GearCorner.Parent = GearButton
+
+local GearStroke = Instance.new("UIStroke")
+GearStroke.Color = Color3.fromRGB(0, 150, 255)
+GearStroke.Thickness = 1.5
+GearStroke.Parent = GearButton
+
+-- ФУНКЦИЯ ДРАГГИНГА ДЛЯ IPAD (ТАЧ ПОДДЕРЖКА)
+local function MakeDraggable(frame)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
 end
 
-local function getClosestVisibleEnemy()
-    local closestPlayer = nil
-    local shortestDistance = math.huge
-    local currentTargetPartName = aimTarget
-    if aimMode == "Сайлент Аим" then
-        currentTargetPartName = "Head"
+MakeDraggable(GearButton)
+
+-- ГЛАВНОЕ МЕНЮ (ТЕМНОЕ ПРЕМИУМ)
+local MainMenu = Instance.new("Frame")
+MainMenu.Name = "MainMenu"
+MainMenu.Size = UDim2.new(0, 350, 0, 250)
+MainMenu.AnchorPoint = Vector2.new(0.5, 0.5)
+MainMenu.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainMenu.Visible = false
+MainMenu.Parent = ScreenGui
+
+local MenuCorner = Instance.new("UICorner")
+MenuCorner.CornerRadius = UDim.new(0, 12)
+MenuCorner.Parent = MainMenu
+
+local MenuStroke = Instance.new("UIStroke")
+MenuStroke.Color = Color3.fromRGB(40, 40, 50)
+MenuStroke.Thickness = 2
+MenuStroke.Parent = MainMenu
+
+MakeDraggable(MainMenu)
+
+-- ЗАГЛОВОК МЕНЮ
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -40, 0, 40)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "DELTA PREMIUM — BLOCK STRIKE"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.SourceSansBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = MainMenu
+
+-- КРЕСТИК ЗАКРЫТИЯ ❌
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0, 5)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Text = "❌"
+CloseButton.TextSize = 18
+CloseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseButton.Parent = MainMenu
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainMenu.Visible = false
+    GearButton.Visible = true
+end)
+
+GearButton.MouseButton1Click:Connect(function()
+    MainMenu.Visible = true
+    GearButton.Visible = false
+end)
+
+-- КОНТЕЙНЕР ДЛЯ ЭЛЕМЕНТОВ
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Padding = UDim.new(0, 10)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(1, -30, 1, -60)
+Container.Position = UDim2.new(0, 15, 0, 50)
+Container.BackgroundTransparency = 1
+Container.Parent = MainMenu
+ListLayout.Parent = Container
+
+-- ФУНКЦИЯ СОЗДАНИЯ ПЕРЕКЛЮЧАТЕЛЕЙ (TOGGLES)
+local function CreateToggle(name, default, callback)
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(1, 0, 0, 35)
+    toggleFrame.BackgroundTransparency = 1
+    toggleFrame.Parent = Container
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.TextSize = 16
+    label.Font = Enum.Font.SourceSans
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = toggleFrame
+    
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.25, 0, 0.8, 0)
+    button.Position = UDim2.new(0.75, 0, 0.1, 0)
+    button.BackgroundColor3 = default and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(50, 50, 60)
+    button.Text = default and "ON" or "OFF"
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.TextSize = 14
+    button.Parent = toggleFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = button
+    
+    local state = default
+
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        button.BackgroundColor3 = state and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(50, 50, 60)
+        button.Text = state and "ON" or "OFF"
+        callback(state)
+    end)
+end
+
+-- ФУНКЦИЯ ДЛЯ КНОПКИ РАСТЯГА СТРЕТЧА
+local function CreateStretchButton()
+    local stretchFrame = Instance.new("Frame")
+    stretchFrame.Size = UDim2.new(1, 0, 0, 35)
+    stretchFrame.BackgroundTransparency = 1
+    stretchFrame.Parent = Container
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.5, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "Растяг Экрана:"
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.TextSize = 16
+    label.Font = Enum.Font.SourceSans
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = stretchFrame
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.45, 0, 0.8, 0)
+    btn.Position = UDim2.new(0.55, 0, 0.1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(70, 30, 120)
+    btn.Text = "Режим: 16:9"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    btn.Parent = stretchFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+    
+    local modes = {"16:9", "4:3", "5:4"}
+    local currentIdx = 1
+    
+    btn.MouseButton1Click:Connect(function()
+        currentIdx = currentIdx + 1
+        if currentIdx > #modes then currentIdx = 1 end
+        Settings.StretchMode = modes[currentIdx]
+        btn.Text = "Режим: " .. Settings.StretchMode
+        
+        -- Управление пропорциями
+        if Settings.StretchMode == "16:9" then
+            Camera.TargetAspectRatio = 1.777777
+        elseif Settings.StretchMode == "4:3" then
+            Camera.TargetAspectRatio = 1.333333
+        elseif Settings.StretchMode == "5:4" then
+            Camera.TargetAspectRatio = 1.25
+        end
+    end)
+end
+
+-- Инициализация элементов меню
+CreateToggle("Сайлент Аимбот", Settings.SilentAimEnabled, function(val) Settings.SilentAimEnabled = val end)
+CreateToggle("Проверка Команды", Settings.TeamCheck, function(val) Settings.TeamCheck = val end)
+CreateToggle("Отображение ESP", Settings.EspEnabled, function(val) Settings.EspEnabled = val end)
+CreateStretchButton()
+
+-- КОРНЕВОЙ ОРГАНИЗАТОР ЭФФЕКТОВ ESP (БЕЗ ДУБЛИРОВАНИЯ И С ЗАЩИТОЙ ОТ ЛАГОВ)
+local ActiveEsp = {}
+
+-- Нативный Трейсер через Beam
+local function CreateNativeTracer(character, rootPart)
+    local attachment0 = Instance.new("Attachment")
+    attachment0.Name = "EspTracerAttachmentCam"
+    attachment0.Parent = workspace.Terrain -- Привязка к миру во избежание лагов
+    
+    local attachment1 = Instance.new("Attachment")
+    attachment1.Name = "EspTracerAttachmentEnemy"
+    attachment1.Parent = rootPart
+    
+    local beam = Instance.new("Beam")
+    beam.Attachment0 = attachment0
+    beam.Attachment1 = attachment1
+    beam.Width0 = 0.05
+    beam.Width1 = 0.05
+    beam.FaceCamera = true
+    beam.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+    beam.Transparency = NumberSequence.new(0.2)
+    beam.Parent = rootPart
+    
+    return attachment0, beam
+end
+
+local function ApplyEspEffects(model)
+    if not model or ActiveEsp[model] then return end
+    
+    local root = model:WaitForChild("HumanoidRootPart", 5)
+    local head = model:WaitForChild("Head", 5)
+    local humanoid = model:WaitForChild("Humanoid", 5)
+    if not root or not head or not humanoid then return end
+    
+    -- 1. Highlight (Нативное сквозное просвечивание)
+    local hl = Instance.new("Highlight")
+    hl.Name = "EspHighlight"
+    hl.FillTransparency = 0.4
+    hl.OutlineTransparency = 0.1
+    hl.Parent = model
+    
+    -- 2. BillboardGui для 2D-бокса и интерфейса
+    local bGui = Instance.new("BillboardGui")
+    bGui.Name = "EspBillboard"
+    bGui.Size = UDim2.new(4.5, 0, 5.5, 0)
+    bGui.AlwaysOnTop = true
+    bGui.Adornee = root
+    bGui.Parent = root
+    
+    -- Обводка/Рамка бокса
+    local boxFrame = Instance.new("Frame")
+    boxFrame.Size = UDim2.new(1, 0, 1, 0)
+    boxFrame.BackgroundTransparency = 1
+    boxFrame.Parent = bGui
+    
+    local boxStroke = Instance.new("UIStroke")
+    boxStroke.Thickness = 1.5
+    boxStroke.Color = Color3.fromRGB(255, 0, 0)
+    boxStroke.Parent = boxFrame
+    
+    -- Вертикальный HP-бар СТРОГО СПРАВА
+    local hpTrack = Instance.new("Frame")
+    hpTrack.Size = UDim2.new(0.06, 0, 1, 0)
+    hpTrack.Position = UDim2.new(1, 5, 0, 0) -- Строго справа от бокса
+    hpTrack.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+    hpTrack.BorderSizePixel = 0
+    hpTrack.Parent = bGui
+    
+    local hpBar = Instance.new("Frame")
+    hpBar.Size = UDim2.new(1, 0, 1, 0)
+    hpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    hpBar.BorderSizePixel = 0
+    hpBar.Parent = hpTrack
+    
+    -- Имя и Дистанция НАД головой
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(2, 0, 0, 20)
+    textLabel.Position = UDim2.new(-0.5, 0, 0, -25)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextSize = 13
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextStrokeTransparency = 0
+    textLabel.Parent = bGui
+    
+    -- Трейсер через Beam
+    local tracerAtt0, tracerBeam = CreateNativeTracer(model, root)
+    
+    ActiveEsp[model] = {
+        Highlight = hl,
+        Billboard = bGui,
+        BoxStroke = boxStroke,
+        HpBar = hpBar,
+        TextLabel = textLabel,
+        TracerAttachment0 = tracerAtt0,
+        TracerBeam = tracerBeam
+    }
+end
+
+local function RemoveEspEffects(model)
+    local cache = ActiveEsp[model]
+    if cache then
+        if cache.Highlight then cache.Highlight:Destroy() end
+        if cache.Billboard then cache.Billboard:Destroy() end
+        if cache.TracerAttachment0 then cache.TracerAttachment0:Destroy() end
+        if cache.TracerBeam then cache.TracerBeam:Destroy() end
+        ActiveEsp[model] = nil
     end
+end
+
+-- ОБНОВЛЕНИЕ ESP И ПОИСК БЛИЖАЙШЕЙ ЦЕЛИ В FOV ЗА ОДИН КАДР
+local function ProcessFrame()
+    local entitiesFolder = GetEntitiesFolder()
+    local children = entitiesFolder:GetChildren()
+    local closestTarget = nil
+    local minDistanceToCenter = Settings.FovRadius
     
-    local folder = getCharactersFolder()
-    local playerList = Players:GetPlayers()
+    -- Динамическая позиция нижнего центра для лучей трейсеров
+    local tracerOriginWorld = Camera:ViewportPointToRay(ScreenCenter.X, Camera.ViewportSize.Y - 10).Origin
     
-    for i = 1, #playerList do
-        local player = playerList[i]
-        if IsEnemy(player) then
-            local char = folder:FindFirstChild(player.Name)
-            if char then
-                local hum, head, root = ValidatedTarget(char)
-                if hum and head and root then
-                    local targetPart = char:FindFirstChild(currentTargetPartName)
-                    if targetPart then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                        if onScreen then
-                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - ScreenCenter).Magnitude
-                            if distance <= FOV_RADIUS and distance < shortestDistance and IsVisibleCheck(targetPart) then
-                                shortestDistance = distance
-                                closestPlayer = player
+    for _, child in ipairs(children) do
+        if child:IsA("Model") and child ~= LocalPlayer.Character then
+            if IsValidTarget(child) then
+                -- Активация ESP, если объект валиден
+                if Settings.EspEnabled then
+                    if not ActiveEsp[child] then
+                        ApplyEspEffects(child)
+                    end
+                    
+                    local data = ActiveEsp[child]
+                    if data then
+                        data.Billboard.Enabled = true
+                        data.Highlight.Enabled = true
+                        
+                        local head = child:FindFirstChild("Head")
+                        local root = child:FindFirstChild("HumanoidRootPart")
+                        local humanoid = child:FindFirstChildOfClass("Humanoid")
+                        
+                        if head and root and humanoid then
+                            -- Проверка видимости для смены цвета нативного Highlight
+                            local visible = IsVisible(head, child)
+                            
+                            if visible then
+                                data.Highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                                data.Highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+                                data.BoxStroke.Color = Color3.fromRGB(0, 255, 0)
+                            else
+                                data.Highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                                data.Highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+                                data.BoxStroke.Color = Color3.fromRGB(255, 0, 0)
+                            end
+                            
+                            -- Обновление ХП бара (плавный градиент)
+                            local hpPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                            data.HpBar.Size = UDim2.new(1, 0, hpPercent, 0)
+                            data.HpBar.Position = UDim2.new(0, 0, 1 - hpPercent, 0)
+                            data.HpBar.BackgroundColor3 = Color3.fromHSV(hpPercent * 0.33, 1, 1)
+                            
+                            -- Расчет дистанции и имени
+                            local distance = math.floor((Camera.CFrame.Position - root.Position).Magnitude)
+                            local nameClean = child.Name
+                            local pFromChar = Players:GetPlayerFromCharacter(child)
+                            if pFromChar then nameClean = pFromChar.DisplayName end
+                            data.TextLabel.Text = string.format("%s [%d м]", nameClean, distance)
+                            
+                            -- Нативный сверхбыстрый Трейсер (Beam позиционирование)
+                            if data.TracerAttachment0 then
+                                data.TracerAttachment0.Position = tracerOriginWorld
+                                data.TracerBeam.Color = ColorSequence.new(visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+                            end
+                            
+                            -- ПРОВЕРКА FOV ДЛЯ АИМБОТА
+                            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                            if onScreen then
+                                local screenPos2D = Vector2.new(screenPos.X, screenPos.Y)
+                                local distToCenter = (screenPos2D - ScreenCenter).Magnitude
+                                if distToCenter < minDistanceToCenter then
+                                    minDistanceToCenter = distToCenter
+                                    closestTarget = head
+                                end
                             end
                         end
                     end
-                end
-            end
-        end
-    end
-    return closestPlayer
-end
-
-RunService.RenderStepped:Connect(function()
-    if not ScreenGui or not ScreenGui.Parent then
-        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    end
-    
-    local myChar = LocalPlayer.Character
-    if myChar then
-        local myHumanoid = myChar:FindFirstChildOfClass("Humanoid")
-        if myHumanoid then
-            myHumanoid.WalkSpeed = 16 * speedMultiplier
-            if bHopEnabled and myHumanoid.Health > 0 then
-                local isInteracting = UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetTouches() > 0
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) or isInteracting then
-                    if myHumanoid.FloorMaterial ~= Enum.Material.Air then
-                        myHumanoid.Jump = true
+                else
+                    -- Отключение рендеринга ESP элементов при выключении флага
+                    if ActiveEsp[child] then
+                        ActiveEsp[child].Billboard.Enabled = false
+                        ActiveEsp[child].Highlight.Enabled = false
+                        if ActiveEsp[child].TracerBeam then
+                            ActiveEsp[child].TracerBeam.Color = ColorSequence.new(Color3.new(0,0,0), Color3.new(0,0,0))
+                        end
                     end
                 end
+            else
+                -- Если цель больше не валидна (умерла/сменила команду)
+                RemoveEspEffects(child)
             end
         end
     end
     
-    local activeScreenPlayers = {}
-    local folder = getCharactersFolder()
-    local allPlayers = Players:GetPlayers()
-    
-    for j = 1, #allPlayers do
-        local player = allPlayers[j]
-        if IsEnemy(player) then
-            local char = folder:FindFirstChild(player.Name)
-            if char then
-                local hum, head, root = ValidatedTarget(char)
-                if hum and head and root then
-                    if espEnabled then
-                        activeScreenPlayers[player.Name] = true
-                        local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                        local dist = myHrp and (root.Position - myHrp.Position).Magnitude or 0
-                        ApplyVisuals({Char = char, Root = root, Hum = hum, Player = player}, not IsVisibleCheck(root), dist)
-                    end
-                end
-            end
+    -- Очистка несуществующих объектов
+    for model, _ in pairs(ActiveEsp) do
+        if not model or not model.Parent or not entitiesFolder:FindFirstChild(model.Name) then
+            RemoveEspEffects(model)
         end
     end
     
-    local targetPlayer = getClosestVisibleEnemy()
-    if aimMode ~= "Выкл" and targetPlayer then
-        FOVStroke.Color = Color3.fromRGB(0, 255, 0)
-        local currentTargetPartName = aimTarget
-        if aimMode == "Сайлент Аим" then
-            currentTargetPartName = "Head"
-        end
+    -- СИСТЕМА УЛЬТРА САЙЛЕНТ АИМБОТА (НЕПРЕРЫВНЫЙ МИКРО-ДОВОРOT КАМЕРЫ ДЛЯ IPAD)
+    if Settings.SilentAimEnabled and closestTarget then
+        FovStroke.Color = Settings.FovColorLock
         
-        local char = folder:FindFirstChild(targetPlayer.Name)
-        if char then
-            local _, _, root = ValidatedTarget(char)
-            local targetPart = char:FindFirstChild(currentTargetPartName)
-            if targetPart then
-                if aimMode == "Обычный Аим" then
-                    if UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetTouches() > 0 then
-                        local targetDir = (targetPart.Position - Camera.CFrame.Position).Unit
-                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, Camera.CFrame.Position + targetDir), AIM_SMOOTHNESS)
-                    end
-                elseif aimMode == "Сайлент Аим" then
-                    local targetDir = (targetPart.Position - Camera.CFrame.Position).Unit
-                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, Camera.CFrame.Position + targetDir), 1)
-                end
-            end
+        -- Проверяем зажатие тача экрана или выполнение выстрелов (автоподдержка)
+        local isPressing = UserInputService:IsMouseButtonPressed(Enum.MouseButton1) or #UserInputService:GetTouches() > 0
+        if isPressing then
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+            -- Плавная интерполяция (микро-доворот) без тряски интерфейса и вылетов
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.25)
         end
     else
-        FOVStroke.Color = Color3.fromRGB(255, 0, 0)
+        FovStroke.Color = Settings.FovColorEmpty
     end
-    
-    for k = 1, #allPlayers do
-        local player = allPlayers[k]
-        if not activeScreenPlayers[player.Name] then
-            removePlayerEsp(player)
+end
+
+-- ПОТОК ИСПОЛНЕНИЯ (СТАРТ СРАЗУ И БЕЗ ЗАДЕРЖЕК)
+RunService.RenderStepped:Connect(ProcessFrame)
+
+-- ОТСЛЕЖИВАНИЕ ДИНАМИЧЕСКОГО ИЗМЕНЕНИЯ МИРА И ЭНТИТИ
+local targetFolder = GetEntitiesFolder()
+
+targetFolder.ChildAdded:Connect(function(child)
+    if child:IsA("Model") then
+        task.wait(0.1)
+        if IsValidTarget(child) and Settings.EspEnabled then
+            ApplyEspEffects(child)
         end
     end
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-    removePlayerEsp(player)
+targetFolder.ChildRemoved:Connect(function(child)
+    RemoveEspEffects(child)
 end)
