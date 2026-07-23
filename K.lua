@@ -12,6 +12,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "PremiumMobileMatrixEngine"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999999
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local FOVCircle = Instance.new("Frame")
@@ -36,10 +37,12 @@ local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "MenuButton"
 MenuButton.Size = UDim2.new(0, 60, 0, 60)
 MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
+MenuButton.Position = UDim2.new(0.5, 0, 0.8, -60)
 MenuButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MenuButton.Text = "⚙️"
 MenuButton.TextSize = 28
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MenuButton.ZIndex = 10
 MenuButton.Parent = ScreenGui
 
 local MenuButtonCorner = Instance.new("UICorner")
@@ -57,6 +60,7 @@ MainMenu.Size = UDim2.new(0, 350, 0, 640)
 MainMenu.Position = UDim2.new(0.5, -175, 0.5, -320)
 MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainMenu.Visible = false
+MainMenu.ZIndex = 100
 MainMenu.Parent = ScreenGui
 
 local MainMenuCorner = Instance.new("UICorner")
@@ -331,9 +335,6 @@ local thirdPersonActive = false
 local currentEnvironmentState = 1
 local speedMultiplier = 1
 
-local colorVisible = Color3.fromRGB(30, 255, 30)
-local colorHidden = Color3.fromRGB(255, 30, 30)
-
 local menuButtonPosition = nil
 
 local ColorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
@@ -427,6 +428,7 @@ end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         draggingSlider = false
+        draggingSpeedSlider = false
     end
 end)
 
@@ -445,12 +447,6 @@ local draggingSpeedSlider = false
 SpeedBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         draggingSpeedSlider = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSpeedSlider = false
     end
 end)
 
@@ -534,7 +530,7 @@ BHopToggle.MouseButton1Click:Connect(function()
     bHopEnabled = not bHopEnabled
     if bHopEnabled then
         BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛУЧЕН"
+        BHopToggle.Text = "BUNNYHOP: ВКЛЮЧЕН"
     else
         BHopToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
         BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
@@ -774,41 +770,7 @@ end
 
 RunService.RenderStepped:Connect(function()
     if not ScreenGui or not ScreenGui.Parent then
-        ScreenGui = Instance.new("ScreenGui")
-        ScreenGui.Name = "PremiumMobileMatrixEngine"
-        ScreenGui.ResetOnSpawn = false
-        ScreenGui.IgnoreGuiInset = true
         ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    end
-    
-    if not FOVCircle or not FOVCircle.Parent then
-        FOVCircle = Instance.new("Frame")
-        FOVCircle.Name = "FOVCircle"
-        FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        FOVCircle.BackgroundTransparency = 0.95
-        FOVCircle.BorderSizePixel = 0
-        FOVCircle.Visible = true
-        FOVCircle.Parent = ScreenGui
-        FOVStroke = Instance.new("UIStroke")
-        FOVStroke.Thickness = 1.5
-        FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-        FOVStroke.Parent = FOVCircle
-        FOVCorner = Instance.new("UICorner")
-        FOVCorner.CornerRadius = UDim.new(1, 0)
-        FOVCorner.Parent = FOVCircle
-    end
-    
-    if not MenuButton or not MenuButton.Parent then
-        MenuButton = Instance.new("TextButton")
-        MenuButton.Name = "MenuButton"
-        MenuButton.Size = UDim2.new(0, 60, 0, 60)
-        MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
-        MenuButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-        MenuButton.Text = "⚙️"
-        MenuButton.TextSize = 28
-        MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        MenuButton.Parent = ScreenGui
     end
     
     local targetPlayer = getClosestVisibleEnemy()
