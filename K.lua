@@ -647,7 +647,7 @@ BHopToggle.MouseButton1Click:Connect(function()
     bHopEnabled = not bHopEnabled
     if bHopEnabled then
         BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛУЧЕН"
+        BHopToggle.Text = "BUNNYHOP: ВКЛЮЧЕН"
     else
         BHopToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
         BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
@@ -673,27 +673,18 @@ EnvironmentButton.MouseButton1Click:Connect(function()
         Lighting.TimeOfDay = "00:00:00"
         Lighting.Brightness = 0
         Lighting.OutdoorAmbient = Color3.fromRGB(15, 15, 35)
-        ColorCorrection.Saturation = 0.6
-        ColorCorrection.Contrast = 0.3
-        ColorCorrection.Brightness = 0.05
         EnvironmentButton.Text = "Небо и Гамма: Полночь"
     elseif currentEnvironmentState == 2 then
         currentEnvironmentState = 3
         Lighting.TimeOfDay = "18:20:00"
         Lighting.Brightness = 1.5
         Lighting.OutdoorAmbient = Color3.fromRGB(100, 50, 40)
-        ColorCorrection.Saturation = -0.1
-        ColorCorrection.Contrast = 0.4
-        ColorCorrection.Brightness = -0.05
         EnvironmentButton.Text = "Небо и Гамма: Закат"
     else
         currentEnvironmentState = 1
         Lighting.TimeOfDay = "14:00:00"
         Lighting.Brightness = 3
         Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-        ColorCorrection.Saturation = 0
-        ColorCorrection.Contrast = 0
-        ColorCorrection.Brightness = 0
         EnvironmentButton.Text = "Небо и Гамма: Стандарт"
     end
 end)
