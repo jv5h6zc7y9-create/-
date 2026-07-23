@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "PremiumMobileMatrixEngine"
+ScreenGui.Name = "FixedMobileMatrixEngine"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.DisplayOrder = 999999
@@ -33,14 +33,14 @@ local FOVCorner = Instance.new("UICorner")
 FOVCorner.CornerRadius = UDim.new(1, 0)
 FOVCorner.Parent = FOVCircle
 
+-- Перенесено наверх слева, чтобы не мешать геймплею
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "MenuButton"
-MenuButton.Size = UDim2.new(0, 60, 0, 60)
-MenuButton.AnchorPoint = Vector2.new(0.5, 0.5)
-MenuButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+MenuButton.Size = UDim2.new(0, 50, 0, 50)
+MenuButton.Position = UDim2.new(0, 15, 0, 80)
 MenuButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MenuButton.Text = "⚙️"
-MenuButton.TextSize = 28
+MenuButton.TextSize = 24
 MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuButton.ZIndex = 10
 MenuButton.Parent = ScreenGui
@@ -56,8 +56,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 350, 0, 640)
-MainMenu.Position = UDim2.new(0.5, -175, 0.5, -320)
+MainMenu.Size = UDim2.new(0, 320, 0, 580)
+MainMenu.Position = UDim2.new(0.5, -160, 0.5, -290)
 MainMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainMenu.Visible = false
 MainMenu.ZIndex = 100
@@ -74,11 +74,11 @@ MainMenuStroke.Parent = MainMenu
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, 0, 0, 50)
+TitleLabel.Size = UDim2.new(1, 0, 0, 45)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-TitleLabel.Text = "iPad Pro 11 Premium Multi-Cheat"
+TitleLabel.Text = "Matrix Engine (Fixed)"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 18
+TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainMenu
 
@@ -88,11 +88,11 @@ TitleCorner.Parent = TitleLabel
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 34, 0, 34)
-CloseButton.Position = UDim2.new(1, -42, 0, 8)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -38, 0, 7)
 CloseButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 CloseButton.Text = "❌"
-CloseButton.TextSize = 14
+CloseButton.TextSize = 12
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.ZIndex = 101
 CloseButton.Parent = MainMenu
@@ -103,12 +103,12 @@ CloseCorner.Parent = CloseButton
 
 local ModeButton = Instance.new("TextButton")
 ModeButton.Name = "ModeButton"
-ModeButton.Size = UDim2.new(0, 310, 0, 45)
-ModeButton.Position = UDim2.new(0.5, -155, 0, 70)
+ModeButton.Size = UDim2.new(0, 280, 0, 40)
+ModeButton.Position = UDim2.new(0.5, -140, 0, 55)
 ModeButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 ModeButton.Text = "Режим: Выкл"
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ModeButton.TextSize = 16
+ModeButton.TextSize = 15
 ModeButton.Font = Enum.Font.SourceSansBold
 ModeButton.ZIndex = 101
 ModeButton.Parent = MainMenu
@@ -117,19 +117,14 @@ local ModeCorner = Instance.new("UICorner")
 ModeCorner.CornerRadius = UDim.new(0.2, 0)
 ModeCorner.Parent = ModeButton
 
-local ModeStroke = Instance.new("UIStroke")
-ModeStroke.Thickness = 1
-ModeStroke.Color = Color3.fromRGB(75, 75, 90)
-ModeStroke.Parent = ModeButton
-
 local TargetButton = Instance.new("TextButton")
 TargetButton.Name = "TargetButton"
-TargetButton.Size = UDim2.new(0, 310, 0, 45)
-TargetButton.Position = UDim2.new(0.5, -155, 0, 130)
+TargetButton.Size = UDim2.new(0, 280, 0, 40)
+TargetButton.Position = UDim2.new(0.5, -140, 0, 105)
 TargetButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 TargetButton.Text = "Цель: Head"
 TargetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TargetButton.TextSize = 16
+TargetButton.TextSize = 15
 TargetButton.Font = Enum.Font.SourceSansBold
 TargetButton.ZIndex = 101
 TargetButton.Parent = MainMenu
@@ -138,27 +133,22 @@ local TargetCorner = Instance.new("UICorner")
 TargetCorner.CornerRadius = UDim.new(0.2, 0)
 TargetCorner.Parent = TargetButton
 
-local TargetStroke = Instance.new("UIStroke")
-TargetStroke.Thickness = 1
-TargetStroke.Color = Color3.fromRGB(75, 75, 90)
-TargetStroke.Parent = TargetButton
-
 local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Name = "SliderLabel"
-SliderLabel.Size = UDim2.new(0, 310, 0, 25)
-SliderLabel.Position = UDim2.new(0.5, -155, 0, 195)
+SliderLabel.Size = UDim2.new(0, 280, 0, 20)
+SliderLabel.Position = UDim2.new(0.5, -140, 0, 155)
 SliderLabel.BackgroundTransparency = 1
 SliderLabel.Text = "Радиус FOV: 100 px"
 SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SliderLabel.TextSize = 16
+SliderLabel.TextSize = 14
 SliderLabel.Font = Enum.Font.SourceSansBold
 SliderLabel.ZIndex = 101
 SliderLabel.Parent = MainMenu
 
 local SliderBar = Instance.new("Frame")
 SliderBar.Name = "SliderBar"
-SliderBar.Size = UDim2.new(0, 310, 0, 12)
-SliderBar.Position = UDim2.new(0.5, -155, 0, 230)
+SliderBar.Size = UDim2.new(0, 280, 0, 10)
+SliderBar.Position = UDim2.new(0.5, -140, 0, 180)
 SliderBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 SliderBar.BorderSizePixel = 0
 SliderBar.ZIndex = 101
@@ -170,7 +160,7 @@ SliderBarCorner.Parent = SliderBar
 
 local SliderBtn = Instance.new("TextButton")
 SliderBtn.Name = "SliderBtn"
-SliderBtn.Size = UDim2.new(0, 22, 0, 22)
+SliderBtn.Size = UDim2.new(0, 20, 0, 20)
 SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 SliderBtn.Position = UDim2.new(0.318, 0, 0.5, 0)
 SliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -184,12 +174,12 @@ SliderBtnCorner.Parent = SliderBtn
 
 local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
-ESPToggle.Size = UDim2.new(0, 310, 0, 45)
-ESPToggle.Position = UDim2.new(0.5, -155, 0, 270)
+ESPToggle.Size = UDim2.new(0, 280, 0, 40)
+ESPToggle.Position = UDim2.new(0.5, -140, 0, 210)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-ESPToggle.Text = "ESP (ВХ): ВКЛУЧЕНО"
+ESPToggle.Text = "ESP (ВХ): ВКЛЮЧЕНО"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-ESPToggle.TextSize = 16
+ESPToggle.TextSize = 15
 ESPToggle.Font = Enum.Font.SourceSansBold
 ESPToggle.ZIndex = 101
 ESPToggle.Parent = MainMenu
@@ -200,12 +190,12 @@ ESPToggleCorner.Parent = ESPToggle
 
 local BHopToggle = Instance.new("TextButton")
 BHopToggle.Name = "BHopToggle"
-BHopToggle.Size = UDim2.new(0, 310, 0, 45)
-BHopToggle.Position = UDim2.new(0.5, -155, 0, 330)
+BHopToggle.Size = UDim2.new(0, 280, 0, 40)
+BHopToggle.Position = UDim2.new(0.5, -140, 0, 260)
 BHopToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
+BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
 BHopToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-BHopToggle.TextSize = 16
+BHopToggle.TextSize = 15
 BHopToggle.Font = Enum.Font.SourceSansBold
 BHopToggle.ZIndex = 101
 BHopToggle.Parent = MainMenu
@@ -216,12 +206,12 @@ BHopToggleCorner.Parent = BHopToggle
 
 local ThirdPersonToggle = Instance.new("TextButton")
 ThirdPersonToggle.Name = "ThirdPersonToggle"
-ThirdPersonToggle.Size = UDim2.new(0, 310, 0, 45)
-ThirdPersonToggle.Position = UDim2.new(0.5, -155, 0, 390)
+ThirdPersonToggle.Size = UDim2.new(0, 280, 0, 40)
+ThirdPersonToggle.Position = UDim2.new(0.5, -140, 0, 310)
 ThirdPersonToggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 ThirdPersonToggle.Text = "ТРЕТЬЕ ЛИЦО: ВЫКЛ"
 ThirdPersonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-ThirdPersonToggle.TextSize = 16
+ThirdPersonToggle.TextSize = 15
 ThirdPersonToggle.Font = Enum.Font.SourceSansBold
 ThirdPersonToggle.ZIndex = 101
 ThirdPersonToggle.Parent = MainMenu
@@ -232,20 +222,20 @@ ThirdPersonCorner.Parent = ThirdPersonToggle
 
 local SpeedLabel = Instance.new("TextLabel")
 SpeedLabel.Name = "SpeedLabel"
-SpeedLabel.Size = UDim2.new(0, 310, 0, 25)
-SpeedLabel.Position = UDim2.new(0.5, -155, 0, 450)
+SpeedLabel.Size = UDim2.new(0, 280, 0, 20)
+SpeedLabel.Position = UDim2.new(0.5, -140, 0, 360)
 SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "Скорость бега: x1.0"
+SpeedLabel.Text = "Скорость: x1.0"
 SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedLabel.TextSize = 16
+SpeedLabel.TextSize = 14
 SpeedLabel.Font = Enum.Font.SourceSansBold
 SpeedLabel.ZIndex = 101
 SpeedLabel.Parent = MainMenu
 
 local SpeedBar = Instance.new("Frame")
 SpeedBar.Name = "SpeedBar"
-SpeedBar.Size = UDim2.new(0, 310, 0, 12)
-SpeedBar.Position = UDim2.new(0.5, -155, 0, 485)
+SpeedBar.Size = UDim2.new(0, 280, 0, 10)
+SpeedBar.Position = UDim2.new(0.5, -140, 0, 385)
 SpeedBar.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 SpeedBar.BorderSizePixel = 0
 SpeedBar.ZIndex = 101
@@ -257,7 +247,7 @@ SpeedBarCorner.Parent = SpeedBar
 
 local SpeedBtn = Instance.new("TextButton")
 SpeedBtn.Name = "SpeedBtn"
-SpeedBtn.Size = UDim2.new(0, 22, 0, 22)
+SpeedBtn.Size = UDim2.new(0, 20, 0, 20)
 SpeedBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 SpeedBtn.Position = UDim2.new(0, 0, 0.5, 0)
 SpeedBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -271,12 +261,12 @@ SpeedBtnCorner.Parent = SpeedBtn
 
 local EnvironmentButton = Instance.new("TextButton")
 EnvironmentButton.Name = "EnvironmentButton"
-EnvironmentButton.Size = UDim2.new(0, 310, 0, 45)
-EnvironmentButton.Position = UDim2.new(0.5, -155, 0, 520)
+EnvironmentButton.Size = UDim2.new(0, 280, 0, 40)
+EnvironmentButton.Position = UDim2.new(0.5, -140, 0, 415)
 EnvironmentButton.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-EnvironmentButton.Text = "Небо и Гамма: Стандарт"
+EnvironmentButton.Text = "Небо: Стандарт"
 EnvironmentButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-EnvironmentButton.TextSize = 16
+EnvironmentButton.TextSize = 15
 EnvironmentButton.Font = Enum.Font.SourceSansBold
 EnvironmentButton.ZIndex = 101
 EnvironmentButton.Parent = MainMenu
@@ -332,42 +322,9 @@ end
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateViewportCenter)
 UpdateViewportCenter()
 
-local draggingMenu = false
-local dragStartPos = nil
-local menuStartPos = nil
-local hasMoved = false
-
-MenuButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingMenu = true
-        hasMoved = false
-        dragStartPos = input.Position
-        menuStartPos = MenuButton.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if draggingMenu and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = input.Position - dragStartPos
-        if delta.Magnitude > 5 then
-            hasMoved = true
-        end
-        MenuButton.Position = UDim2.new(
-            menuStartPos.X.Scale, 
-            menuStartPos.X.Offset + delta.X, 
-            menuStartPos.Y.Scale, 
-            menuStartPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if draggingMenu and not hasMoved then
-            MainMenu.Visible = not MainMenu.Visible
-        end
-        draggingMenu = false
-    end
+-- Клик по кнопке шестеренки открывает/закрывает меню
+MenuButton.MouseButton1Click:Connect(function()
+    MainMenu.Visible = not MainMenu.Visible
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
@@ -415,7 +372,7 @@ UserInputService.InputChanged:Connect(function(input)
             local percentage = math.clamp(rX / SpeedBar.AbsoluteSize.X, 0, 1)
             SpeedBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
             speedMultiplier = 1 + (percentage * 4)
-            SpeedLabel.Text = "Скорость бега: x" .. string.format("%.1f", speedMultiplier)
+            SpeedLabel.Text = "Скорость: x" .. string.format("%.1f", speedMultiplier)
         end
     end
 end)
@@ -478,7 +435,7 @@ ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
         ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        ESPToggle.Text = "ESP (ВХ): ВКЛУЧЕНО"
+        ESPToggle.Text = "ESP (ВХ): ВКЛЮЧЕНО"
     else
         ESPToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
         ESPToggle.Text = "ESP (ВХ): ВЫКЛЮЧЕНО"
@@ -490,10 +447,10 @@ BHopToggle.MouseButton1Click:Connect(function()
     bHopEnabled = not bHopEnabled
     if bHopEnabled then
         BHopToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        BHopToggle.Text = "BUNNYHOP: ВКЛЮЧЕН"
+        BHopToggle.Text = "BUNNYHOP: ВКЛ"
     else
         BHopToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        BHopToggle.Text = "BUNNYHOP: ВЫКЛЮЧЕН"
+        BHopToggle.Text = "BUNNYHOP: ВЫКЛ"
     end
 end)
 
@@ -519,7 +476,7 @@ EnvironmentButton.MouseButton1Click:Connect(function()
         ColorCorrection.Saturation = 0.6
         ColorCorrection.Contrast = 0.3
         ColorCorrection.Brightness = 0.05
-        EnvironmentButton.Text = "Небо и Гамма: Полночь"
+        EnvironmentButton.Text = "Небо: Полночь"
     elseif currentEnvironmentState == 2 then
         currentEnvironmentState = 3
         Lighting.TimeOfDay = "18:20:00"
@@ -528,7 +485,7 @@ EnvironmentButton.MouseButton1Click:Connect(function()
         ColorCorrection.Saturation = -0.1
         ColorCorrection.Contrast = 0.4
         ColorCorrection.Brightness = -0.05
-        EnvironmentButton.Text = "Небо и Гамма: Закат"
+        EnvironmentButton.Text = "Небо: Закат"
     else
         currentEnvironmentState = 1
         Lighting.TimeOfDay = "14:00:00"
@@ -537,7 +494,7 @@ EnvironmentButton.MouseButton1Click:Connect(function()
         ColorCorrection.Saturation = 0
         ColorCorrection.Contrast = 0
         ColorCorrection.Brightness = 0
-        EnvironmentButton.Text = "Небо и Гамма: Стандарт"
+        EnvironmentButton.Text = "Небо: Стандарт"
     end
 end)
 
