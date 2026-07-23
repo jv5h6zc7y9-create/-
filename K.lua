@@ -1,7 +1,8 @@
 --!strict
 --[[
-    Монолитный скрипт: Fully Streamable Silent Aim (из твоего примера) + 
-    Многоуровневая фильтрация союзников (TikTok ESP + Team Check)
+    Полный монолитный скрипт без сокращений: Fully Streamable Silent Aim + 
+    Многоуровневая фильтрация союзников (TikTok ESP) + 
+    Полноценный Скинченджер оружия/ножа + Удаление отдачи и разброса (No-Recoil / No-Spread)
 ]]--
 
 local Players = game:GetService("Players")
@@ -17,7 +18,7 @@ local Mouse = LocalPlayer:GetMouse()
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Глобальные настройки
+-- Глобальные настройки всех функций
 _G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
 _G.SkinChangerEnabled = false
@@ -27,9 +28,9 @@ _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.ESPTheme = "Green"
 _G.FOVYOffset = 0
 
--- Интерфейс (GUI)
+-- Создание графического интерфейса меню
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeMonolith"
+ScreenGui.Name = "BlockStrikeFullMonolith"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -73,8 +74,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 380, 0, 700)
-MainMenu.Position = UDim2.new(0.5, -190, 0.5, -350)
+MainMenu.Size = UDim2.new(0, 380, 0, 720)
+MainMenu.Position = UDim2.new(0.5, -190, 0.5, -360)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -91,9 +92,9 @@ MainMenuStroke.Parent = MainMenu
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ SILENT AIM + TEAM CHECK MONOLITH ⚡"
+TitleLabel.Text = "⚡ FULL MONOLITH: AIM + ESP + SKIN + NO-RECOIL ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-TitleLabel.TextSize = 12
+TitleLabel.TextSize = 11
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainMenu
 
@@ -118,7 +119,7 @@ local ContentFrame = Instance.new("ScrollingFrame")
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -151,9 +152,10 @@ local function createButton(name, text, defaultColor)
     return btn
 end
 
+-- Создаем все кнопки меню для полного функционала
 local SilentAimButton = createButton("SilentAimButton", "Silent Aim (В голову): ВЫКЛ")
 local NoSpreadButton = createButton("NoSpreadButton", "Удаление Отдачи/Разброса: ВЫКЛ")
-local SkinButton = createButton("SkinButton", "Скинченджер: ВЫКЛ")
+local SkinButton = createButton("SkinButton", "Скинченджер (Оружие + Нож): ВЫКЛ")
 local ESPToggle = createButton("ESPToggle", "TikTok ESP (Без союзников): ВКЛ", Color3.fromRGB(0, 100, 60))
 local ThemeButton = createButton("ThemeButton", "Цвет ВХ: Зеленый")
 local FullBrightButton = createButton("FullBrightButton", "Ночное Виденье: ВЫКЛ")
@@ -174,12 +176,12 @@ updateCenter()
 FOVCircle.Size = UDim2.new(0, _G.AimFOV * 2, 0, _G.AimFOV * 2)
 
 -- =========================================================
--- МНОГОУРОВНЕВАЯ ФУНКЦИЯ ПРОВЕРКИ СОЮЗНИКОВ isEnemy
+-- МНОГОУРОВНЕВАЯ ФУНКЦИЯ ПРОВЕРКИ СОЮЗНИКОВ (TEAM CHECK)
 -- =========================================================
 local function isEnemy(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer then return false end
     
-    -- 1. Уровень: Стандартная проверка команд (Team)
+    -- 1. Стандартная проверка команд Roblox
     if targetPlayer.Team and LocalPlayer.Team then
         if targetPlayer.Team ~= LocalPlayer.Team then
             return true
@@ -188,7 +190,7 @@ local function isEnemy(targetPlayer)
         end
     end
     
-    -- 2. Уровень: Кастомные атрибуты комнат (Attributes "Team")
+    -- 2. Кастомные атрибуты команд ("Team")
     local localTeamAttr = LocalPlayer:GetAttribute("Team")
     local targetTeamAttr = targetPlayer:GetAttribute("Team")
     if localTeamAttr ~= nil and targetTeamAttr ~= nil then
@@ -199,7 +201,7 @@ local function isEnemy(targetPlayer)
         end
     end
     
-    -- 3. Уровень: Альтернативные атрибуты сторон (Attributes "Side")
+    -- 3. Атрибуты сторон ("Side")
     local localSideAttr = LocalPlayer:GetAttribute("Side")
     local targetSideAttr = targetPlayer:GetAttribute("Side")
     if localSideAttr ~= nil and targetSideAttr ~= nil then
@@ -210,7 +212,7 @@ local function isEnemy(targetPlayer)
         end
     end
     
-    -- 4. Уровень: Внутриигровые объекты значений (ValueObject)
+    -- 4. Внутриигровые объекты значений ValueObject
     local teamValueObj = targetPlayer:FindFirstChild("Team")
     local myTeamValueObj = LocalPlayer:FindFirstChild("Team")
     if teamValueObj and myTeamValueObj and teamValueObj:IsA("ValueBase") and myTeamValueObj:IsA("ValueBase") then
@@ -221,7 +223,6 @@ local function isEnemy(targetPlayer)
         end
     end
     
-    -- Если никаких командных признаков не найдено, по умолчанию считаем врагом (кроме себя)
     return true
 end
 
@@ -266,8 +267,7 @@ local function IsVisibleFast(targetPart)
 end
 
 -- =========================================================
--- СКЛЕЕННЫЙ И ИСПРАВЛЕННЫЙ SILENT AIM
--- (объединяет логику поиска цели из вашего примера и перехват)
+-- SILENT AIM (ПОЛНЫЙ ИСХОДНИК ИЗ ВАШЕГО СКРИНШОТА)
 -- =========================================================
 local Aiming = {
     Selected = nil,
@@ -281,7 +281,6 @@ function Aiming.Check()
     local shortestDistance = _G.AimFOV
 
     for _, player in ipairs(Players:GetPlayers()) do
-        -- Использование многоуровневого фильтра союзников! Тимейты игнорируются аимом.
         if not isEnemy(player) then continue end
         
         local char = getCharacter(player)
@@ -313,7 +312,7 @@ function Aiming.Check()
     return false
 end
 
--- Перехватчик мыши для Silent Aim (модифицированный hookmetamethod из ваших скриншотов)
+-- Точный хук метаметода для перехвата Mouse Hit и Mouse Target
 local __index
 __index = hookmetamethod(game, "__index", function(t, k)
     if _G.SilentAimEnabled and t:IsA("Mouse") and (k == "Hit" or k == "Target") then
@@ -332,7 +331,7 @@ __index = hookmetamethod(game, "__index", function(t, k)
     return __index(t, k)
 end)
 
--- Кнопки интерфейса логика
+-- Логика кнопок интерфейса
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
@@ -348,7 +347,7 @@ end)
 SkinButton.MouseButton1Click:Connect(function()
     _G.SkinChangerEnabled = not _G.SkinChangerEnabled
     SkinButton.BackgroundColor3 = _G.SkinChangerEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер: ВКЛ" or "Скинченджер: ВЫКЛ"
+    SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + Нож): ВКЛ" or "Скинченджер (Оружие + Нож): ВЫКЛ"
 end)
 
 FullBrightButton.MouseButton1Click:Connect(function()
@@ -430,7 +429,9 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- Рендер-луп
+-- =========================================================
+-- УДАЛЕНИЕ ОТДАЧИ И РАЗБРОСА (NO-RECOIL / NO-SPREAD)
+-- =========================================================
 RunService.RenderStepped:Connect(function()
     if _G.SilentAimEnabled then
         if Aiming.Check() then
@@ -449,6 +450,7 @@ RunService.RenderStepped:Connect(function()
         Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     end
 
+    -- Активная очистка отдачи, разброса и качки оружия
     if _G.NoSpreadEnabled and LocalPlayer.Character then
         pcall(function()
             for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -456,13 +458,35 @@ RunService.RenderStepped:Connect(function()
                     tool:SetAttribute("Spread", 0)
                     tool:SetAttribute("Recoil", 0)
                     tool:SetAttribute("RecoilForce", 0)
+                    tool:SetAttribute("SpreadIncrement", 0)
+                    tool:SetAttribute("Inaccuracy", 0)
+                    tool:SetAttribute("Kickback", 0)
+                    tool:SetAttribute("Sway", 0)
+                    
+                    for _, descendant in ipairs(tool:GetDescendants()) do
+                        if descendant:IsA("ModuleScript") then
+                            pcall(function()
+                                local config = require(descendant)
+                                if type(config) == "table" then
+                                    if config.Recoil then config.Recoil = 0 end
+                                    if config.RecoilForce then config.RecoilForce = 0 end
+                                    if config.Spread then config.Spread = 0 end
+                                    if config.SpreadIncrement then config.SpreadIncrement = 0 end
+                                    if config.Inaccuracy then config.Inaccuracy = 0 end
+                                    if config.Sway then config.Sway = 0 end
+                                end
+                            end)
+                        end
+                    end
                 end
             end
         end)
     end
 end)
 
--- Скинченджер
+-- =========================================================
+-- ПОЛНОЦЕННЫЙ СКИНЧЕНДЖЕР (ОРУЖИЕ + НОЖИ)
+-- =========================================================
 local lastSkinApplied = {}
 RunService.RenderStepped:Connect(function()
     if not _G.SkinChangerEnabled or not LocalPlayer.Character then
@@ -477,7 +501,9 @@ RunService.RenderStepped:Connect(function()
                         if part:IsA("BasePart") or part:IsA("MeshPart") then
                             part.Color = _G.SelectedSkinColor
                             part.Material = Enum.Material.Neon
-                            if part:IsA("MeshPart") then part.TextureID = "" end
+                            if part:IsA("MeshPart") then
+                                part.TextureID = ""
+                            end
                         end
                     end
                     lastSkinApplied[item] = true
@@ -487,7 +513,9 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
--- ESP с многоуровневым отсечением тимейтов
+-- =========================================================
+-- РЕНДЕР ESP С ЗАЩИТОЙ ОТ ТИМЕЙТОВ
+-- =========================================================
 local lastEspUpdate = 0
 RunService.RenderStepped:Connect(function()
     if not espEnabled then return end
@@ -506,7 +534,7 @@ RunService.RenderStepped:Connect(function()
 
         local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
         
-        -- Вызов многоуровневой проверки isEnemy
+        -- Многоуровневый фильтр: если это союзник, ВХ на него не выводится
         local enemyCheck = isEnemy(player)
         
         if enemyCheck == true then
@@ -564,7 +592,6 @@ RunService.RenderStepped:Connect(function()
                 removeNativeEsp(player.Name)
             end
         else
-            -- Если это ТИМЕЙТ, принудительно гасим и скрываем его ВХ-окно
             removeNativeEsp(player.Name)
         end
     end
