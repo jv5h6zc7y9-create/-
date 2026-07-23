@@ -1,8 +1,10 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Ultimate Optimized & Refactored Edition)
-    Исправлены все узкие места производительности: убран лишний перебор в RenderStepped, 
-    оптимизированы ESP и Raycast, создан пул для графических Drawing-объектов и трассеров.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Extreme Performance Edition)
+    Исправлены причины лагов сразу после инжекта:
+    1. hookmetamethod больше не перегружает процессор, если Silent Aim выключен (ранний выход).
+    2. RenderStepped разделен на независимые подключения, работающие ТОЛЬКО при включенном функционале.
+    3. Убрано лишнее создание Drawing-объектов до их реального использования.
 ]]--
 
 local Players = game:GetService("Players")
@@ -353,23 +355,6 @@ SkinButton.MouseButton1Click:Connect(function()
     SkinButton.Text = _G.SkinChangerEnabled and "Скинченджер (Оружие + Нож): ВКЛ" or "Скинченджер (Оружие + Нож): ВЫКЛ"
 end)
 
-ESPToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    if espEnabled then
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВКЛ"
-    else
-        ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-        ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВЫКЛ"
-        for _, data in pairs(cacheDrawingObjects) do
-            if data.Box then data.Box.Visible = false end
-            if data.HpBackground then data.HpBackground.Visible = false end
-            if data.HpFill then data.HpFill.Visible = false end
-            if data.Text then data.Text.Visible = false end
-        end
-    end
-end)
-
 local function removeEsp(playerName)
     local data = cacheDrawingObjects[playerName]
     if data then
@@ -381,6 +366,20 @@ local function removeEsp(playerName)
         end)
     end
 end
+
+ESPToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    if espEnabled then
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
+        ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВКЛ"
+    else
+        ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
+        ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВЫКЛ"
+        for playerName, _ in pairs(cacheDrawingObjects) do
+            removeEsp(playerName)
+        end
+    end
+end)
 
 local function isEnemy(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer then 
@@ -646,9 +645,13 @@ local validMethods = {
 
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    -- Моментальный выход, если Silent Aim выключен (убирает лаги сразу после инжекта)
+    if not _G.SilentAimEnabled then
+        return oldNamecall(self, ...)
+    end
+
     local Method = getnamecallmethod()
-    
-    if not (_G.SilentAimEnabled and isShooting and validMethods[Method]) then
+    if not (isShooting and validMethods[Method]) then
         return oldNamecall(self, ...)
     end
     
@@ -672,50 +675,55 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return oldNamecall(self, ...)
 end)
 
-local lastShotTick = 0
-local lastEspUpdate = 0
-local ESP_THROTTLE = 0.1
-local lastSkinApplied = {}
+-- РАЗДЕЛЬНЫЕ ЦИКЛЫ: каждый работает СТРОГО только тогда, когда включена соответствующая функция
 
 RunService.RenderStepped:Connect(function()
-    -- Полная проверка состояния: если весь функционал отключен, цикл ничего не выполняет (сохранение FPS)
-    if not (_G.AimAssistEnabled or _G.BulletTracersEnabled or _G.NoSpreadEnabled or _G.SkinChangerEnabled or espEnabled) then
-        return
+    if not _G.AimAssistEnabled then return end
+    local target = GetUnifiedTarget()
+    if target then
+        FOVStroke.Color = Color3.fromRGB(0, 255, 150)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+        local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.AimSmoothness)
+    else
+        FOVStroke.Color = Color3.fromRGB(255, 0, 0)
+        FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     end
+end)
 
-    if _G.AimAssistEnabled then
+local lastShotTick = 0
+RunService.RenderStepped:Connect(function()
+    if not _G.BulletTracersEnabled or not isShooting then return end
+    if tick() - lastShotTick <= 0.08 then return end
+    lastShotTick = tick()
+    
+    pcall(function()
+        local gunOrigin = Camera.CFrame.Position
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
+            if handle then gunOrigin = handle.Position end
+        end
         local target = GetUnifiedTarget()
-        if target then
-            FOVStroke.Color = Color3.fromRGB(0, 255, 150)
-            FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.AimSmoothness)
-        else
-            FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-            FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        end
-    end
+        local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
+        CreateBulletTracerOptimized(gunOrigin, targetPos)
+    end)
+end)
 
-    if _G.BulletTracersEnabled then
-        if isShooting and (tick() - lastShotTick > 0.08) then
-            lastShotTick = tick()
-            pcall(function()
-                local gunOrigin = Camera.CFrame.Position
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool") then
-                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                    local handle = tool:FindFirstChild("Handle") or tool:FindFirstChild("Muzzle")
-                    if handle then gunOrigin = handle.Position end
-                end
-                local target = GetUnifiedTarget()
-                local targetPos = target and target.Position or (gunOrigin + (Camera.CFrame.LookVector * 300))
-                CreateBulletTracerOptimized(gunOrigin, targetPos)
-            end)
+RunService.RenderStepped:Connect(function()
+    if not _G.NoSpreadEnabled or not LocalPlayer.Character then return end
+    pcall(function()
+        for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                tool:SetAttribute("Spread", 0)
+                tool:SetAttribute("Recoil", 0)
+                tool:SetAttribute("Inaccuracy", 0)
+                tool:SetAttribute("Kickback", 0)
+            end
         end
-    end
-
-    if _G.NoSpreadEnabled and LocalPlayer.Character then
-        pcall(function()
-            for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+        local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+        if backpack then
+            for _, tool in ipairs(backpack:GetChildren()) do
                 if tool:IsA("Tool") then
                     tool:SetAttribute("Spread", 0)
                     tool:SetAttribute("Recoil", 0)
@@ -723,105 +731,102 @@ RunService.RenderStepped:Connect(function()
                     tool:SetAttribute("Kickback", 0)
                 end
             end
-            local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
-            if backpack then
-                for _, tool in ipairs(backpack:GetChildren()) do
-                    if tool:IsA("Tool") then
-                        tool:SetAttribute("Spread", 0)
-                        tool:SetAttribute("Recoil", 0)
-                        tool:SetAttribute("Inaccuracy", 0)
-                        tool:SetAttribute("Kickback", 0)
-                    end
-                end
-            end
-        end)
-    end
+        end
+    end)
+end)
 
-    if _G.SkinChangerEnabled and LocalPlayer.Character then
-        pcall(function()
-            for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
-                if item:IsA("Tool") then
-                    if not lastSkinApplied[item] then
-                        for _, part in ipairs(item:GetDescendants()) do
-                            if part:IsA("BasePart") or part:IsA("MeshPart") then
-                                part.Color = _G.SelectedSkinColor
-                                part.Material = Enum.Material.Neon
-                                if part:IsA("MeshPart") then
-                                    part.TextureID = ""
-                                end
+local lastSkinApplied = {}
+RunService.RenderStepped:Connect(function()
+    if not _G.SkinChangerEnabled or not LocalPlayer.Character then
+        lastSkinApplied = {}
+        return
+    end
+    pcall(function()
+        for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
+            if item:IsA("Tool") then
+                if not lastSkinApplied[item] then
+                    for _, part in ipairs(item:GetDescendants()) do
+                        if part:IsA("BasePart") or part:IsA("MeshPart") then
+                            part.Color = _G.SelectedSkinColor
+                            part.Material = Enum.Material.Neon
+                            if part:IsA("MeshPart") then
+                                part.TextureID = ""
                             end
                         end
-                        lastSkinApplied[item] = true
                     end
+                    lastSkinApplied[item] = true
                 end
             end
-        end)
-    else
-        lastSkinApplied = {}
-    end
+        end
+    end)
+end)
 
-    if espEnabled and (tick() - lastEspUpdate >= ESP_THROTTLE) then
-        lastEspUpdate = tick()
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player == LocalPlayer then
-                continue
-            end
+local lastEspUpdate = 0
+local ESP_THROTTLE = 0.1
+RunService.RenderStepped:Connect(function()
+    if not espEnabled then return end
+    if tick() - lastEspUpdate < ESP_THROTTLE then return end
+    lastEspUpdate = tick()
 
-            local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then
+            continue
+        end
 
-            if not isEnemy(player) then
-                removeEsp(player.Name)
-                continue
-            end
+        local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
 
-            local char = getCharacter(player)
-            
-            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health > 0 then
-                    local root = char.HumanoidRootPart
-                    local head = char.Head
-                    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+        if not isEnemy(player) then
+            removeEsp(player.Name)
+            continue
+        end
+
+        local char = getCharacter(player)
+        
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local root = char.HumanoidRootPart
+                local head = char.Head
+                local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                
+                if onScreen then
+                    local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
+                    local height = math.abs(topPos.Y - bottomPos.Y)
+                    local width = height * 0.55
                     
-                    if onScreen then
-                        local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                        local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
-                        local height = math.abs(topPos.Y - bottomPos.Y)
-                        local width = height * 0.55
-                        
-                        local isVis = IsVisibleForESP(head)
-                        local boxColor = isVis and colorVisible or colorHidden
-                        
-                        data.Box.Size = Vector2.new(width, height)
-                        data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
-                        data.Box.Color = boxColor
-                        data.Box.Visible = true
-                        
-                        local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                        data.HpBackground.Size = Vector2.new(4, height)
-                        data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
-                        data.HpBackground.Visible = true
-                        
-                        local fillHeight = height * healthRatio
-                        data.HpFill.Size = Vector2.new(4, fillHeight)
-                        data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
-                        data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
-                        data.HpFill.Visible = true
-                        
-                        local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
-                        data.Text.Text = player.Name .. " [" .. distance .. "м]"
-                        data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
-                        data.Text.Color = boxColor
-                        data.Text.Visible = true
-                    else
-                        removeEsp(player.Name)
-                    end
+                    local isVis = IsVisibleForESP(head)
+                    local boxColor = isVis and colorVisible or colorHidden
+                    
+                    data.Box.Size = Vector2.new(width, height)
+                    data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
+                    data.Box.Color = boxColor
+                    data.Box.Visible = true
+                    
+                    local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                    data.HpBackground.Size = Vector2.new(4, height)
+                    data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
+                    data.HpBackground.Visible = true
+                    
+                    local fillHeight = height * healthRatio
+                    data.HpFill.Size = Vector2.new(4, fillHeight)
+                    data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
+                    data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+                    data.HpFill.Visible = true
+                    
+                    local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
+                    data.Text.Text = player.Name .. " [" .. distance .. "м]"
+                    data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
+                    data.Text.Color = boxColor
+                    data.Text.Visible = true
                 else
                     removeEsp(player.Name)
                 end
             else
                 removeEsp(player.Name)
             end
+        else
+            removeEsp(player.Name)
         end
     end
 end)
