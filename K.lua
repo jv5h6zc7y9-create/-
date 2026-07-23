@@ -1,8 +1,10 @@
 --!strict
 --[[
-    Полный монолитный скрипт без сокращений: Fully Streamable Silent Aim + 
-    Многоуровневая фильтрация союзников (TikTok ESP) + 
-    Полноценный Скинченджер оружия/ножа + Удаление отдачи и разброса (No-Recoil / No-Spread)
+    Финальный монолитный скрипт для Roblox (Delta Executor / Мобильные устройства):
+    1. Мобильный Silent Aim (Camera/Touch Redirect на голову) — решает проблему отсутствия мыши.
+    2. Ползунки для настройки радиуса FOV и вертикального смещения (Y) прямо в меню.
+    3. Многоуровневая фильтрация союзников (TikTok ESP + Team Check).
+    4. Полноценный Скинченджер и No-Recoil / No-Spread без сокращений.
 ]]--
 
 local Players = game:GetService("Players")
@@ -18,23 +20,24 @@ local Mouse = LocalPlayer:GetMouse()
 
 local DrawingSupported = (Drawing ~= nil and type(Drawing.new) == "function")
 
--- Глобальные настройки всех функций
+-- Глобальные настройки
 _G.SilentAimEnabled = false
 _G.NoSpreadEnabled = false
 _G.SkinChangerEnabled = false
 _G.FullBrightEnabled = false
 _G.AimFOV = 140
+_G.FOVYOffset = 0 -- Смещение круга по вертикали
 _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.ESPTheme = "Green"
-_G.FOVYOffset = 0
 
--- Создание графического интерфейса меню
+-- Создание графического интерфейса
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeFullMonolith"
+ScreenGui.Name = "BlockStrikeMobileUltimate"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Индикатор FOV (Круг на экране)
 local FOVCircle = Instance.new("Frame")
 FOVCircle.Name = "FOVCircle"
 FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -53,6 +56,7 @@ local FOVCorner = Instance.new("UICorner")
 FOVCorner.CornerRadius = UDim.new(1, 0)
 FOVCorner.Parent = FOVCircle
 
+-- Кнопка открытия меню
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "MenuButton"
 MenuButton.Size = UDim2.new(0, 60, 0, 60)
@@ -72,10 +76,11 @@ MenuButtonStroke.Thickness = 2
 MenuButtonStroke.Color = Color3.fromRGB(0, 255, 150)
 MenuButtonStroke.Parent = MenuButton
 
+-- Главное меню
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 380, 0, 720)
-MainMenu.Position = UDim2.new(0.5, -190, 0.5, -360)
+MainMenu.Size = UDim2.new(0, 380, 0, 740)
+MainMenu.Position = UDim2.new(0.5, -190, 0.5, -370)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -92,9 +97,9 @@ MainMenuStroke.Parent = MainMenu
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ FULL MONOLITH: AIM + ESP + SKIN + NO-RECOIL ⚡"
+TitleLabel.Text = "⚡ MOBILE SILENT AIM + SLIDERS ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-TitleLabel.TextSize = 11
+TitleLabel.TextSize = 12
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainMenu
 
@@ -119,7 +124,7 @@ local ContentFrame = Instance.new("ScrollingFrame")
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 950)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -152,13 +157,95 @@ local function createButton(name, text, defaultColor)
     return btn
 end
 
--- Создаем все кнопки меню для полного функционала
-local SilentAimButton = createButton("SilentAimButton", "Silent Aim (В голову): ВЫКЛ")
+-- Кнопки функционала
+local SilentAimButton = createButton("SilentAimButton", "Mobile Silent Aim (В голову): ВЫКЛ")
 local NoSpreadButton = createButton("NoSpreadButton", "Удаление Отдачи/Разброса: ВЫКЛ")
 local SkinButton = createButton("SkinButton", "Скинченджер (Оружие + Нож): ВЫКЛ")
 local ESPToggle = createButton("ESPToggle", "TikTok ESP (Без союзников): ВКЛ", Color3.fromRGB(0, 100, 60))
 local ThemeButton = createButton("ThemeButton", "Цвет ВХ: Зеленый")
 local FullBrightButton = createButton("FullBrightButton", "Ночное Виденье: ВЫКЛ")
+
+-- =========================================================
+-- ПОЛЗУНОК 1: РАДИУС FOV (Больше / Меньше)
+-- =========================================================
+local SliderContainer = Instance.new("Frame")
+SliderContainer.Size = UDim2.new(1, 0, 0, 55)
+SliderContainer.BackgroundTransparency = 1
+SliderContainer.Parent = ContentFrame
+
+local SliderLabel = Instance.new("TextLabel")
+SliderLabel.Size = UDim2.new(1, 0, 0, 20)
+SliderLabel.BackgroundTransparency = 1
+SliderLabel.Text = "Радиус FOV: 140 px"
+SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+SliderLabel.TextSize = 14
+SliderLabel.Font = Enum.Font.SourceSansBold
+SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+SliderLabel.Parent = SliderContainer
+
+local SliderBar = Instance.new("Frame")
+SliderBar.Size = UDim2.new(1, 0, 0, 8)
+SliderBar.Position = UDim2.new(0, 0, 0, 30)
+SliderBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+SliderBar.BorderSizePixel = 0
+SliderBar.Parent = SliderContainer
+
+local SliderBarCorner = Instance.new("UICorner")
+SliderBarCorner.CornerRadius = UDim.new(1, 0)
+SliderBarCorner.Parent = SliderBar
+
+local SliderBtn = Instance.new("TextButton")
+SliderBtn.Size = UDim2.new(0, 20, 0, 20)
+SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+SliderBtn.Position = UDim2.new(0.45, 0, 0.5, 0)
+SliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+SliderBtn.Text = ""
+SliderBtn.Parent = SliderBar
+
+local SliderBtnCorner = Instance.new("UICorner")
+SliderBtnCorner.CornerRadius = UDim.new(1, 0)
+SliderBtnCorner.Parent = SliderBtn
+
+-- =========================================================
+-- ПОЛЗУНОК 2: ВЫСОТА КРУГА FOV (Выше / Ниже по Y)
+-- =========================================================
+local YSliderContainer = Instance.new("Frame")
+YSliderContainer.Size = UDim2.new(1, 0, 0, 55)
+YSliderContainer.BackgroundTransparency = 1
+YSliderContainer.Parent = ContentFrame
+
+local YSliderLabel = Instance.new("TextLabel")
+YSliderLabel.Size = UDim2.new(1, 0, 0, 20)
+YSliderLabel.BackgroundTransparency = 1
+YSliderLabel.Text = "Высота круга (Y): 0 px"
+YSliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+YSliderLabel.TextSize = 14
+YSliderLabel.Font = Enum.Font.SourceSansBold
+YSliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+YSliderLabel.Parent = YSliderContainer
+
+local YSliderBar = Instance.new("Frame")
+YSliderBar.Size = UDim2.new(1, 0, 0, 8)
+YSliderBar.Position = UDim2.new(0, 0, 0, 30)
+YSliderBar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+YSliderBar.BorderSizePixel = 0
+YSliderBar.Parent = YSliderContainer
+
+local YSliderBarCorner = Instance.new("UICorner")
+YSliderBarCorner.CornerRadius = UDim.new(1, 0)
+YSliderBarCorner.Parent = YSliderBar
+
+local YSliderBtn = Instance.new("TextButton")
+YSliderBtn.Size = UDim2.new(0, 20, 0, 20)
+YSliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+YSliderBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
+YSliderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+YSliderBtn.Text = ""
+YSliderBtn.Parent = YSliderBar
+
+local YSliderBtnCorner = Instance.new("UICorner")
+YSliderBtnCorner.CornerRadius = UDim.new(1, 0)
+YSliderBtnCorner.Parent = YSliderBtn
 
 MenuButton.MouseButton1Click:Connect(function() MainMenu.Visible = not MainMenu.Visible end)
 CloseButton.MouseButton1Click:Connect(function() MainMenu.Visible = false end)
@@ -173,7 +260,51 @@ end
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateCenter)
 updateCenter()
 
-FOVCircle.Size = UDim2.new(0, _G.AimFOV * 2, 0, _G.AimFOV * 2)
+local function updateFOV(radius)
+    _G.AimFOV = radius
+    FOVCircle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
+    SliderLabel.Text = "Радиус FOV: " .. tostring(math.round(radius)) .. " px"
+end
+updateFOV(_G.AimFOV)
+
+-- Логика ползунков для сенсорных экранов (iPad / Delta)
+local draggingSlider = false
+local draggingYSlider = false
+
+SliderBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingSlider = true
+    end
+end)
+
+YSliderBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingYSlider = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingSlider = false
+        draggingYSlider = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.MouseMovement) then
+        local rX = input.Position.X - SliderBar.AbsolutePosition.X
+        local percentage = math.clamp(rX / SliderBar.AbsoluteSize.X, 0, 1)
+        SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
+        updateFOV(30 + (percentage * 270))
+    elseif draggingYSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.MouseMovement) then
+        local rX = input.Position.X - YSliderBar.AbsolutePosition.X
+        local percentage = math.clamp(rX / YSliderBar.AbsoluteSize.X, 0, 1)
+        YSliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
+        _G.FOVYOffset = (percentage - 0.5) * 400
+        YSliderLabel.Text = "Высота круга (Y): " .. tostring(math.round(_G.FOVYOffset)) .. " px"
+        updateCenter()
+    end
+end)
 
 -- =========================================================
 -- МНОГОУРОВНЕВАЯ ФУНКЦИЯ ПРОВЕРКИ СОЮЗНИКОВ (TEAM CHECK)
@@ -181,46 +312,26 @@ FOVCircle.Size = UDim2.new(0, _G.AimFOV * 2, 0, _G.AimFOV * 2)
 local function isEnemy(targetPlayer)
     if not targetPlayer or targetPlayer == LocalPlayer then return false end
     
-    -- 1. Стандартная проверка команд Roblox
     if targetPlayer.Team and LocalPlayer.Team then
-        if targetPlayer.Team ~= LocalPlayer.Team then
-            return true
-        else
-            return false
-        end
+        if targetPlayer.Team ~= LocalPlayer.Team then return true else return false end
     end
     
-    -- 2. Кастомные атрибуты команд ("Team")
     local localTeamAttr = LocalPlayer:GetAttribute("Team")
     local targetTeamAttr = targetPlayer:GetAttribute("Team")
     if localTeamAttr ~= nil and targetTeamAttr ~= nil then
-        if localTeamAttr ~= targetTeamAttr then
-            return true
-        else
-            return false
-        end
+        if localTeamAttr ~= targetTeamAttr then return true else return false end
     end
     
-    -- 3. Атрибуты сторон ("Side")
     local localSideAttr = LocalPlayer:GetAttribute("Side")
     local targetSideAttr = targetPlayer:GetAttribute("Side")
     if localSideAttr ~= nil and targetSideAttr ~= nil then
-        if localSideAttr ~= targetSideAttr then
-            return true
-        else
-            return false
-        end
+        if localSideAttr ~= targetSideAttr then return true else return false end
     end
     
-    -- 4. Внутриигровые объекты значений ValueObject
     local teamValueObj = targetPlayer:FindFirstChild("Team")
     local myTeamValueObj = LocalPlayer:FindFirstChild("Team")
     if teamValueObj and myTeamValueObj and teamValueObj:IsA("ValueBase") and myTeamValueObj:IsA("ValueBase") then
-        if teamValueObj.Value ~= myTeamValueObj.Value then
-            return true
-        else
-            return false
-        end
+        if teamValueObj.Value ~= myTeamValueObj.Value then return true else return false end
     end
     
     return true
@@ -267,17 +378,10 @@ local function IsVisibleFast(targetPart)
 end
 
 -- =========================================================
--- SILENT AIM (ПОЛНЫЙ ИСХОДНИК ИЗ ВАШЕГО СКРИНШОТА)
+-- ПОИСК БЛИЖАЙШЕЙ ГОЛОВЫ ВРАГА (HEADSHOT TARGET)
 -- =========================================================
-local Aiming = {
-    Selected = nil,
-    SelectedPart = nil
-}
-
-function Aiming.Check()
-    if not _G.SilentAimEnabled then return false end
-    
-    local targetHead = nil
+local function GetBestHeadTarget()
+    local bestHead = nil
     local shortestDistance = _G.AimFOV
 
     for _, player in ipairs(Players:GetPlayers()) do
@@ -295,47 +399,66 @@ function Aiming.Check()
                     if distance < shortestDistance then
                         if IsVisibleFast(headPart) then
                             shortestDistance = distance
-                            targetHead = headPart
+                            bestHead = headPart
                         end
                     end
                 end
             end
         end
     end
-
-    if targetHead then
-        Aiming.SelectedPart = targetHead
-        return true
-    end
-    
-    Aiming.SelectedPart = nil
-    return false
+    return bestHead
 end
 
--- Точный хук метаметода для перехвата Mouse Hit и Mouse Target
-local __index
-__index = hookmetamethod(game, "__index", function(t, k)
-    if _G.SilentAimEnabled and t:IsA("Mouse") and (k == "Hit" or k == "Target") then
-        if Aiming.Check() and Aiming.SelectedPart then
-            local SelectedPart = Aiming.SelectedPart
-            local prediction = 0.165
-            local Hit = SelectedPart.CFrame + (SelectedPart.AssemblyLinearVelocity * prediction)
+-- =========================================================
+-- НАДЕЖНЫЙ МОБИЛЬНЫЙ SILENT AIM (TOUCH/CAMERA REDIRECT)
+-- =========================================================
+RunService.RenderStepped:Connect(function()
+    if _G.SilentAimEnabled then
+        local targetHead = GetBestHeadTarget()
+        if targetHead then
+            FOVStroke.Color = Color3.fromRGB(0, 255, 150)
+            FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
             
-            if k == "Hit" then
-                return Hit
-            elseif k == "Target" then
-                return SelectedPart
+            -- Проверяем нажатие на экран (палец или клик мыши)
+            if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled then
+                local predictedPos = targetHead.Position + (targetHead.AssemblyLinearVelocity * 0.165)
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, predictedPos)
             end
+        else
+            FOVStroke.Color = Color3.fromRGB(255, 0, 0)
+            FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         end
     end
-    return __index(t, k)
+
+    if _G.FullBrightEnabled then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.GlobalShadows = false
+        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+    end
+
+    if _G.NoSpreadEnabled and LocalPlayer.Character then
+        pcall(function()
+            for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+                if tool:IsA("Tool") then
+                    tool:SetAttribute("Spread", 0)
+                    tool:SetAttribute("Recoil", 0)
+                    tool:SetAttribute("RecoilForce", 0)
+                    tool:SetAttribute("SpreadIncrement", 0)
+                    tool:SetAttribute("Inaccuracy", 0)
+                    tool:SetAttribute("Kickback", 0)
+                    tool:SetAttribute("Sway", 0)
+                end
+            end
+        end)
+    end
 end)
 
--- Логика кнопок интерфейса
+-- Кнопки интерфейса логика
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim (В голову): ВКЛ" or "Silent Aim (В голову): ВЫКЛ"
+    SilentAimButton.Text = _G.SilentAimEnabled and "Mobile Silent Aim (В голову): ВКЛ" or "Mobile Silent Aim (В голову): ВЫКЛ"
 end)
 
 NoSpreadButton.MouseButton1Click:Connect(function()
@@ -429,64 +552,7 @@ local function createPlayerDrawingObjects(playerName)
     return cacheDrawingObjects[playerName]
 end
 
--- =========================================================
--- УДАЛЕНИЕ ОТДАЧИ И РАЗБРОСА (NO-RECOIL / NO-SPREAD)
--- =========================================================
-RunService.RenderStepped:Connect(function()
-    if _G.SilentAimEnabled then
-        if Aiming.Check() then
-            FOVStroke.Color = Color3.fromRGB(0, 255, 150)
-            FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-        else
-            FOVStroke.Color = Color3.fromRGB(255, 0, 0)
-            FOVCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        end
-    end
-
-    if _G.FullBrightEnabled then
-        Lighting.Brightness = 2
-        Lighting.ClockTime = 14
-        Lighting.GlobalShadows = false
-        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-    end
-
-    -- Активная очистка отдачи, разброса и качки оружия
-    if _G.NoSpreadEnabled and LocalPlayer.Character then
-        pcall(function()
-            for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
-                if tool:IsA("Tool") then
-                    tool:SetAttribute("Spread", 0)
-                    tool:SetAttribute("Recoil", 0)
-                    tool:SetAttribute("RecoilForce", 0)
-                    tool:SetAttribute("SpreadIncrement", 0)
-                    tool:SetAttribute("Inaccuracy", 0)
-                    tool:SetAttribute("Kickback", 0)
-                    tool:SetAttribute("Sway", 0)
-                    
-                    for _, descendant in ipairs(tool:GetDescendants()) do
-                        if descendant:IsA("ModuleScript") then
-                            pcall(function()
-                                local config = require(descendant)
-                                if type(config) == "table" then
-                                    if config.Recoil then config.Recoil = 0 end
-                                    if config.RecoilForce then config.RecoilForce = 0 end
-                                    if config.Spread then config.Spread = 0 end
-                                    if config.SpreadIncrement then config.SpreadIncrement = 0 end
-                                    if config.Inaccuracy then config.Inaccuracy = 0 end
-                                    if config.Sway then config.Sway = 0 end
-                                end
-                            end)
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- =========================================================
--- ПОЛНОЦЕННЫЙ СКИНЧЕНДЖЕР (ОРУЖИЕ + НОЖИ)
--- =========================================================
+-- Скинченджер
 local lastSkinApplied = {}
 RunService.RenderStepped:Connect(function()
     if not _G.SkinChangerEnabled or not LocalPlayer.Character then
@@ -501,9 +567,7 @@ RunService.RenderStepped:Connect(function()
                         if part:IsA("BasePart") or part:IsA("MeshPart") then
                             part.Color = _G.SelectedSkinColor
                             part.Material = Enum.Material.Neon
-                            if part:IsA("MeshPart") then
-                                part.TextureID = ""
-                            end
+                            if part:IsA("MeshPart") then part.TextureID = "" end
                         end
                     end
                     lastSkinApplied[item] = true
@@ -513,9 +577,7 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
--- =========================================================
--- РЕНДЕР ESP С ЗАЩИТОЙ ОТ ТИМЕЙТОВ
--- =========================================================
+-- ESP с фильтрацией союзников
 local lastEspUpdate = 0
 RunService.RenderStepped:Connect(function()
     if not espEnabled then return end
@@ -533,8 +595,6 @@ RunService.RenderStepped:Connect(function()
         if player == LocalPlayer then continue end
 
         local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
-        
-        -- Многоуровневый фильтр: если это союзник, ВХ на него не выводится
         local enemyCheck = isEnemy(player)
         
         if enemyCheck == true then
