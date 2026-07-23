@@ -1,7 +1,6 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Extreme Performance Edition)
-    Все функции, полное меню, полная отрисовка и исправление лагов сразу после инжекта.
+    Block Strike Ultimate Engine - Monolith (Cleaned: Aim Assist only, No Spread, Precise ESP style matching screenshot)
 ]]--
 
 local Players = game:GetService("Players")
@@ -71,8 +70,8 @@ MenuButtonStroke.Parent = MenuButton
 
 local MainMenu = Instance.new("Frame")
 MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 360, 0, 680)
-MainMenu.Position = UDim2.new(0.5, -180, 0.5, -340)
+MainMenu.Size = UDim2.new(0, 360, 0, 620)
+MainMenu.Position = UDim2.new(0.5, -180, 0.5, -310)
 MainMenu.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 MainMenu.Visible = false
 MainMenu.Parent = ScreenGui
@@ -119,7 +118,7 @@ ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -70)
 ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
 ContentFrame.ScrollBarThickness = 4
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
 ContentFrame.Parent = MainMenu
@@ -764,11 +763,6 @@ RunService.RenderStepped:Connect(function()
                     local tool = char:FindFirstChildOfClass("Tool")
                     if tool then
                         activeWeapon = tool.Name
-                    else
-                        local backpack = player:FindFirstChildOfClass("Backpack")
-                        if backpack then
-                            -- fallback if needed
-                        end
                     end
                     data.WeaponText.Text = activeWeapon
                     data.WeaponText.Position = Vector2.new(rPos.X, topPos.Y + height + 4)
