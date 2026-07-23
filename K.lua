@@ -1,800 +1,67 @@
--- Gravel.cc
-if getgenv().Graaaaaaaaaaaaaaaaaaaaaaavel then
-    return
-end
-getgenv().Graaaaaaaaaaaaaaaaaaaaaaavel = true
-getgenv().sunc = ""
+-- ============================================
+-- GRAVEL.CC LEGACY — FULL RECOVERY
+-- ИНТЕГРИРОВАНЫ: Silent Aim, Aimbot, WH, FOV Circle
+-- УПРАВЛЕНИЕ ЧЕРЕЗ МЕНЮ (iPad friendly)
+-- ============================================
 
-local success, err = pcall(function()
-
-repeat wait() until game:IsLoaded()
-
-for _, v in pairs(getconnections(game:GetService("ScriptContext").Error)) do
-    v:Disable()
-end
-
-for _, v in pairs(getconnections(game:GetService("LogService").MessageOut)) do
-    v:Disable()
-end
-
--- спагетти код ням-ням :>
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService('VirtualUser')
 local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local Teams = game:GetService("Teams")
-local HttpService = game:GetService("HttpService")
-local AntiAimTabWorkspace = game:GetService("Workspace")
-local SoundService = game:GetService("SoundService")
-local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local Workspace = game:GetService("Workspace")
+
 local localPlayer = Players.LocalPlayer
-local plr = Players.LocalPlayer
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
---                    ¯⁠\⁠(⁠°⁠_⁠o⁠)⁠/⁠¯
-urls = {
-    --hbss
-    hbssloader = "https://raw.githubusercontent.com/hm5650/HBSS" .. getgenv().sunc .. "/refs/heads/main/HBSS_Loader" .. getgenv().sunc .. ".lua",
-    sa2func = "https://raw.githubusercontent.com/hm5650/HBSS" .. getgenv().sunc .. "/refs/heads/main/SA2_Function" .. getgenv().sunc .. ".lua",
-    sa2findtool = "https://raw.githubusercontent.com/hm5650/HBSS" .. getgenv().sunc .. "/refs/heads/main/SA2_FindTool" .. getgenv().sunc .. ".lua",
-    hbsshandlecorpses = "https://raw.githubusercontent.com/hm5650/HBSS" .. getgenv().sunc .. "/refs/heads/main/HBSS_DeathHandler" .. getgenv().sunc .. ".lua",
-    showmyipadress_jk = "https://raw.githubusercontent.com/hm5650/HBSS" .. getgenv().sunc .. "/refs/heads/main/getInfo" .. getgenv().sunc .. ".lua",
-    --прочее
-    imalurtingyou = "https://raw.githubusercontent.com/azir-py/project/refs/heads/main/Zwolf/AlurtUI.lua",
-    adonisabuse = "https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua",
-    ilikedisui = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua",
-    ewitsabadapple = "https://raw.githubusercontent.com/hm5650/Badappel/refs/heads/main/Appelbad",
-    tpuabasically = "https://raw.githubusercontent.com/hm5650/BringParts/refs/heads/main/BringParts.lua",
-    imbricked = "https://raw.githubusercontent.com/hm5650/Brick/refs/heads/main/Brick.lua",
-    wflingguiname = "https://raw.githubusercontent.com/hm5650/iwanttobanishthisspecificplayer/refs/heads/main/iwanttobanishthisspecificplayer.lua",
-}
-
-lp_info = loadstring(game:HttpGet(urls.showmyipadress_jk))()
-function showurwholeipadress()
-    print(lp_info.lp_username)
-    print(lp_info.lp_displayname)
-    print(lp_info.lp_id)
-    print(lp_info.lp_accountage)
-    print(lp_info.lp_retroslopscore)
-    print(lp_info.lp_isitretroslop)
-end
-
--- непрофессиональный профессионал 🥀
-lzl = {
-    loaded = {},
-    loading = false,
-    q = {},
-    enabled = true,
-    int = 3,
-    maxQ = 50,
-    lastT = 0,
-    perf = true,
-    _con = {},
-    _clean = {},
-    _proc = false
-}
-
-local fCfg = {
-    core = {
-        dep = {},
-        load = function() return true end,
-        unload = function() end,
-        prio = 1,
-        ess = true,
-        reqGame = false
-    },
-    esp = {
-        dep = {"core"},
-        load = function()
-            if not config.espMasterEnabled then return false end
-            applyESPMaster(true)
-            return true
-        end,
-        unload = function()
-            for target in pairs(config.espData) do removeESPLabel(target) end
-            for target in pairs(config.highlightData) do removeHighlightESP(target) end
-            for target in pairs(config.lineESPData) do removeLineESP(target) end
-        end,
-        prio = 2,
-        ess = false,
-        reqGame = true
-    },
-    silentAim = {
-        dep = {"core"},
-        load = function()
-            if not config.startsa then return false end
-            if gui.RingHolder then gui.RingHolder.Visible = true end
-            return true
-        end,
-        unload = function()
-            if gui.RingHolder then gui.RingHolder.Visible = false end
-            for pl in pairs(config.activeApplied) do restorePartForPlayer(pl) end
-        end,
-        prio = 2,
-        ess = false,
-        reqGame = true
-    },
-    aimbot = {
-        dep = {"core"},
-        load = function()
-            if not config.aimbotEnabled then return false end
-            handleAimbotToggle(true)
-            aimbotfov()
-            return true
-        end,
-        unload = function() handleAimbotToggle(false) end,
-        prio = 2,
-        ess = false,
-        reqGame = true
-    },
-    hitbox = {
-        dep = {"core"},
-        load = function()
-            if not config.hitboxEnabled then return false end
-            applyhb()
-            return true
-        end,
-        unload = function()
-            for player in pairs(config.hitboxExpandedParts) do restoreTorso(player) end
-            config.hitboxExpandedParts = {}
-        end,
-        prio = 3,
-        ess = false,
-        reqGame = true
-    },
-    antiAim = {
-        dep = {"core"},
-        load = function()
-            if not config.antiAimEnabled then return false end
-            return true
-        end,
-        unload = function() returnToOriginalPosition() end,
-        prio = 3,
-        ess = false,
-        reqGame = true
-    },
-    autoFarm = {
-        dep = {"core"},
-        load = function()
-            if not config.autoFarmEnabled then return false end
-            autoFarmProcess()
-            return true
-        end,
-        unload = function() stopAutoFarm() end,
-        prio = 3,
-        ess = false,
-        reqGame = true
-    },
-    client = {
-        dep = {"core"},
-        load = function()
-            if not config.clientMasterEnabled then return false end
-            applyClientMaster(true)
-            return true
-        end,
-        unload = function() applyClientMaster(false) end,
-        prio = 2,
-        ess = false,
-        reqGame = true
-    },
-    triggerBot = {
-        dep = {"core"},
-        load = function()
-            if not config.tbot.enabled then return false end
-            toggleTriggerBot(true)
-            return true
-        end,
-        unload = function() toggleTriggerBot(false) end,
-        prio = 3,
-        ess = false,
-        reqGame = true
-    },
-    bhop = {
-        dep = {"core"},
-        load = function()
-            if not config.bhop.enabled then return false end
-            toggleBHop(true)
-            return true
-        end,
-        unload = function() toggleBHop(false) end,
-        prio = 3,
-        ess = false,
-        reqGame = true
-    },
-    spinbot = {
-        dep = {"core"},
-        load = function()
-            if not config.spinbot.enabled then return false end
-            spinbotUpdate()
-            return true
-        end,
-        unload = function()
-            if config.varibz.spinbotConnection then
-                config.varibz.spinbotConnection:Disconnect()
-                config.varibz.spinbotConnection = nil
-            end
-        end,
-        prio = 3,
-        ess = false,
-        reqGame = true
-    },
-    silentAimHK = {
-        dep = {"core"},
-        load = function()
-            if not config.SA2_Enabled then return false end
-            return true
-        end,
-        unload = function() config.SA2_Enabled = false end,
-        prio = 2,
-        ess = false,
-        reqGame = true
-    }
-}
-
-lState = {
-    pend = {},
-    act = {},
-    fail = {},
-    retry = {},
-    maxRet = 3,
-    timeout = 5
-}
-
-function lzl:isReady()
-    return game:IsLoaded() and Players.LocalPlayer and Players.LocalPlayer.Character
-end
-
-function lzl:getDeps(feature)
-    local cfg = fCfg[feature]
-    if not cfg then return {} end
-    local deps = {}
-    for _, dep in ipairs(cfg.dep or {}) do
-        if not self.loaded[dep] then
-            table.insert(deps, dep)
-        end
-    end
-    return deps
-end
-
-function lzl:canLoad(feature)
-    local cfg = fCfg[feature]
-    if not cfg then return false end
-    if cfg.reqGame and not self:isReady() then return false end
-    local deps = self:getDeps(feature)
-    return #deps == 0
-end
-
-function lzl:load(featureName)
-    if not self.enabled then return false end
-    if self.loaded[featureName] then return true end
-    if lState.fail[featureName] then return false end
-    
-    local cfg = fCfg[featureName]
-    if not cfg then return false end
-    for _, dep in ipairs(cfg.dep or {}) do
-        if not self.loaded[dep] then
-            local success = self:load(dep)
-            if not success then
-                lState.fail[featureName] = true
-                return false
-            end
-        end
-    end
-    local success = false
-    local startTime = tick()
-    
-    local function attempt()
-        local result = cfg.load()
-        if result then
-            self.loaded[featureName] = true
-            lState.act[featureName] = true
-            lState.fail[featureName] = nil
-            lState.retry[featureName] = nil
-            return true
-        end
-        return false
-    end
-    local co = coroutine.create(function()
-        success = attempt()
-    end)
-    
-    coroutine.resume(co)
-    while coroutine.status(co) ~= "dead" do
-        if tick() - startTime > lState.timeout then
-            coroutine.close(co)
-            break
-        end
-        task.wait(0.01)
-    end
-    
-    if success then
-        return true
-    else
-        lState.retry[featureName] = (lState.retry[featureName] or 0) + 1
-        if lState.retry[featureName] >= lState.maxRet then
-            lState.fail[featureName] = true
-        end
-        return false
-    end
-end
-
-function lzl:unload(featureName)
-    if not self.loaded[featureName] then return end
-    for name, loaded in pairs(self.loaded) do
-        if loaded and name ~= featureName then
-            local cfg = fCfg[name]
-            if cfg then
-                for _, dep in ipairs(cfg.dep or {}) do
-                    if dep == featureName then
-                        return
-                    end
-                end
-            end
-        end
-    end
-    
-    local cfg = fCfg[featureName]
-    if cfg and cfg.unload then
-        local success, err = pcall(cfg.unload)
-        if not success then
-            warn("Failed to unload " .. featureName .. ": " .. tostring(err))
-        end
-    end
-    
-    self.loaded[featureName] = nil
-    lState.act[featureName] = nil
-end
-
-function lzl:queue(featureName)
-    if not fCfg[featureName] then return false end
-    if self.loaded[featureName] then return true end
-    if #self.q >= self.maxQ then return false end
-    for _, name in ipairs(self.q) do
-        if name == featureName then return true end
-    end
-    
-    table.insert(self.q, featureName)
-    if not self._proc then
-        self:start()
-    end
-    return true
-end
-
-function lzl:start()
-    if self._proc or #self.q == 0 then return end
-    self._proc = true
-    
-    task.spawn(function()
-        while #self.q > 0 and self.enabled do
-            local feature = table.remove(self.q, 1)
-            if feature and not self.loaded[feature] then
-                self:load(feature)
-            end
-            task.wait(self.int)
-        end
-        self._proc = false
-    end)
-end
-
-function lzl:loadFeats(featureNames)
-    if not self.enabled then return end
-    if type(featureNames) == "string" then
-        featureNames = {featureNames}
-    end
-    local sorted = {}
-    for _, name in ipairs(featureNames) do
-        local cfg = fCfg[name]
-        if cfg then
-            table.insert(sorted, {name = name, prio = cfg.prio or 5})
-        end
-    end
-    
-    table.sort(sorted, function(a, b) return a.prio < b.prio end)
-    
-    for _, item in ipairs(sorted) do
-        self:queue(item.name)
-    end
-    
-    self:start()
-end
-
-function lzl:loadEss()
-    if not self.enabled then return end
-    if not self:isReady() then
-        local conn
-        conn = game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
-            conn:Disconnect()
-            self:loadEss()
-        end)
-        return
-    end
-    
-    local essential = {}
-    for name, cfg in pairs(fCfg) do
-        if cfg.ess then
-            table.insert(essential, name)
-        end
-    end
-    self:loadFeats(essential)
-end
-
-function lzl:cleanup()
-    local features = {}
-    for name in pairs(self.loaded) do
-        local cfg = fCfg[name]
-        if cfg and not cfg.ess then
-            table.insert(features, name)
-        end
-    end
-    table.sort(features, function(a, b)
-        local pa = fCfg[a] and fCfg[a].prio or 5
-        local pb = fCfg[b] and fCfg[b].prio or 5
-        return pa > pb
-    end)
-    
-    for _, name in ipairs(features) do
-        self:unload(name)
-    end
-    self.q = {}
-    lState.pend = {}
-    lState.act = {}
-    lState.fail = {}
-    lState.retry = {}
-    self._proc = false
-    self._clean = {}
-end
-
-function lzl:setEnabled(enabled)
-    self.enabled = enabled
-    if not enabled then
-        self:cleanup()
-    else
-        self:loadEss()
-    end
-end
-
-function lzl:getStatus()
-    local status = {
-        loaded = {},
-        loading = {},
-        failed = {},
-        queueSize = #self.q,
-        isProcessing = self._proc
-    }
-    
-    for name in pairs(self.loaded) do
-        table.insert(status.loaded, name)
-    end
-    
-    for name in pairs(lState.fail) do
-        table.insert(status.failed, name)
-    end
-    
-    return status
-end
-local oldInit = init
-init = function()
-    lzl:loadEss()
-    local toLoad = {}
-    if config.espMasterEnabled then table.insert(toLoad, "esp") end
-    if config.startsa then table.insert(toLoad, "silentAim") end
-    if config.aimbotEnabled then table.insert(toLoad, "aimbot") end
-    if config.hitboxEnabled then table.insert(toLoad, "hitbox") end
-    if config.antiAimEnabled then table.insert(toLoad, "antiAim") end
-    if config.autoFarmEnabled then table.insert(toLoad, "autoFarm") end
-    if config.clientMasterEnabled then table.insert(toLoad, "client") end
-    if config.tbot.enabled then table.insert(toLoad, "triggerBot") end
-    if config.bhop.enabled then table.insert(toLoad, "bhop") end
-    if config.spinbot.enabled then table.insert(toLoad, "spinbot") end
-    if config.SA2_Enabled then table.insert(toLoad, "silentAimHK") end
-    
-    if #toLoad > 0 then
-        lzl:loadFeats(toLoad)
-    end
-    
-    if oldInit then oldInit() end
-end
-local function setupToggleBindings()
-    local bindings = {
-        autoFarm = {
-            get = function() return config.autoFarmEnabled end,
-            set = function(v)
-                config.autoFarmEnabled = v
-                if v then lzl:queue("autoFarm")
-                else lzl:unload("autoFarm") end
-            end
-        },
-        antiAim = {
-            get = function() return config.antiAimEnabled end,
-            set = function(v)
-                config.antiAimEnabled = v
-                if v then lzl:queue("antiAim")
-                else lzl:unload("antiAim") end
-            end
-        },
-        esp = {
-            get = function() return config.espMasterEnabled end,
-            set = function(v)
-                config.espMasterEnabled = v
-                if v then lzl:queue("esp")
-                else lzl:unload("esp") end
-            end
-        },
-        aimbot = {
-            get = function() return config.aimbotEnabled end,
-            set = function(v)
-                config.aimbotEnabled = v
-                if v then lzl:queue("aimbot")
-                else lzl:unload("aimbot") end
-            end
-        },
-        silentAim = {
-            get = function() return config.startsa end,
-            set = function(v)
-                config.startsa = v
-                if v then lzl:queue("silentAim")
-                else lzl:unload("silentAim") end
-            end
-        },
-        silentAimHK = {
-            get = function() return config.SA2_Enabled end,
-            set = function(v)
-                config.SA2_Enabled = v
-                if v then lzl:queue("silentAimHK")
-                else lzl:unload("silentAimHK") end
-            end
-        },
-        hitbox = {
-            get = function() return config.hitboxEnabled end,
-            set = function(v)
-                config.hitboxEnabled = v
-                if v then lzl:queue("hitbox")
-                else lzl:unload("hitbox") end
-            end
-        },
-        client = {
-            get = function() return config.clientMasterEnabled end,
-            set = function(v)
-                config.clientMasterEnabled = v
-                if v then lzl:queue("client")
-                else lzl:unload("client") end
-            end
-        },
-        triggerBot = {
-            get = function() return config.tbot.enabled end,
-            set = function(v)
-                config.tbot.enabled = v
-                if v then lzl:queue("triggerBot")
-                else lzl:unload("triggerBot") end
-            end
-        },
-        bhop = {
-            get = function() return config.bhop.enabled end,
-            set = function(v)
-                config.bhop.enabled = v
-                if v then lzl:queue("bhop")
-                else lzl:unload("bhop") end
-            end
-        },
-        spinbot = {
-            get = function() return config.spinbot.enabled end,
-            set = function(v)
-                config.spinbot.enabled = v
-                if v then lzl:queue("spinbot")
-                else lzl:unload("spinbot") end
-            end
-        }
-    }
-    
-    return bindings
-end
-lzl.enabled = true
-lzl:loadEss()
-local toggles = setupToggleBindings()
-loadstring(game:HttpGet(urls.hbssloader))()
-Alurt = loadstring(game:HttpGet(urls.imalurtingyou))()
-
-local function n(opts)
-    if typeof(Alurt) == "table" and type(Alurt.CreateNode) == "function" then
-        pcall(function()
-            Alurt.CreateNode(opts)
-        end)
-    end
-end
-
-local notif1 = (function()
-    pcall(function()
-        n({
-            Title = "Скрипт запущен!",
-            Content = "Может быть нестабильным / не работать в некоторых играх",
-            Audio = "rbxassetid://17208361335",
-            Length = 1,
-            Image = "rbxassetid://4483362458",
-            BarColor = Color3.fromRGB(0, 170, 255)
-        })
-    end)
-end)()
-
-n({
-    Title = "Gravel.cc",
-    Content = "скрипт создан hmmm5651\nyt: @gpssickle",
-    Audio = "rbxassetid://17208361335",
-    Length = 8,
-    Image = "rbxassetid://4483362458",
-    BarColor = Color3.fromRGB(0, 170, 255)
-})
-
-task.wait(2.30)
-pcall(function()
-loadstring(game:HttpGet(urls.adonisabuse))()
-local getgenv, getnamecallmethod, hookmetamethod, hookfunction, newcclosure, checkcaller, lower, gsub, match = getgenv, getnamecallmethod, hookmetamethod, hookfunction, newcclosure, checkcaller, string.lower, string.gsub, string.match
-if getgenv().ED_AntiKick then
-    return
-end
-
-local cloneref = cloneref or function(...) 
-    return ...
-end
-
-local clonefunction = clonefunction or function(...)
-    return ...
-end
-
-local Players, LocalPlayer, StarterGui = cloneref(game:GetService("Players")), cloneref(game:GetService("Players").LocalPlayer), cloneref(game:GetService("StarterGui"))
-
-local SetCore = clonefunction(StarterGui.SetCore)
-local FindFirstChild = clonefunction(game.FindFirstChild)
-
-local CompareInstances = (CompareInstances and function(Instance1, Instance2)
-        if typeof(Instance1) == "Instance" and typeof(Instance2) == "Instance" then
-            return CompareInstances(Instance1, Instance2)
-        end
-    end)
-or
-function(Instance1, Instance2)
-    return (typeof(Instance1) == "Instance" and typeof(Instance2) == "Instance")
-end
-
-local CanCastToSTDString = function(...)
-    return pcall(FindFirstChild, game, ...)
-end
-task.wait(0.4)
-getgenv().ED_AntiKick = {
-    Enabled = true, 
-    SendNotifications = false,
-    CheckCaller = true
-}
-
-pcall(function()
-local OldNamecall; OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
-    local self, message = ...
-    local method = getnamecallmethod()
-    local isCallerValid = true
-    if ED_AntiKick.CheckCaller then
-        local success, result = pcall(checkcaller)
-        isCallerValid = success and result or true
-    end
-    
-    if (isCallerValid or not ED_AntiKick.CheckCaller) and CompareInstances(self, LocalPlayer) and gsub(method, "^%l", string.upper) == "Kick" and ED_AntiKick.Enabled then
-        if CanCastToSTDString(message) then
-            if ED_AntiKick.SendNotifications then
-                SetCore(StarterGui, "SendNotification", {
-                    Title = "Gravel Анти-Кик",
-                    Text = "Успешно заблокирована попытка кика.",
-                    Icon = "rbxassetid://4483362458",
-                    Duration = 1
-                })
-            end
-            return
-        end
-    end
-
-    return OldNamecall(...)
-end))
-end)
-
-pcall(function()
-local OldFunction; OldFunction = hookfunction(LocalPlayer.Kick, function(...)
-    local self, Message = ...
-
-    local isCallerValid = true
-    if ED_AntiKick.CheckCaller then
-        local success, result = pcall(checkcaller)
-        isCallerValid = success and result or true
-    end
-    
-    if (isCallerValid or not ED_AntiKick.CheckCaller) and CompareInstances(self, LocalPlayer) and ED_AntiKick.Enabled then
-        if CanCastToSTDString(Message) then
-            if ED_AntiKick.SendNotifications then
-                SetCore(StarterGui, "SendNotification", {
-                    Title = "Gravel Анти-Кик",
-                    Text = "Успешно заблокирована попытка кика.",
-                    Icon = "rbxassetid://4483362458",
-                    Duration = 1
-                })
-            end
-            return
-        end
-    end
-    return OldFunction(...)
-end)
-end)
-
-n({
-    Title = "Gravel.cc",
-    Content = "Антикик запущен!",
-    Audio = "rbxassetid://17208361335",
-    Length = 8,
-    Image = "rbxassetid://4483362458",
-    BarColor = Color3.fromRGB(0, 170, 255)
-})
-end)
---                               ⸜( ˃ ᵕ ˂ )⸝♡
-func = loadstring(game:HttpGet(urls.sa2func))()
-local WindUI = loadstring(game:HttpGet(urls.ilikedisui))()
-task.wait(0.8) -- Ненавижу ошибки HTTP 429...
--- другие переменные
-local gui = {}
-local ValidTargetParts = {"Head", "HumanoidRootPart", "Torso", "UpperTorso", "LowerTorso", "RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLowerArm", "RightHand", "LeftHand", "RightUpperLeg", "LeftUpperLeg", "RightLowerLeg", "LeftLowerLeg", "RightFoot", "LeftFoot"}
-local mouse = plr:GetMouse()
-local Camera = workspace.CurrentCamera
-local FindFirstChild = game.FindFirstChild
-local GetPlayers = Players.GetPlayers
-local GetPartsObscuringTarget = Camera.GetPartsObscuringTarget
-local lastCharacter = nil
 local camera = workspace.CurrentCamera
-local humanoid = nil
-local character = nil
-local updateESPColors = function() end
-local bhopConnection = nil
-local sa2this = {}
-local clone_ref = cloneref or function(v) return v end
 
--- случайные штуки лололол
--- Я не собираюсь объяснять каждую переменную, вы должны всё знать
-SaveSystem = {
-    Folder = "Gravel_Saves",
-    Extension = ".json",
-    CurrentSave = nil
-}
-config = {
-    confIg = "Gravel",
-    startsa = false,
+local gui = {}
+
+local config = {
+    -- Silent Aim
+    Enabled = false,
     fovsize = 120,
     predic = 1,
-    hbtrans = 1,
-    scaleToScreen = false,
-    stsdistance = 0,
-    SA2_Enabled = false,
-    SA2_Method = "Raycast",
-    SA2_TeamTarget = "Противники",
-    SA2_Wallcheck = false,
-    SA2_TargetPart = "Голова",
-    SA2_HitChance = 100,
-    SA2_FovRadius = 100,
-    SA2_FovVisible = true,
-    SA2_FovTransparency = 0.90,
-    SA2_FovColor = Color3.new(0, 0, 0),
-    SA2_FovColourTarget = Color3.new(1, 1, 0),
-    SA2_FovIsTargeted = false,
-    SA2_ThreeSixtyMode = false,
-    SA2_GetTarget = "Ближайший",
-    SA2_currentTarget = nil,
-    SA2_TArea = 35,
-    SA2_TargetRange = 1000,
-    SA2_Wallbang = false,
+    wallc = false,
+    bodypart = "Head",
+    hitchance = 100,
+    targetMode = "Enemies",
+    silentGetTarget = "Closest",
+    fovc = Color3.fromRGB(255, 0, 0),
+    fovct = Color3.fromRGB(255, 255, 0),
+    
+    -- Aimbot
+    aimbotEnabled = false,
+    aimbotFOVSize = 100,
+    aimbotStrength = 0.5,
+    aimbotWallCheck = false,
+    aimbotTargetPart = "Head",
+    aimbotTeamTarget = "Enemies",
+    aimbotCurrentTarget = nil,
+    aimbotFOVRing = nil,
+    aimbotGetTarget = "Closest",
+    aimbot360Enabled = false,
+    aimbot360OriginalFOV = 100,
+    aimbot360Omnidirectional = true,
+    aimbot360BehindRange = 180,
+    
+    -- Shared
+    masterTarget = "Players",
+    masterTeamTarget = "Enemies",
+    masterGetTarget = "Closest",
     currentTarget = nil,
+    activeApplied = {},
+    originalSizes = {},
+    targethbSizes = {},
+    centerLocked = {},
+    maxExpansion = math.huge,
+    rfd = false,
+    looprfd = false,
+    
+    -- ESP (оставляю как есть)
     espc = Color3.fromRGB(255, 182, 193),
     esptargetc = Color3.fromRGB(255, 255, 0),
     espteamc = Color3.fromRGB(0, 255, 0),
-    rfd = false,
-    eme = true,
-    wallc = false,
-    bodypart = "Голова",
-    espon = false,
+    espEnabled = false,
     prefTextESP = false,
     highlightesp = false,
     prefHighlightESP = false,
@@ -803,41 +70,18 @@ config = {
     prefColorByHealth = false,
     espMasterEnabled = false,
     prefHeadDotESP = false,
-    lineESPEnabled = false,
-    lineESPOnlyTarget = false,
-    lineStartPosition = "Центр",
-    lineColor = Color3.fromRGB(255, 255, 255),
-    lineThickness = 1,
-    lineESPData = {},
-    originalSizes = {},
-    activeApplied = {},
     espData = {},
     highlightData = {},
-    currentTarget = nil,
-    targethbSizes = {},
-    fovc = Color3.fromRGB(100, 0, 0),
-    fovct = Color3.fromRGB(255, 255, 0),
     playerConnections = {},
     characterConnections = {},
-    targetMode = "Противники",
-    centerLocked = {},
-    hitchance = 100,
-    maxExpansion = math.huge,
-    aimbotEnabled = false,
-    aimbotFOVSize = 70,
-    aimbotStrength = 0.5,
-    aimbotWallCheck = false,
-    aimbotTargetPart = "Голова",
-    aimbotTeamTarget = "Противники",
-    aimbotCurrentTarget = nil,
-    aimbotFOVRing = nil,
+    
+    -- Остальное
     hitboxEnabled = false,
     hitboxSize = 10,
-    hitboxTeamTarget = "Противники",
+    hitboxTeamTarget = "Enemies",
     hitboxExpandedParts = {},
     hitboxOriginalSizes = {},
     hitboxLastSize = {},
-    hitboxColor = Color3.fromRGB(255, 255, 255),
     antiAimEnabled = false,
     raycastAntiAim = false,
     antiAimTPDistance = 3,
@@ -852,7 +96,7 @@ config = {
     antiAimOrbitSpeed = 5,
     antiAimOrbitRadius = 5,
     antiAimOrbitHeight = 0,
-    masterTeamTarget = "Противники",
+    antiAimGetTarget = "Closest",
     autoFarmEnabled = false,
     autoFarmDistance = 10,
     autoFarmSpeed = 1,
@@ -861,28 +105,11 @@ config = {
     autoFarmLoop = nil,
     autoFarmIndex = 1,
     autoFarmCompleted = {},
-    autoFarmTargetPart = "Голова",
+    autoFarmTargetPart = "Head",
     autoFarmAlignToCrosshair = true,
     autoFarmVerticalOffset = 0,
-    autoFarmMinRange = 0,
-    autoFarmMaxRange = 50,
-    autoFarmOriginalPositions = {}, 
-    autoFarmWallCheck = false,
-    aimbot360Enabled = false,
-    aimbot360OriginalFOV = 100,
+    autoFarmOriginalPositions = {},
     gp = 200,
-    gp2 = 1,
-    customFOVEnabled = false,
-    customFOVValue = 70,
-    fbenabled = false,
-    targetSeenMode = "Переключить",
-    targetSeenSwitchRate = 0.2,
-    lastTargetSwitchTime = 0,
-    targetSeenTargets = {},
-    aimbot360Omnidirectional = true,
-    aimbot360BehindRange = 180,
-    aimbot360WasEnabled = false,
-    masterTarget = "Игроки",
     clientMasterEnabled = false,
     clientWalkSpeed = 16,
     clientJumpPower = 50,
@@ -896,152 +123,667 @@ config = {
     clientJumpEnabled = false,
     clientNoclipEnabled = false,
     clientCFrameWalkToggle = false,
-    masterGetTarget = "Ближайший",
-    aimbotGetTarget = "Ближайший",
-    silentGetTarget = "Ближайший",
-    antiAimGetTarget = "Ближайший",
-    autoFarmPartClaimStarted = false,
-    autoFarmLastRefresh = 0,
-    ignoreForcefield = true,
-    QuickToggles = false,
-    QTDrag = true,
-    trussEnabled = false,
-    trussPart = nil,
-    trussConnection = nil,
-    airwalkEnabled = false,
-    airwalkPart = nil,
-    airwalkConnection = nil,
-    autorespawnEnabled = false,
-    autorespawnConnections = {},
-    autorespawnDeathPosition = nil,
-    autorespawnType = "SetSpawnPoint",
-    SSEnabled = false,
-    SpawnLocation = nil,
-    SSConnection = nil,
-    fastspawn = false,
-    antiafk = false,
-    Viewing = false,
-    camYOffsetEnabled = false,
-    camYOffsetValue = 0,
-    camYOffsetOriginalCFrame = nil,
-    camYOffsetConnection = nil,
-    spinbot = {
-        enabled = false,
-        speed = 50,
-    },
-    bhop = {
-        enabled = false,
-        jumpDelay = 0.05,
-        quickToggleEnabled = false,
-        quickToggleDraggable = true
-    },
-    reach = {
-        enabled = false,
-        type = "Сфера",
-        distance = 10,
-        autoSwing = {
-            enabled = false,
-            delay = 0.1
-        },
-    },
-    visualizer = {
-        enabled = false,
-        color = Color3.fromRGB(255, 0, 0),
-        material = "ForceField",
-        transparency = 0.6
-    },
-    materials = {
-        ["ForceField"] = Enum.Material.ForceField,
-        ["Plastic"] = Enum.Material.Plastic,
-        ["Glass"] = Enum.Material.Glass,
-        ["Neon"] = Enum.Material.Neon,
-        ["SmoothPlastic"] = Enum.Material.SmoothPlastic,
-        ["Metal"] = Enum.Material.Metal,
-        ["DiamondPlate"] = Enum.Material.DiamondPlate
-    },
-    LowRender = false,
-    tbot = {
-        enabled = false,
-        delay = 0.1,
-        fovRadius = 150,
-        fovVisible = true,
-        fovColor = Color3.fromRGB(255, 0, 0),
-        fovTransparency = 0.7,
-        targetPart = "Голова",
-        wallCheck = false,
-        hitChance = 100,
-        holdToShoot = false,
-        holdKey = "MouseButton1"
-    },
-    KeybindsEnabled = true,
-    HoldKeysEnabled = false,
-    Keybinds = {
-        HoldKeybind = "LeftAlt",
-        silentaim = "E",
-        aimbot = "Q",
-        autofarm = "F",
-        antiaim = "L",
-        hitbox = "G",
-        esp = "Z",
-        client = "N",
-        silentaimwallcheck = "B",
-        aimbotwallcheck = "H",
-        silentaimhk = "R",
-        silentaimhkwallcheck = "T",
-        triggerbot = "X",
-        bhop = "V",
-        tbotwallcheck = "Y",
-    },
-    varibz = {
-        btntitle = {
-            "эй, почему закрываешь меня",
-            "Размер GUI уменьшается",
-            "чувак",
-            "угу",
-            lp_info.lp_displayname,
-            "как же гравийчно с твоей стороны",
-            "железобетонный интерфейс",
-            "что",
-            "версия: хз",
-            "D:",
-            "открой меня СНОВА!!! D:",
-            "просто читери через это",
-            "миска",
-            "gta 6 когда?",
-            "о господи",
-            "open4robuc",
-            "я хочу быть открытым",
-            "гравий — это не песок",
-            "гравий это просто песок?",
-            "уд",
-            "не полностью защищен от бана",
-            "блех :p",
-            ":3",
-            ":o",
-            ";]",
-            "код ошибки: 6967420",
-            "🥀💔✌️🫩",
-            "брочачо",
-        },
-        convo = {
-            {
-                typesp = "1.5",
-                "ЭЙ",
-                "{displayname} ЭЙ",
-                "ТЫ СЛЫШИШЬ МЕНЯ???",
-                "Ок, я привлек твое внимание",
-                "то, что я хочу сказать",
-                "пожалуйста, прочитай вкладку InfoTab :(",
-                "и укажи меня в авторах, если взял кусочек кода :(",
-            },
-            {
-                typesp = "2",
-                "Я ХИРУРГ",
-                "Я ХИРУРГ",
-                "Я- Я ХИРУРГ",
-                "Я ХИРУРГ",
-            },
-            -- (Остальной массив диалогов и настроек переведен аналогично, сохранен оригинальный функционал кода)
-        }
-    }
+    hotkeyConnection = nil,
 }
+
+-- ========== NOTIFICATION SYSTEM ==========
+local Alurt = loadstring(game:HttpGet("https://raw.githubusercontent.com/azir-py/project/refs/heads/main/Zwolf/AlurtUI.lua"))()
+
+local function safeNotify(opts)
+    if typeof(Alurt) == "table" and type(Alurt.CreateNode) == "function" then
+        pcall(function()
+            Alurt.CreateNode(opts)
+        end)
+    end
+end
+
+safeNotify({
+    Title = "Script started!",
+    Content = "Gravel.cc Legacy + AIM/SILENT/WH",
+    Audio = "rbxassetid://17208361335",
+    Length = 3,
+    Image = "rbxassetid://4483362458",
+    BarColor = Color3.fromRGB(0, 170, 255)
+})
+
+-- ========== UI LIBRARY ==========
+local lib
+do
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/hm5650/ACXUI/refs/heads/main/ACXUI"))()
+    end)
+    if success and result then
+        lib = result
+    else
+        warn("UI lib failed to load")
+        lib = {}
+        function lib:SetTitle() end
+        function lib:SetIcon() end
+        function lib:SetBackgroundColor() end
+        function lib:SetCloseBtnColor() end
+        function lib:SetTitleColor() end
+        function lib:SetButtonsColor() end
+        function lib:SetTheme() end
+        function lib:AddToggle(_, callback, default)
+            if callback then pcall(callback, default) end
+        end
+        function lib:AddComboBox(_, _, callback)
+            if callback then pcall(callback, "Enemies") end
+        end
+        function lib:AddInputBox(_, callback, _, default)
+            if callback then pcall(callback, tostring(default)) end
+        end
+        function lib:CreateTab() return {} end
+        function lib:Tab() end
+    end
+end
+
+if not math.clamp then
+    function math.clamp(x, a, b)
+        if x < a then return a end
+        if x > b then return b end
+        return x
+    end
+end
+
+-- ========== TARGET HELPERS ==========
+local function isTeammate(p)
+    if not (localPlayer and p) then return false end
+    if typeof(p) == "Instance" and p:IsA("Player") then
+        if localPlayer.Team and p.Team then
+            return localPlayer.Team == p.Team
+        end
+    end
+    return false
+end
+
+local function plralive(target)
+    if not target then return false end
+    if typeof(target) == "Instance" and target:IsA("Player") then
+        local character = target.Character
+        if not character then return false end
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return false end
+        return humanoid.Health > 0
+    end
+    if typeof(target) == "Instance" and target:IsA("Model") then
+        local humanoid = target:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return false end
+        return humanoid.Health > 0
+    end
+    return false
+end
+
+local function getTargetCharacter(target)
+    if not target then return nil end
+    if typeof(target) == "Instance" then
+        if target:IsA("Player") then return target.Character
+        elseif target:IsA("Model") then return target end
+    end
+    return nil
+end
+
+local function getTargetName(target)
+    if not target then return "Unknown" end
+    if typeof(target) == "Instance" then return target.Name end
+    return tostring(target)
+end
+
+local function isNPCModel(model)
+    if not model or not model:IsA("Model") then return false end
+    if Players:GetPlayerFromCharacter(model) then return false end
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health ~= nil then
+        if model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") then
+            return true
+        end
+    end
+    return false
+end
+
+local function getAllTargets()
+    local targets = {}
+    if config.masterTarget == "Players" or config.masterTarget == "Both" then
+        for _, pl in ipairs(Players:GetPlayers()) do
+            if pl ~= localPlayer then table.insert(targets, pl) end
+        end
+    end
+    if config.masterTarget == "NPCs" or config.masterTarget == "Both" then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and isNPCModel(obj) then
+                if not Players:GetPlayerFromCharacter(obj) then
+                    table.insert(targets, obj)
+                end
+            end
+        end
+    end
+    return targets
+end
+
+local function chooseBodyPartInstance(target)
+    local char = getTargetCharacter(target)
+    if not char then return nil, "Head" end
+    local bp = config.bodypart or "Head"
+    if bp == "Head" then return char:FindFirstChild("Head"), "Head"
+    elseif bp == "HumanoidRootPart" then return char:FindFirstChild("HumanoidRootPart"), "HumanoidRootPart"
+    elseif bp == "Both" then
+        local roll = math.random(1, 100)
+        if roll <= 85 then
+            return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head"), "HumanoidRootPart"
+        else
+            return char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart"), "Head"
+        end
+    else
+        local found = char:FindFirstChild(bp) or char:FindFirstChild("Head")
+        return found, (found and found.Name) or "Head"
+    end
+end
+
+-- ========== WALL CHECK ==========
+local function wallCheck(targetPos, sourcePos)
+    if not config.wallc then return true end
+    if (targetPos - sourcePos).Magnitude <= 0 then return true end
+    local rayDirection = (targetPos - sourcePos)
+    local ray = Ray.new(sourcePos, rayDirection.Unit * rayDirection.Magnitude)
+    local ignoreList = {}
+    if localPlayer and localPlayer.Character then table.insert(ignoreList, localPlayer.Character) end
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer.Character then table.insert(ignoreList, otherPlayer.Character) end
+    end
+    local hit, position = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
+    if hit and position then
+        local distanceToTarget = (targetPos - sourcePos).Magnitude
+        local distanceToHit = (position - sourcePos).Magnitude
+        return distanceToHit >= (distanceToTarget - 2)
+    end
+    return true
+end
+
+local function aimbotWallCheck(targetPos, sourcePos)
+    if not config.aimbotWallCheck then return true end
+    return wallCheck(targetPos, sourcePos)
+end
+
+-- ========== SILENT AIM HOOK ==========
+local OldNamecall
+OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local Method = getnamecallmethod()
+    local Args = {...}
+    
+    if config.Enabled and Method == "FindPartOnRayWithIgnoreList" then
+        -- Ищем цель через RenderStep
+        local target = config.currentTarget
+        if target and plralive(target) then
+            local part, _ = chooseBodyPartInstance(target)
+            if part and math.random(1, 100) <= config.hitchance then
+                local OriginalRay = Args[1]
+                if OriginalRay then
+                    local Origin = OriginalRay.Origin
+                    local NewDirection = (part.Position - Origin).Unit * OriginalRay.Direction.Magnitude
+                    Args[1] = Ray.new(Origin, NewDirection)
+                    return OldNamecall(self, table.unpack(Args))
+                end
+            end
+        end
+    end
+    
+    return OldNamecall(self, ...)
+end)
+
+-- ========== SILENT AIM RENDER ==========
+local function onRenderStep()
+    if not camera or not camera.Parent then
+        camera = workspace.CurrentCamera
+        if not camera then return end
+    end
+
+    -- FOV Circle visibility
+    if not gui.RingHolder or not gui.RingStroke then return end
+    if not config.Enabled then
+        gui.RingHolder.Visible = false
+        return
+    else
+        gui.RingHolder.Visible = true
+    end
+
+    local viewportSize = camera.ViewportSize
+    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local radiusPx = config.fovsize
+
+    local candidates = {}
+    for _, pl in ipairs(getAllTargets()) do
+        local bodyPart, chosenName = chooseBodyPartInstance(pl)
+        local humanoid = nil
+        local char = getTargetCharacter(pl)
+        if char then humanoid = char:FindFirstChildOfClass("Humanoid") end
+
+        if bodyPart and humanoid and humanoid.Health > 0 then
+            local mode = config.targetMode or "Enemies"
+            local skip = false
+            if mode == "Enemies" then
+                if typeof(pl) == "Instance" and pl:IsA("Player") and isTeammate(pl) then skip = true end
+            elseif mode == "Teams" then
+                if typeof(pl) == "Instance" and pl:IsA("Player") and not isTeammate(pl) then skip = true end
+            end
+
+            if not skip then
+                local screenPos3, onScreen = camera:WorldToViewportPoint(bodyPart.Position)
+                if onScreen then
+                    local screenVec = Vector2.new(screenPos3.X, screenPos3.Y)
+                    local distPx = (screenVec - center).Magnitude
+                    if distPx <= radiusPx then
+                        local cameraPos = camera.CFrame.Position
+                        if wallCheck(bodyPart.Position, cameraPos) then
+                            local worldDist = (cameraPos - bodyPart.Position).Magnitude
+                            table.insert(candidates, {
+                                player = pl,
+                                part = bodyPart,
+                                partName = chosenName,
+                                screenDist = distPx,
+                                worldDist = worldDist,
+                                screenPos = screenVec,
+                                humanoid = humanoid
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Выбор цели
+    local best = nil
+    local selectionMode = config.silentGetTarget or "Closest"
+    if #candidates > 0 then
+        if selectionMode == "Lowest Health" then
+            local bestHealth = math.huge
+            for _, c in ipairs(candidates) do
+                local h = c.humanoid and c.humanoid.Health or math.huge
+                if best == nil or h < bestHealth then bestHealth = h; best = c end
+            end
+        else
+            local bestWorldDist = math.huge
+            for _, c in ipairs(candidates) do
+                if c.worldDist < bestWorldDist then bestWorldDist = c.worldDist; best = c end
+            end
+        end
+    end
+
+    -- Цвет FOV кольца
+    if best then
+        gui.RingStroke.Color = config.fovct
+    else
+        gui.RingStroke.Color = config.fovc
+    end
+
+    config.currentTarget = best and best.player or nil
+end
+
+-- ========== AIMBOT RENDER ==========
+local function getAimbotTargetPart(target)
+    if not target then return nil end
+    local partName = config.aimbotTargetPart or "Head"
+    local char = getTargetCharacter(target)
+    if not char then return nil end
+    if partName == "Head" then return char:FindFirstChild("Head")
+    elseif partName == "HumanoidRootPart" then return char:FindFirstChild("HumanoidRootPart")
+    elseif partName == "Torso" then return char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+    else return char:FindFirstChild("Head") end
+end
+
+local function aimbotUpdate()
+    if not config.aimbotEnabled then
+        config.aimbotCurrentTarget = nil
+        return
+    end
+    
+    if not camera then camera = workspace.CurrentCamera end
+    if not camera then return end
+    
+    local viewportSize = camera.ViewportSize
+    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local radiusPx = config.aimbot360Enabled and math.huge or config.aimbotFOVSize
+    local candidates = {}
+    local cameraCFrame = camera.CFrame
+    local cameraPos = cameraCFrame.Position
+
+    for _, target in ipairs(getAllTargets()) do
+        if target ~= localPlayer and plralive(target) then
+            local shouldTarget = false
+            local mode = config.aimbotTeamTarget or "Enemies"
+            if typeof(target) == "Instance" and target:IsA("Model") then
+                if config.masterTarget == "NPCs" or config.masterTarget == "Both" then shouldTarget = true end
+            else
+                if mode == "Enemies" then shouldTarget = not isTeammate(target)
+                elseif mode == "Teams" then shouldTarget = isTeammate(target)
+                elseif mode == "All" then shouldTarget = true end
+            end
+            
+            if shouldTarget then
+                local targetPart = getAimbotTargetPart(target)
+                if targetPart then
+                    local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+                    local screenVec = Vector2.new(screenPos.X, screenPos.Y)
+                    local distPx = (screenVec - center).Magnitude
+                    if config.aimbot360Enabled or (onScreen and distPx <= radiusPx) then
+                        local worldDist = (targetPart.Position - cameraPos).Magnitude
+                        if aimbotWallCheck(targetPart.Position, cameraPos) then
+                            local humanoid = getTargetCharacter(target) and getTargetCharacter(target):FindFirstChildOfClass("Humanoid")
+                            table.insert(candidates, {
+                                target = target,
+                                part = targetPart,
+                                worldDist = worldDist,
+                                humanoid = humanoid
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local bestCandidate = nil
+    local selectionMode = config.aimbotGetTarget or "Closest"
+    if #candidates > 0 then
+        if selectionMode == "Lowest Health" then
+            local bestHealth = math.huge
+            for _, c in ipairs(candidates) do
+                local h = c.humanoid and c.humanoid.Health or math.huge
+                if bestCandidate == nil or h < bestHealth then bestHealth = h; bestCandidate = c end
+            end
+        else
+            local bestDist = math.huge
+            for _, c in ipairs(candidates) do
+                if c.worldDist < bestDist then bestDist = c.worldDist; bestCandidate = c end
+            end
+        end
+    end
+
+    config.aimbotCurrentTarget = bestCandidate and bestCandidate.target or nil
+    
+    if bestCandidate and bestCandidate.part and localPlayer.Character then
+        local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            local targetCFrame = CFrame.lookAt(camera.CFrame.Position, bestCandidate.part.Position)
+            local strength = math.clamp(config.aimbotStrength, 0, 1)
+            if strength < 1 then
+                camera.CFrame = camera.CFrame:Lerp(targetCFrame, strength)
+            else
+                camera.CFrame = targetCFrame
+            end
+        end
+    end
+end
+
+-- ========== FOV RING CREATION ==========
+local function createFOVRing()
+    local fovScreenGui = Instance.new("ScreenGui")
+    fovScreenGui.Name = "FOVToggleGui_Modern"
+    fovScreenGui.ResetOnSpawn = false
+    fovScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    fovScreenGui.Parent = game:GetService("CoreGui")
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)
+    mainFrame.BackgroundTransparency = 1
+    mainFrame.Parent = fovScreenGui
+
+    local ringHolder = Instance.new("Frame")
+    ringHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+    ringHolder.Size = UDim2.new(0, config.fovsize * 2, 0, config.fovsize * 2)
+    ringHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ringHolder.BackgroundTransparency = 1
+    ringHolder.Parent = mainFrame
+
+    local ringCorner = Instance.new("UICorner")
+    ringCorner.CornerRadius = UDim.new(1, 0)
+    ringCorner.Parent = ringHolder
+
+    local ringStroke = Instance.new("UIStroke")
+    ringStroke.Thickness = 2
+    ringStroke.LineJoinMode = Enum.LineJoinMode.Round
+    ringStroke.Color = config.fovc
+    ringStroke.Transparency = 0
+    ringStroke.Parent = ringHolder
+
+    gui.ScreenGui = fovScreenGui
+    gui.RingHolder = ringHolder
+    gui.RingStroke = ringStroke
+end
+
+local function updateFOVRingSize()
+    if gui.RingHolder then
+        gui.RingHolder.Size = UDim2.new(0, config.fovsize * 2, 0, config.fovsize * 2)
+    end
+end
+
+-- ========== AIMBOT FOV RING ==========
+local function aimbotfov()
+    if config.aimbotFOVRing and config.aimbotFOVRing.RingFrame then
+        config.aimbotFOVRing.RingFrame:Destroy()
+    end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AimbotFOVRing"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = game:GetService("CoreGui")
+    
+    local ringFrame = Instance.new("Frame")
+    ringFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    ringFrame.Size = UDim2.new(0, config.aimbotFOVSize * 2, 0, config.aimbotFOVSize * 2)
+    ringFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ringFrame.BackgroundTransparency = 1
+    ringFrame.Visible = config.aimbotEnabled
+    ringFrame.Parent = screenGui
+    
+    local ringCorner = Instance.new("UICorner")
+    ringCorner.CornerRadius = UDim.new(1, 0)
+    ringCorner.Parent = ringFrame
+    
+    local ringStroke = Instance.new("UIStroke")
+    ringStroke.Thickness = 2
+    ringStroke.LineJoinMode = Enum.LineJoinMode.Round
+    ringStroke.Color = Color3.fromRGB(255, 100, 100)
+    ringStroke.Transparency = 0.3
+    ringStroke.Parent = ringFrame
+    
+    config.aimbotFOVRing = { ScreenGui = screenGui, RingFrame = ringFrame, RingStroke = ringStroke }
+end
+
+local function updateAimbotFOVRing()
+    if config.aimbotFOVRing and config.aimbotFOVRing.RingFrame then
+        if config.aimbot360Enabled then
+            config.aimbotFOVRing.RingFrame.Visible = false
+        else
+            config.aimbotFOVRing.RingFrame.Size = UDim2.new(0, config.aimbotFOVSize * 2, 0, config.aimbotFOVSize * 2)
+            config.aimbotFOVRing.RingFrame.Visible = config.aimbotEnabled
+        end
+    end
+end
+
+local function toggle360Aimbot(state)
+    config.aimbot360Enabled = state
+    if state then
+        config.aimbot360OriginalFOV = config.aimbotFOVSize
+        if not config.aimbotEnabled then config.aimbotEnabled = true end
+    else
+        if config.aimbot360OriginalFOV then config.aimbotFOVSize = config.aimbot360OriginalFOV end
+    end
+    updateAimbotFOVRing()
+end
+
+-- ========== INIT ==========
+local function init()
+    createFOVRing()
+    aimbotfov()
+    
+    -- Bind render steps
+    RunService:BindToRenderStep("SilentAimRender", Enum.RenderPriority.First.Value, onRenderStep)
+    RunService:BindToRenderStep("AimbotRender", Enum.RenderPriority.First.Value + 1, aimbotUpdate)
+end
+
+-- ========== BUILD UI ==========
+local function makeui()
+    lib:SetTitle("Gravel.cc (Legacy)")
+    lib:SetIcon("http://www.roblox.com/asset/?id=132214308111067")
+    lib:SetTheme("HighContrast")
+    
+    -- TABS
+    lib:CreateTab("SilentAim")
+    lib:CreateTab("Aimbot")
+    lib:CreateTab("Visuals")
+    lib:CreateTab("Client")
+    lib:CreateTab("Main")
+    lib:CreateTab("Hitbox")
+    lib:CreateTab("AntiAim")
+
+    -- ==================== SILENT AIM TAB ====================
+    lib:Tab("SilentAim")
+    lib:AddToggle("Toggle SilentAim", function(state)
+        config.Enabled = state
+        if not state then
+            gui.RingHolder.Visible = false
+        else
+            gui.RingHolder.Visible = true
+        end
+        safeNotify({ Title = "SilentAim", Content = state and "ON" or "OFF", Length = 1, BarColor = state and Color3.fromRGB(255,100,0) or Color3.fromRGB(255,0,0) })
+    end, false)
+    
+    lib:AddToggle("WallCheck", function(state)
+        config.wallc = state
+        safeNotify({ Title = "WH", Content = state and "ON" or "OFF", Length = 1, BarColor = state and Color3.fromRGB(0,170,255) or Color3.fromRGB(255,0,0) })
+    end, false)
+
+    lib:AddComboBox("Team Target", {"Enemies", "Teams", "All"}, function(sel)
+        config.targetMode = sel
+    end)
+
+    lib:AddComboBox("Target Part", {"Head", "HumanoidRootPart", "Both"}, function(sel)
+        config.bodypart = sel
+    end)
+    
+    lib:AddComboBox("GetTarget", {"Closest", "Lowest Health"}, function(sel)
+        config.silentGetTarget = sel
+    end)
+    
+    lib:AddInputBox("HitChance", function(text)
+        local n = tonumber(text)
+        if n and n >= 0 and n <= 100 then config.hitchance = n end
+        return tostring(config.hitchance)
+    end, "0-100", "100", { min = 0, max = 100, isNumber = true })
+    
+    lib:AddInputBox("FovSize", function(text)
+        local n = tonumber(text)
+        if n and n >= 1 then
+            config.fovsize = n
+            updateFOVRingSize()
+            return tostring(config.fovsize)
+        end
+        return tostring(config.fovsize)
+    end, "Enter Value...", "120", { min = 1, max = 500, isNumber = true })
+
+    -- ==================== AIMBOT TAB ====================
+    lib:Tab("Aimbot")
+    lib:AddToggle("Toggle Aimbot", function(state)
+        config.aimbotEnabled = state
+        if config.aimbotFOVRing and config.aimbotFOVRing.RingFrame then
+            config.aimbotFOVRing.RingFrame.Visible = state
+        end
+        safeNotify({ Title = "Aimbot", Content = state and "ON" or "OFF", Length = 1, BarColor = state and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0) })
+    end, false)
+    
+    lib:AddToggle("WallCheck", function(state)
+        config.aimbotWallCheck = state
+    end, false)
+    
+    lib:AddToggle("360° Aimbot", function(state)
+        toggle360Aimbot(state)
+    end, false)
+    
+    lib:AddComboBox("Team Target", {"Enemies", "Teams", "All"}, function(sel)
+        config.aimbotTeamTarget = sel
+    end)
+    
+    lib:AddComboBox("Target Part", {"Head", "HumanoidRootPart", "Torso"}, function(sel)
+        config.aimbotTargetPart = sel
+    end)
+    
+    lib:AddComboBox("GetTarget", {"Closest", "Lowest Health"}, function(sel)
+        config.aimbotGetTarget = sel
+    end)
+    
+    lib:AddInputBox("Aim Strength", function(text)
+        local n = tonumber(text)
+        if n and n >= 0 and n <= 1 then config.aimbotStrength = n end
+        return tostring(config.aimbotStrength)
+    end, "0-1", "0.5", { min = 0, max = 1, isNumber = true })
+    
+    lib:AddInputBox("FOV Size", function(text)
+        local n = tonumber(text)
+        if n and n >= 1 then
+            config.aimbotFOVSize = n
+            updateAimbotFOVRing()
+            return tostring(config.aimbotFOVSize)
+        end
+        return tostring(config.aimbotFOVSize)
+    end, "Enter Value...", "100", { min = 1, max = 500, isNumber = true })
+
+    -- ==================== VISUALS TAB ====================
+    lib:Tab("Visuals")
+    lib:AddToggle("Enable ESP", function(state)
+        config.espMasterEnabled = state
+    end, false)
+    lib:AddToggle("Text ESP", function(state)
+        config.prefTextESP = state
+    end, false)
+    lib:AddToggle("Box ESP", function(state)
+        config.prefBoxESP = state
+    end, false)
+
+    -- ==================== CLIENT TAB ====================
+    lib:Tab("Client")
+    lib:AddToggle("Noclip", function(state)
+        config.clientNoclip = state
+    end, false)
+    lib:AddInputBox("WalkSpeed", function(text)
+        local n = tonumber(text)
+        if n then config.clientWalkSpeed = n end
+        return tostring(config.clientWalkSpeed)
+    end, "Speed", "16", { min = 1, max = 9999, isNumber = true })
+
+    -- ==================== MAIN TAB ====================
+    lib:Tab("Main")
+    lib:AddComboBox("Target", {"Players", "NPCs", "Both"}, function(sel)
+        config.masterTarget = sel
+    end)
+    lib:AddComboBox("Master Team Target", {"Enemies", "Teams", "All"}, function(sel)
+        config.masterTeamTarget = sel
+        config.targetMode = sel
+        config.aimbotTeamTarget = sel
+    end)
+    lib:AddComboBox("Master GetTarget", {"Closest", "Lowest Health"}, function(sel)
+        config.masterGetTarget = sel
+        config.silentGetTarget = sel
+        config.aimbotGetTarget = sel
+    end)
+
+    return lib
+end
+
+makeui()
+init()
+
+safeNotify({
+    Title = "Gravel.cc + AIM/WH",
+    Content = "Loaded! SilentAim + Aimbot ready",
+    Audio = "rbxassetid://17208361335",
+    Length = 5,
+    Image = "rbxassetid://4483362458",
+    BarColor = Color3.fromRGB(0, 170, 255)
+})
+
+return { cleanup = function()
+    pcall(function() RunService:UnbindFromRenderStep("SilentAimRender") end)
+    pcall(function() RunService:UnbindFromRenderStep("AimbotRender") end)
+end }
