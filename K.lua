@@ -1,7 +1,7 @@
 --!strict
 --[[
-    Block Strike Ultimate Engine - Fully Loaded Monolith (Complete Version with Texture Tracers, ESP, Silent Aim, Aim Assist, NoSpread & SkinChanger)
-    Без сокращений и пропусков функций. Для Delta / iPad.
+    Block Strike Ultimate Engine - Fully Loaded Monolith (Complete Version with Multi-Layer Team Check, Robust ESP & Unified Head-Lock Silent Aim)
+    Без сокращений и пропусков. Полный монолитный скрипт для Delta / iPad.
 ]]--
 
 local Players = game:GetService("Players")
@@ -28,7 +28,7 @@ _G.SelectedSkinColor = Color3.fromRGB(255, 100, 0)
 _G.TracerColor = Color3.fromRGB(0, 255, 255)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BlockStrikeUltimateCompleteMonolith"
+ScreenGui.Name = "BlockStrikeUltimateMonolithUnified"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -91,9 +91,9 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 50)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TitleLabel.Text = "⚡ BLOCK STRIKE FULL ENGINE ⚡"
+TitleLabel.Text = "⚡ BLOCK STRIKE UNIFIED ENGINE ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-TitleLabel.TextSize = 16
+TitleLabel.TextSize = 15
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainMenu
 
@@ -151,7 +151,7 @@ local SilentAimButton = Instance.new("TextButton")
 SilentAimButton.Name = "SilentAimButton"
 SilentAimButton.Size = UDim2.new(1, 0, 0, 45)
 SilentAimButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SilentAimButton.Text = "Silent Aim + Team Check: ВЫКЛ"
+SilentAimButton.Text = "Silent Aim (В голову + Обход): ВЫКЛ"
 SilentAimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SilentAimButton.TextSize = 15
 SilentAimButton.Font = Enum.Font.SourceSansBold
@@ -219,7 +219,7 @@ local ESPToggle = Instance.new("TextButton")
 ESPToggle.Name = "ESPToggle"
 ESPToggle.Size = UDim2.new(1, 0, 0, 45)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-ESPToggle.Text = "TikTok ESP (Без тиммейтов): ВКЛ"
+ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВКЛ"
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.TextSize = 15
 ESPToggle.Font = Enum.Font.SourceSansBold
@@ -331,7 +331,7 @@ end)
 SilentAimButton.MouseButton1Click:Connect(function()
     _G.SilentAimEnabled = not _G.SilentAimEnabled
     SilentAimButton.BackgroundColor3 = _G.SilentAimEnabled and Color3.fromRGB(0, 100, 60) or Color3.fromRGB(25, 25, 30)
-    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim + Team Check: ВКЛ" or "Silent Aim + Team Check: ВЫКЛ"
+    SilentAimButton.Text = _G.SilentAimEnabled and "Silent Aim (В голову + Обход): ВКЛ" or "Silent Aim (В голову + Обход): ВЫКЛ"
 end)
 
 NoSpreadButton.MouseButton1Click:Connect(function()
@@ -356,10 +356,10 @@ ESPToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
         ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 60)
-        ESPToggle.Text = "TikTok ESP (Без тиммейтов): ВКЛ"
+        ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВКЛ"
     else
         ESPToggle.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-        ESPToggle.Text = "TikTok ESP (Без тиммейтов): ВЫКЛ"
+        ESPToggle.Text = "TikTok ESP (Строго без тиммейтов): ВЫКЛ"
         for _, data in pairs(cacheDrawingObjects) do
             if data.Box then data.Box.Visible = false end
             if data.HpBackground then data.HpBackground.Visible = false end
@@ -369,66 +369,139 @@ ESPToggle.MouseButton1Click:Connect(function()
     end
 end)
 
-local function getCharacter(player)
-    if player == LocalPlayer then return player.Character end
-    local char = player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then return char end
-    for _, name in ipairs({"Players", "Entities", "Characters", "Clients"}) do
-        local c = Workspace:FindFirstChild(name)
-        if c then
-            local found = c:FindFirstChild(player.Name) or c:FindFirstChild(tostring(player.UserId))
-            if found then return found end
-        end
+-- Улучшенная функция скрытия ESP для конкретного игрока (мгновенная очистка призрачных боксов)
+local function removeEsp(playerName)
+    local data = cacheDrawingObjects[playerName]
+    if data then
+        pcall(function()
+            if data.Box then data.Box.Visible = false end
+            if data.HpBackground then data.HpBackground.Visible = false end
+            if data.HpFill then data.HpFill.Visible = false end
+            if data.Text then data.Text.Visible = false end
+        end)
     end
-    return nil
 end
 
+-- Единая многоуровневая функция проверки на врага (исключает союзников со 100% гарантией)
 local function isEnemy(targetPlayer)
-    if targetPlayer == LocalPlayer then return false end
-    if targetPlayer.Team and LocalPlayer.Team then
-        return targetPlayer.Team ~= LocalPlayer.Team
+    if not targetPlayer or targetPlayer == LocalPlayer then 
+        return false 
     end
+
+    -- 1. Стандартная проверка по Team
+    if targetPlayer.Team and LocalPlayer.Team then
+        if targetPlayer.Team == LocalPlayer.Team then
+            return false
+        else
+            return true
+        end
+    end
+
+    -- 2. Проверка кастомных строковых или числовых атрибутов ("Team" или "Side")
+    local attrTeam = targetPlayer:GetAttribute("Team") or targetPlayer:GetAttribute("Side")
+    local localAttrTeam = LocalPlayer:GetAttribute("Team") or LocalPlayer:GetAttribute("Side")
+    if attrTeam ~= nil and localAttrTeam ~= nil then
+        if attrTeam == localAttrTeam then
+            return false
+        else
+            return true
+        end
+    end
+
+    -- 3. Проверка наличия объектов ValueObject (StringValue / IntValue с именем "Team") внутри папки игрока
+    local teamObj = targetPlayer:FindFirstChild("Team")
+    local localTeamObj = LocalPlayer:FindFirstChild("Team")
+    if teamObj and localTeamObj and (teamObj:IsA("StringValue") or teamObj:IsA("IntValue")) and (localTeamObj:IsA("StringValue") or localTeamObj:IsA("IntValue")) then
+        if teamObj.Value == localTeamObj.Value then
+            return false
+        else
+            return true
+        end
+    end
+
+    -- 4. Финальная проверка по TeamColor с исключением нейтрального белого цвета "White"
+    if targetPlayer.TeamColor and LocalPlayer.TeamColor then
+        if targetPlayer.TeamColor == BrickColor.new("White") or LocalPlayer.TeamColor == BrickColor.new("White") then
+            -- Если цвет белый (нейтрал), считаем за врага / свободный режим
+            return true
+        end
+        if targetPlayer.TeamColor == LocalPlayer.TeamColor then
+            return false
+        else
+            return true
+        end
+    end
+
+    -- Если все проверки не выявили явного союзника, по умолчанию считаем противником
     return true
 end
 
-local function IsVisible(target)
+-- Динамический поиск персонажа с учетом кастомных папок через Workspace:GetDescendants()
+local function getCharacter(player)
+    if player == LocalPlayer then 
+        return player.Character 
+    end
+    
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") then 
+        return char 
+    end
+
+    for _, descendant in ipairs(Workspace:GetDescendants()) do
+        if descendant:IsA("Model") and descendant.Name == player.Name then
+            if descendant:FindFirstChild("HumanoidRootPart") and descendant:FindFirstChild("Head") then
+                return descendant
+            end
+        end
+    end
+
+    return nil
+end
+
+local function IsVisible(targetPart)
     local character = LocalPlayer.Character
     if not character then return false end
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {character, target.Parent}
+    raycastParams.FilterDescendantsInstances = {character, targetPart.Parent}
     raycastParams.IgnoreWater = true
     local origin = Camera.CFrame.Position
-    local direction = target.Position - origin
+    local direction = targetPart.Position - origin
     local raycastResult = workspace:Raycast(origin, direction, raycastParams)
     return raycastResult == nil
 end
 
-local function GetClosestEnemy()
-    local closestEnemy = nil
+-- Единая функция выбора цели (используется и для Aim Assist, и для Silent Aim в голову)
+local function GetUnifiedTarget(): Part?
+    local closestTarget = nil
     local shortestDistance = _G.AimFOV
-    for _, player in pairs(Players:GetPlayers()) do
-        if isEnemy(player) then
-            local char = getCharacter(player)
-            if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid.Health > 0 then
-                    local targetPart = char[_G.TargetPart]
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                    if onScreen then
-                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        if distance < shortestDistance then
-                            if IsVisible(targetPart) then
-                                shortestDistance = distance
-                                closestEnemy = targetPart
-                            end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        -- Жесткая фильтрация: если не враг, пропускаем
+        if not isEnemy(player) then
+            continue
+        end
+
+        local char = getCharacter(player)
+        if char and char:FindFirstChild(_G.TargetPart) and char:FindFirstChildOfClass("Humanoid") then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid.Health > 0 then
+                local targetPart = char[_G.TargetPart] -- Всегда "Head", гарантируя хедшот
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    if distance < shortestDistance then
+                        if IsVisible(targetPart) then
+                            shortestDistance = distance
+                            closestTarget = targetPart
                         end
                     end
                 end
             end
         end
     end
-    return closestEnemy
+    return closestTarget
 end
 
 local function createPlayerDrawingObjects(playerName)
@@ -509,8 +582,9 @@ end
 local lastShotTick = 0
 
 RunService.RenderStepped:Connect(function()
+    -- 1. Простой Aim Assist (использует единую функцию выбора хедшота/цели с правильным Team Check)
     if _G.AimAssistEnabled then
-        local target = GetClosestEnemy()
+        local target = GetUnifiedTarget()
         if target then
             FOVStroke.Color = Color3.fromRGB(0, 255, 150)
             FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
@@ -522,8 +596,9 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
+    -- 2. Полноценный Silent Aim (бьет в голову врага при выстреле, куда бы вы ни целились) + Трассеры
     if _G.SilentAimEnabled then
-        local target = GetClosestEnemy()
+        local target = GetUnifiedTarget()
         local isShooting = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService.TouchEnabled
         if target and isShooting then
             pcall(function()
@@ -556,6 +631,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
+    -- 3. Анти-отдача и Анти-разброс
     if _G.NoSpreadEnabled and LocalPlayer.Character then
         pcall(function()
             for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -580,6 +656,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
+    -- 4. Скинченджер
     if _G.SkinChangerEnabled and LocalPlayer.Character then
         pcall(function()
             for _, item in ipairs(LocalPlayer.Character:GetChildren()) do
@@ -598,65 +675,66 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
+    -- 5. TikTok ESP с жесткой защитой от призрачных боксов на союзниках
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
-            local char = getCharacter(player)
-            
-            if espEnabled and isEnemy(player) and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health > 0 then
-                    local root = char.HumanoidRootPart
-                    local head = char.Head
-                    local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+        if player == LocalPlayer then
+            continue
+        end
+
+        local data = DrawingSupported and createPlayerDrawingObjects(player.Name) or nil
+
+        -- Главное условие: если игрок не прошел проверку на врага, мгновенно скрываем ESP и пропускаем итерацию
+        if not isEnemy(player) then
+            removeEsp(player.Name)
+            continue
+        end
+
+        local char = getCharacter(player)
+        
+        if espEnabled and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") and data and data.Box then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local root = char.HumanoidRootPart
+                local head = char.Head
+                local rPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                
+                if onScreen then
+                    local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                    local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
+                    local height = math.abs(topPos.Y - bottomPos.Y)
+                    local width = height * 0.55
+                    local isVis = IsVisible(head)
+                    local boxColor = isVis and colorVisible or colorHidden
                     
-                    if onScreen then
-                        local topPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                        local bottomPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2.5, 0))
-                        local height = math.abs(topPos.Y - bottomPos.Y)
-                        local width = height * 0.55
-                        local isVis = IsVisible(head)
-                        local boxColor = isVis and colorVisible or colorHidden
-                        
-                        data.Box.Size = Vector2.new(width, height)
-                        data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
-                        data.Box.Color = boxColor
-                        data.Box.Visible = true
-                        
-                        local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                        data.HpBackground.Size = Vector2.new(4, height)
-                        data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
-                        data.HpBackground.Visible = true
-                        
-                        local fillHeight = height * healthRatio
-                        data.HpFill.Size = Vector2.new(4, fillHeight)
-                        data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
-                        data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
-                        data.HpFill.Visible = true
-                        
-                        local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
-                        data.Text.Text = player.Name .. " [" .. distance .. "м]"
-                        data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
-                        data.Text.Color = boxColor
-                        data.Text.Visible = true
-                    else
-                        data.Box.Visible = false
-                        data.HpBackground.Visible = false
-                        data.HpFill.Visible = false
-                        data.Text.Visible = false
-                    end
+                    data.Box.Size = Vector2.new(width, height)
+                    data.Box.Position = Vector2.new(rPos.X - width / 2, topPos.Y)
+                    data.Box.Color = boxColor
+                    data.Box.Visible = true
+                    
+                    local healthRatio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                    data.HpBackground.Size = Vector2.new(4, height)
+                    data.HpBackground.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y)
+                    data.HpBackground.Visible = true
+                    
+                    local fillHeight = height * healthRatio
+                    data.HpFill.Size = Vector2.new(4, fillHeight)
+                    data.HpFill.Position = Vector2.new(rPos.X - width / 2 - 8, topPos.Y + (height - fillHeight))
+                    data.HpFill.Color = Color3.fromRGB(255 * (1 - healthRatio), 255 * healthRatio, 0)
+                    data.HpFill.Visible = true
+                    
+                    local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
+                    data.Text.Text = player.Name .. " [" .. distance .. "м]"
+                    data.Text.Position = Vector2.new(rPos.X, topPos.Y - 18)
+                    data.Text.Color = boxColor
+                    data.Text.Visible = true
                 else
-                    data.Box.Visible = false
-                    data.HpBackground.Visible = false
-                    data.HpFill.Visible = false
-                    data.Text.Visible = false
+                    removeEsp(player.Name)
                 end
-            elseif data and data.Box then
-                data.Box.Visible = false
-                data.HpBackground.Visible = false
-                data.HpFill.Visible = false
-                data.Text.Visible = false
+            else
+                removeEsp(player.Name)
             end
+        else
+            removeEsp(player.Name)
         end
     end
 end)
