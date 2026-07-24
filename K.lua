@@ -1,4 +1,4 @@
--- Gravel.cc Legacy (Fixed: Team Checks, Error 291 Disconnects, and Hitbox/ESP Fixes)
+-- Gravel.cc Legacy (Fixed & Optimized Monolithic Script)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -45,11 +45,12 @@ local config = {
     targetMode = "Enemies",
     centerLocked = {},
     hitchance = 100,
-    maxExpansion = math.huge,
+    maxExpansion = 4.5, -- Ограничение во избежание детектирования античитом (Ошибка 291)
     masterTeamTarget = "Enemies",
     masterTarget = "Players",
     masterGetTarget = "Closest",
     silentGetTarget = "Closest",
+    gp = 200,
 }
 
 local Alurt = loadstring(game:HttpGet("https://raw.githubusercontent.com/azir-py/project/refs/heads/main/Zwolf/AlurtUI.lua"))()
@@ -62,16 +63,18 @@ local function safeNotify(opts)
     end
 end
 
-pcall(function()
-    safeNotify({
-        Title = "Script started!",
-        Content = "SilentAim & Visuals loaded (Fixed)",
-        Audio = "rbxassetid://17208361335",
-        Length = 3,
-        Image = "rbxassetid://4483362458",
-        BarColor = Color3.fromRGB(0, 170, 255)
-    })
-end)
+local notif1 = (function()
+    pcall(function()
+        safeNotify({
+            Title = "Script started!",
+            Content = "SilentAim & Visuals loaded safely",
+            Audio = "rbxassetid://17208361335",
+            Length = 3,
+            Image = "rbxassetid://4483362458",
+            BarColor = Color3.fromRGB(0, 170, 255)
+        })
+    end)
+end)()
 
 local lib
 do
@@ -91,13 +94,19 @@ do
         function lib:SetButtonsColor() end
         function lib:SetTheme() end
         function lib:AddToggle(_, callback, default)
-            if callback then pcall(callback, default) end
+            if callback then
+                pcall(callback, default)
+            end
         end
         function lib:AddComboBox(_, _, callback)
-            if callback then pcall(callback, "Enemies") end
+            if callback then
+                pcall(callback, "Only enemies")
+            end
         end
         function lib:AddInputBox(_, callback, _, default)
-            if callback then pcall(callback, tostring(default)) end
+            if callback then
+                pcall(callback, tostring(default))
+            end
         end
         function lib:CreateTab() return {} end
         function lib:Tab() end
@@ -112,47 +121,25 @@ if not math.clamp then
     end
 end
 
+-- Строгая проверка на тиммейта для предотвращения аима/вх по своим
 local function isTeammate(p)
     if not (localPlayer and p) then return false end
     if typeof(p) == "Instance" and p:IsA("Player") then
         if p == localPlayer then return true end
         if localPlayer.Team and p.Team then
             return localPlayer.Team == p.Team
+        elseif p:GetAttribute("Team") and localPlayer:GetAttribute("Team") then
+            return p:GetAttribute("Team") == localPlayer:GetAttribute("Team")
+        elseif localPlayer.TeamColor and p.TeamColor then
+            return localPlayer.TeamColor == p.TeamColor
         end
     end
     return false
 end
 
-local function addesp(targetPlayer)
-    if not targetPlayer then return false end
-    if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") and targetPlayer == localPlayer then return false end
-
-    local mode = config.targetMode or "Enemies"
-    if mode == "Enemies" then
-        if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") then
-            return not isTeammate(targetPlayer)
-        else
-            return true
-        end
-    elseif mode == "Teams" then
-        if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") then
-            return isTeammate(targetPlayer)
-        else
-            return false
-        end
-    elseif mode == "All" then
-        return true
-    else
-        if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") then
-            return not isTeammate(targetPlayer)
-        else
-            return true
-        end
-    end
-end
-
 local function updateTeamTargetModes()
     local masterSelection = config.masterTeamTarget or config.targetMode
+    
     if masterSelection == "All" then
         config.targetMode = "All"
     else
@@ -162,15 +149,29 @@ local function updateTeamTargetModes()
     if config.espMasterEnabled then
         for _, pl in ipairs(Players:GetPlayers()) do
             if pl ~= localPlayer then
-                -- cleanup and re-evaluate
+                -- удаление старых лейблов и пересоздание под новый режим
             end
         end
     end
     
     config.currentTarget = nil
-    updateESPColors = updateESPColors or function() end
-    pcall(updateESPColors)
 end
+
+local function pc()
+    local plr = game.Players.LocalPlayer
+    task.spawn(function()
+        while true do
+            pcall(function()
+                plr.ReplicationFocus = workspace
+                plr.MaximumSimulationRadius = math.huge
+                plr.SimulationRadius = config.gp
+            end)
+            task.wait(0.1)
+        end
+    end)
+end
+
+pc()
 
 local function isNPCModel(model)
     if not model or not model:IsA("Model") then return false end
@@ -228,8 +229,37 @@ local function getTargetName(target)
     return tostring(target)
 end
 
+local function addesp(targetPlayer)
+    if not targetPlayer then return false end
+    if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") and targetPlayer == localPlayer then return false end
+
+    local mode = config.targetMode or "Enemies"
+    if mode == "Enemies" then
+        if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") then
+            return not isTeammate(targetPlayer)
+        else
+            return true
+        end
+    elseif mode == "Teams" then
+        if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") then
+            return isTeammate(targetPlayer)
+        else
+            return false
+        end
+    elseif mode == "All" then
+        return true
+    else
+        if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") then
+            return not isTeammate(targetPlayer)
+        else
+            return true
+        end
+    end
+end
+
 local function plralive(target)
     if not target then return false end
+
     if typeof(target) == "Instance" and target:IsA("Player") then
         local character = target.Character
         if not character then return false end
@@ -237,11 +267,13 @@ local function plralive(target)
         if not humanoid then return false end
         return humanoid.Health > 0
     end
+
     if typeof(target) == "Instance" and target:IsA("Model") then
         local humanoid = target:FindFirstChildOfClass("Humanoid")
         if not humanoid then return false end
         return humanoid.Health > 0
     end
+
     return false
 end
 
@@ -267,6 +299,7 @@ local function wallCheck(targetPos, sourcePos)
     if not config.wallc then
         return true
     end
+
     if (targetPos - sourcePos).Magnitude <= 0 then return true end
 
     local rayDirection = (targetPos - sourcePos)
@@ -291,38 +324,6 @@ local function wallCheck(targetPos, sourcePos)
     end
 
     return true
-end
-
-local function removeHighlightESP(targetPlayer)
-    if not targetPlayer then return end
-    local h = config.highlightData[targetPlayer]
-    if h and h.Parent then
-        pcall(function() h:Destroy() end)
-    end
-    config.highlightData[targetPlayer] = nil
-end
-
-local function removeESPLabel(targetPlayer)
-    if not targetPlayer then return end
-    local data = config.espData[targetPlayer]
-    if not data then return end
-    if data.connection then
-        pcall(function() data.connection:Disconnect() end)
-        data.connection = nil
-    end
-    if data.screenGui and data.screenGui.Parent then
-        pcall(function() data.screenGui:Destroy() end)
-    end
-    config.espData[targetPlayer] = nil
-end
-
-local function healthColor(humanoid)
-    if not humanoid then return config.espc end
-    local maxH = humanoid.MaxHealth or 100
-    local health = math.clamp(humanoid.Health / maxH, 0, 1)
-    local r = 1 - health
-    local g = health
-    return Color3.new(r, g, 0)
 end
 
 local function high(targetPlayer)
@@ -364,14 +365,52 @@ local function high(targetPlayer)
     config.highlightData[targetPlayer] = highlight
 end
 
+local function removeHighlightESP(targetPlayer)
+    if not targetPlayer then return end
+    local h = config.highlightData[targetPlayer]
+    if h and h.Parent then
+        pcall(function() h:Destroy() end)
+    end
+    config.highlightData[targetPlayer] = nil
+end
+
+local function removeESPLabel(targetPlayer)
+    if not targetPlayer then return end
+    local data = config.espData[targetPlayer]
+    if not data then return end
+    if data.connection then
+        pcall(function() data.connection:Disconnect() end)
+        data.connection = nil
+    end
+    
+    if data.screenGui and data.screenGui.Parent then
+        pcall(function() data.screenGui:Destroy() end)
+    end
+    
+    config.espData[targetPlayer] = nil
+end
+
+local function healthColor(humanoid)
+    if not humanoid then return config.espc end
+    local maxH = humanoid.MaxHealth or 100
+    local health = math.clamp(humanoid.Health / maxH, 0, 1)
+    local r = 1 - health
+    local g = health
+    return Color3.new(r, g, 0)
+end
+
 local function makeesp(targetPlayer)
     if not targetPlayer then return end
     if not addesp(targetPlayer) then return end
     
     if config.espData[targetPlayer] then
         local oldData = config.espData[targetPlayer]
-        if oldData.connection then pcall(function() oldData.connection:Disconnect() end) end
-        if oldData.screenGui and oldData.screenGui.Parent then pcall(function() oldData.screenGui:Destroy() end) end
+        if oldData.connection then
+            pcall(function() oldData.connection:Disconnect() end)
+        end
+        if oldData.screenGui and oldData.screenGui.Parent then
+            pcall(function() oldData.screenGui:Destroy() end)
+        end
     end
     
     local screenGui = Instance.new("ScreenGui")
@@ -380,15 +419,14 @@ local function makeesp(targetPlayer)
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.IgnoreGuiInset = true
     
-    local parent = localPlayer:FindFirstChild("PlayerGui")
-    if not parent then parent = game:GetService("CoreGui") end
+    local parent = localPlayer:FindFirstChild("PlayerGui") or game:GetService("CoreGui")
     screenGui.Parent = parent
 
     local label = Instance.new("TextLabel")
     label.Name = "ESPLabel"
     label.BackgroundTransparency = 1
     label.Text = getTargetName(targetPlayer)
-    label.TextSize = 12
+    label.TextSize = 6
     label.Font = Enum.Font.GothamBold
     label.TextStrokeTransparency = 0
     label.TextStrokeColor3 = Color3.new(0, 0, 0)
@@ -403,7 +441,7 @@ local function makeesp(targetPlayer)
     boxFrame.AnchorPoint = Vector2.new(0, 0)
     boxFrame.Size = UDim2.new(0, 0, 0, 0)
     boxFrame.Position = UDim2.new(0, 0, 0, 0)
-    boxFrame.BackgroundTransparency = 1
+    boxFrame.BackgroundTransparency = 0.6
     boxFrame.BorderSizePixel = 0
     boxFrame.Visible = false
     boxFrame.Parent = screenGui
@@ -445,9 +483,6 @@ local function makeesp(targetPlayer)
     headDot.Parent = screenGui
 
     label.TextColor3 = config.espc
-    if targetPlayer == config.currentTarget then
-        label.TextColor3 = config.esptargetc
-    end
 
     local function startUpdater()
         if config.espData[targetPlayer] and config.espData[targetPlayer].connection then
@@ -476,22 +511,19 @@ local function makeesp(targetPlayer)
                 return
             end
 
-            -- Use standard fixed bounding logic based on root position to prevent box distortion from silent aim hitboxes
-            local topPos = root.Position + Vector3.new(0, 3, 0)
-            local bottomPos = root.Position - Vector3.new(0, 3, 0)
-            local midPos = root.Position
-
+            local topPos = head.Position + Vector3.new(0, 0.4, 0)
+            local bottomPos = root.Position - Vector3.new(0, 1.0, 0)
+            local midPos = (topPos + bottomPos) * 0.5
             local topV3, onTop = camera:WorldToViewportPoint(topPos)
             local bottomV3, onBottom = camera:WorldToViewportPoint(bottomPos)
             local midV3, onMid = camera:WorldToViewportPoint(midPos)
-            local onScreen = topV3.Z > 0 and bottomV3.Z > 0
-
+            local onScreen = onTop and onBottom and onMid and topV3.Z > 0 and bottomV3.Z > 0 and midV3.Z > 0
             local topScreenY = topV3.Y
             local bottomScreenY = bottomV3.Y
             local centerX = midV3.X
             local heightPx = math.abs(bottomScreenY - topScreenY)
             if heightPx <= 2 then heightPx = 2 end
-            local widthPx = math.clamp(heightPx * 0.5, 4, 400)
+            local widthPx = math.clamp(heightPx * 0.45, 4, 400)
 
             local humanoid = tchar:FindFirstChildOfClass("Humanoid")
             local hpRatio = 1
@@ -508,13 +540,9 @@ local function makeesp(targetPlayer)
                 local text = string.format("%s [%d]", getTargetName(targetPlayer), humanoid and math.floor(humanoid.Health) or 0)
                 label.Text = text
                 label.Size = UDim2.new(0, 200, 0, 18)
-                label.Position = UDim2.new(0, centerX, 0, topScreenY - 6)
+                label.Position = UDim2.new(0, centerX, 0, topScreenY - 4)
                 label.Visible = onScreen
-                if config.prefColorByHealth and humanoid then
-                    label.TextColor3 = hpColor
-                else
-                    label.TextColor3 = (targetPlayer == config.currentTarget) and config.esptargetc or config.espc
-                end
+                label.TextColor3 = config.prefColorByHealth and hpColor or ((targetPlayer == config.currentTarget) and config.esptargetc or config.espc)
             else
                 label.Visible = false
             end
@@ -523,11 +551,9 @@ local function makeesp(targetPlayer)
                 boxFrame.Size = UDim2.new(0, widthPx, 0, math.max(2, heightPx))
                 boxFrame.Position = UDim2.new(0, centerX - widthPx / 2, 0, topScreenY)
                 boxFrame.Visible = onScreen
-                if config.prefColorByHealth and humanoid then
-                    boxOutline.Color = hpColor
-                else
-                    boxOutline.Color = (targetPlayer == config.currentTarget) and config.esptargetc or config.espc
-                end
+                boxFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                boxFrame.BackgroundTransparency = 0.7
+                boxOutline.Color = config.prefColorByHealth and hpColor or ((targetPlayer == config.currentTarget) and config.esptargetc or config.espc)
             else
                 boxFrame.Visible = false
             end
@@ -537,7 +563,7 @@ local function makeesp(targetPlayer)
                 healthBg.Position = UDim2.new(0, centerX + widthPx / 2 + 4, 0, topScreenY)
                 healthBg.Visible = onScreen
                 healthFill.Size = UDim2.new(1, 0, hpRatio, 0)
-                healthFill.BackgroundColor3 = hpColor
+                healthFill.BackgroundColor3 = healthColor(humanoid)
             else
                 healthBg.Visible = false
             end
@@ -547,11 +573,7 @@ local function makeesp(targetPlayer)
                 if onHead and headV3.Z > 0 then
                     headDot.Position = UDim2.new(0, headV3.X, 0, headV3.Y)
                     headDot.Visible = true
-                    if config.prefColorByHealth and humanoid then
-                        headDot.BackgroundColor3 = hpColor
-                    else
-                        headDot.BackgroundColor3 = (targetPlayer == config.currentTarget) and config.esptargetc or config.espc
-                    end
+                    headDot.BackgroundColor3 = config.prefColorByHealth and hpColor or ((targetPlayer == config.currentTarget) and config.esptargetc or config.espc)
                 else
                     headDot.Visible = false
                 end
@@ -572,13 +594,10 @@ local function makeesp(targetPlayer)
         }
     end
 
-    local char = getTargetCharacter(targetPlayer)
-    if char then
-        startUpdater()
-    end
+    startUpdater()
 end
 
-updateESPColors = function()
+local function updateESPColors()
     for targetPlayer, data in pairs(config.espData) do
         if not targetPlayer or not data or not addesp(targetPlayer) then
             removeESPLabel(targetPlayer)
@@ -610,7 +629,9 @@ local function toggleTextESP(enabled)
 
     if config.espMasterEnabled and enabled then
         for _, target in ipairs(getAllTargets()) do
-            if addesp(target) then makeesp(target) end
+            if addesp(target) then
+                makeesp(target)
+            end
         end
     else
         for targetPlayer, _ in pairs(config.espData) do
@@ -645,16 +666,18 @@ end
 local function applyESPMaster(state)
     config.espMasterEnabled = state
     if not state then
-        for targetPlayer, _ in pairs(config.espData) do removeESPLabel(targetPlayer) end
+        for targetPlayer, _ in pairs(config.espData) do
+            removeESPLabel(targetPlayer)
+        end
         config.espData = {}
-        for targetPlayer, _ in pairs(config.highlightData) do removeHighlightESP(targetPlayer) end
+        for targetPlayer, _ in pairs(config.highlightData) do
+            removeHighlightESP(targetPlayer)
+        end
         config.highlightData = {}
     else
         for _, target in ipairs(getAllTargets()) do
             if addesp(target) then
-                if config.prefTextESP or config.prefBoxESP or config.prefHealthESP or config.prefHeadDotESP then
-                    makeesp(target)
-                end
+                makeesp(target)
                 if config.prefHighlightESP and target.Character then
                     high(target)
                 end
@@ -663,11 +686,19 @@ local function applyESPMaster(state)
     end
 end
 
+local function removeAllFaceDecals()
+    for _, target in ipairs(getAllTargets()) do
+        if addesp(target) then
+            RFD(target)
+        end
+    end
+end
+
 local function saveOriginalPartInfo(targetPlayer, part)
     if not targetPlayer or not part then return end
     if not config.originalSizes[targetPlayer] then
         config.originalSizes[targetPlayer] = {
-            partName = part.Name,
+            partName = part.Name or "Head",
             size = part.Size,
         }
     end
@@ -676,6 +707,7 @@ end
 local function chooseBodyPartInstance(target)
     local char = getTargetCharacter(target)
     if not char then return nil, "Head" end
+
     local bp = config.bodypart or "Head"
     if bp == "Head" then
         return char:FindFirstChild("Head"), "Head"
@@ -691,61 +723,64 @@ local function chooseBodyPartInstance(target)
 end
 
 local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
+    if not addesp(targetPlayer) then return end
     local char = getTargetCharacter(targetPlayer)
-    if not char or targetPlayer == localPlayer or not addesp(targetPlayer) then return end
+    if not char or targetPlayer == localPlayer then return end
     if not plralive(targetPlayer) then return end
 
-    local part = chosenPart or chooseBodyPartInstance(targetPlayer)
+    local part = chosenPart or select(1, chooseBodyPartInstance(targetPlayer))
     if not part then return end
 
-    saveOriginalPartInfo(targetPlayer, part)
-
-    local useExpanded = true
-    local chance = math.clamp(tonumber(config.hitchance) or 100, 0, 100)
-    if chance < 100 and math.random(1, 100) > chance then
-        useExpanded = false
+    if not config.originalSizes[targetPlayer] then
+        saveOriginalPartInfo(targetPlayer, part)
     end
 
-    if useExpanded then
-        config.targethbSizes[targetPlayer] = Vector3.new(targetDiameter, targetDiameter, targetDiameter)
-    else
-        local original = config.originalSizes[targetPlayer]
-        config.targethbSizes[targetPlayer] = original and original.size or Vector3.new(2, 2, 1)
-    end
+    -- Ограничиваем диаметр, чтобы не вызвать ошибку 291 (античит)
+    targetDiameter = math.clamp(targetDiameter, 0.1, config.maxExpansion)
 
+    local expansionSize = Vector3.new(targetDiameter, targetDiameter, targetDiameter)
+    config.targethbSizes[targetPlayer] = expansionSize
     config.activeApplied[targetPlayer] = true
 end
 
 local function restorePartForPlayer(targetPlayer)
     if not targetPlayer or targetPlayer == localPlayer then return end
+
     local char = getTargetCharacter(targetPlayer)
     local original = config.originalSizes[targetPlayer]
-    if original and char then
-        local part = char:FindFirstChild(original.partName)
-        if part then
-            pcall(function()
-                part.Size = original.size
-                part.Transparency = 0 -- Keep original transparency so players don't become invisible/glitched
-                part.CanCollide = true
-            end)
-        end
+    if not original then
+        config.activeApplied[targetPlayer] = nil
+        config.targethbSizes[targetPlayer] = nil
+        return
     end
+
+    local part = char and char:FindFirstChild(original.partName)
+    if part and original.size then
+        pcall(function()
+            part.Size = original.size
+            part.Transparency = 1
+            part.CanCollide = false
+            part.Massless = false
+        end)
+    end
+
     config.activeApplied[targetPlayer] = nil
     config.originalSizes[targetPlayer] = nil
     config.targethbSizes[targetPlayer] = nil
     config.centerLocked[targetPlayer] = nil
 end
 
-RunService.Heartbeat:Connect(function()
+local function hb()
     for playerObj, targetSize in pairs(config.targethbSizes) do
-        if playerObj and playerObj ~= localPlayer and plralive(playerObj) and addesp(playerObj) then
-            local char = getTargetCharacter(playerObj)
+        if playerObj and playerObj ~= localPlayer and addesp(playerObj) and plralive(playerObj) then
             local original = config.originalSizes[playerObj]
+            local char = getTargetCharacter(playerObj)
             local part = char and char:FindFirstChild(original and original.partName or config.bodypart)
+            
             if part then
                 pcall(function()
                     part.Size = targetSize
-                    part.Transparency = 0.99 -- Nearly transparent hitbox extension to avoid visual bugs
+                    part.Transparency = 1
                     part.CanCollide = false
                     part.Massless = true
                 end)
@@ -756,16 +791,20 @@ RunService.Heartbeat:Connect(function()
             end
         end
     end
-end)
+end
 
-RunService.RenderStepped:Connect(function()
+RunService.Heartbeat:Connect(hb)
+
+local function onRenderStep()
     if not camera or not camera.Parent then
         camera = workspace.CurrentCamera
         if not camera then return end
     end
 
-    if not config.Enabled or not gui.RingHolder then
-        if gui.RingHolder then gui.RingHolder.Visible = false end
+    if not gui.RingHolder then return end
+
+    if not config.Enabled then
+        gui.RingHolder.Visible = false
         return
     else
         gui.RingHolder.Visible = true
@@ -778,24 +817,24 @@ RunService.RenderStepped:Connect(function()
     local candidates = {}
 
     for _, pl in ipairs(getAllTargets()) do
-        if addesp(pl) and plralive(pl) then
+        if addesp(pl) then
             local bodyPart, chosenName = chooseBodyPartInstance(pl)
             local char = getTargetCharacter(pl)
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 
             if bodyPart and humanoid and humanoid.Health > 0 then
-                local screenPos3, onScreen = camera:WorldToViewportPoint(bodyPart.Position)
+                local topPos = bodyPart.Position
+                local screenPos3, onScreen = camera:WorldToViewportPoint(topPos)
                 if onScreen then
                     local screenVec = Vector2.new(screenPos3.X, screenPos3.Y)
                     local distPx = (screenVec - center).Magnitude
                     if distPx <= radiusPx then
-                        local cameraPos = camera.CFrame.Position
-                        if wallCheck(bodyPart.Position, cameraPos) then
+                        if wallCheck(bodyPart.Position, camera.CFrame.Position) then
                             table.insert(candidates, {
                                 player = pl,
                                 part = bodyPart,
                                 screenDist = distPx,
-                                worldDist = (cameraPos - bodyPart.Position).Magnitude,
+                                worldDist = (camera.CFrame.Position - bodyPart.Position).Magnitude,
                                 screenPos = screenVec,
                                 humanoid = humanoid
                             })
@@ -803,31 +842,26 @@ RunService.RenderStepped:Connect(function()
                     end
                 end
             end
-        else
-            if config.activeApplied[pl] then
-                restorePartForPlayer(pl)
-            end
         end
     end
 
     local best = nil
     if #candidates > 0 then
-        local bestWorldDist = math.huge
-        for _, c in ipairs(candidates) do
-            if c.worldDist < bestWorldDist then
-                bestWorldDist = c.worldDist
-                best = c
-            end
-        end
+        table.sort(candidates, function(a, b)
+            return a.screenDist < b.screenDist
+        end)
+        best = candidates[1]
     end
 
-    if gui.RingStroke then
-        gui.RingStroke.Color = best and config.fovct or config.fovc
+    if best then
+        gui.RingStroke.Color = config.fovct
+    else
+        gui.RingStroke.Color = config.fovc
     end
 
     if config.currentTarget ~= (best and best.player) then
         config.currentTarget = best and best.player
-        pcall(updateESPColors)
+        updateESPColors()
     end
 
     for pl, _ in pairs(config.activeApplied) do
@@ -837,43 +871,50 @@ RunService.RenderStepped:Connect(function()
     end
 
     if best and plralive(best.player) and addesp(best.player) then
-        local diameter = math.max(0.5, best.worldDist * 0.15)
-        diameter = math.clamp(diameter, 1, 15) -- Safe diameter size to prevent Error 291 / physics crashes
+        local diameter = 2.5
         applySizeToPart(best.player, diameter, best.part)
         if config.rfd then
             RFD(best.player)
         end
     end
-end)
+end
+
+RunService.RenderStepped:Connect(onRenderStep)
 
 local function setupPlayerListeners(pl)
     if pl == localPlayer then return end
-    pl.CharacterAdded:Connect(function(char)
-        task.wait(0.5)
+    
+    local function updatePlrESP()
         if config.espMasterEnabled and addesp(pl) then
+            removeESPLabel(pl)
             makeesp(pl)
-        end
-    end)
-    pl:GetPropertyChangedSignal("Team"):Connect(function()
-        task.wait(0.1)
-        if not addesp(pl) then
-            restorePartForPlayer(pl)
+        else
             removeESPLabel(pl)
             removeHighlightESP(pl)
+        end
+    end
+
+    pl:GetPropertyChangedSignal("Team"):Connect(function()
+        updatePlrESP()
+        if not addesp(pl) then
+            cleanplrdata(pl)
         end
     end)
 end
 
-Players.PlayerAdded:Connect(setupPlayerListeners)
+for _, pl in ipairs(Players:GetPlayers()) do
+    setupPlayerListeners(pl)
+end
+
+Players.PlayerAdded:Connect(function(pl)
+    setupPlayerListeners(pl)
+end)
+
 Players.PlayerRemoving:Connect(function(pl)
     restorePartForPlayer(pl)
     removeESPLabel(pl)
     removeHighlightESP(pl)
 end)
-
-for _, pl in ipairs(Players:GetPlayers()) do
-    setupPlayerListeners(pl)
-end
 
 local function initFOV()
     local screenGui = Instance.new("ScreenGui")
@@ -886,7 +927,7 @@ local function initFOV()
     ringHolder.Name = "RingHolder"
     ringHolder.AnchorPoint = Vector2.new(0.5, 0.5)
     ringHolder.Size = UDim2.new(0, config.fovsize * 2, 0, config.fovsize * 2)
-    ringHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ringHolder.Position = UDim2.new(0.5, 0, 0.5, -28)
     ringHolder.BackgroundTransparency = 1
     ringHolder.Visible = false
     ringHolder.Parent = screenGui
@@ -910,10 +951,13 @@ end
 initFOV()
 
 local function makeui()
-    lib:SetTitle("Gravel.cc (Legacy - Fixed)")
+    lib:SetTitle("Gravel.cc (Fixed & Secured)")
     lib:SetIcon("http://www.roblox.com/asset/?id=132214308111067")
     lib:SetTheme("HighContrast")
     
+    lib:CreateTab("Visuals")
+    lib:CreateTab("SilentAim")
+
     lib:Tab("Visuals")
     lib:AddToggle("Enable ESP", function(state)
         applyESPMaster(state)
@@ -935,24 +979,21 @@ local function makeui()
         toggleHealthESP(state)
     end, false)
 
-    lib:AddToggle("Toggle Head Dot ESP", function(state)
-        config.prefHeadDotESP = state
-    end, false)
-
     lib:AddToggle("ESP Colour Based On Health", function(state)
         config.prefColorByHealth = state
+        updateESPColors()
     end, false)
 
     lib:Tab("SilentAim")
     lib:AddToggle("Toggle SilentAim", function(state)
         config.Enabled = state
-        if not state and gui.RingHolder then
-            gui.RingHolder.Visible = false
+        if not config.Enabled then
+            if gui.RingHolder then gui.RingHolder.Visible = false end
             for pl, _ in pairs(config.activeApplied) do
                 restorePartForPlayer(pl)
             end
-        elseif state and gui.RingHolder then
-            gui.RingHolder.Visible = true
+        else
+            if gui.RingHolder then gui.RingHolder.Visible = true end
         end
     end, false)
     
@@ -966,15 +1007,23 @@ local function makeui()
     end)
 
     lib:AddComboBox("Target Part", {"Head", "HumanoidRootPart", "Both"}, function(selection)
-        for pl, _ in pairs(config.activeApplied) do restorePartForPlayer(pl) end
+        for pl, _ in pairs(config.activeApplied) do
+            restorePartForPlayer(pl)
+        end
         config.bodypart = selection
+    end)
+    
+    lib:AddComboBox("GetTarget", {"Closest", "Lowest Health"}, function(selection)
+        config.silentGetTarget = selection
     end)
     
     lib:AddInputBox("HitChance", function(text)
         local n = tonumber(text)
-        if n and n >= 0 and n <= 100 then config.hitchance = n end
+        if n and n >= 0 and n <= 100 then
+            config.hitchance = n
+        end
         return tostring(config.hitchance)
-    end, "0-100", tostring(config.hitchance), {min=0, max=100, isNumber=true})
+    end, "0-100", tostring(config.hitchance), {min = 0, max = 100, isNumber = true})
     
     lib:AddInputBox("FovSize", function(text)
         local n = tonumber(text)
@@ -985,7 +1034,7 @@ local function makeui()
             end
         end
         return tostring(config.fovsize)
-    end, "Enter Value...", tostring(config.fovsize), {min=0, max=math.huge, isNumber=true})
+    end, "Enter Value...", tostring(config.fovsize), {min = 0, max = math.huge, isNumber = true})
 end
 
 makeui()
