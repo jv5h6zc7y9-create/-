@@ -1174,7 +1174,7 @@ task.spawn(function()
     end
 end)
 
--- Bunny Hop & Long Jump Functions
+-- FIXED: Bunny Hop & Long Jump Functions
 local BhopEnabled = false
 local LongJumpEnabled = false
 local LongJumpPower = 60
@@ -1187,6 +1187,7 @@ RunService.Heartbeat:Connect(function()
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 if hum and hum.FloorMaterial ~= Enum.Material.Air then
                     if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                        hum.Jump = true
                         hum:ChangeState(Enum.HumanoidStateType.Jumping)
                     end
                 end
@@ -1206,18 +1207,20 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 if root and hum and hum.FloorMaterial ~= Enum.Material.Air then
                     local lookVec = camera.CFrame.LookVector
                     lookVec = Vector3.new(lookVec.X, 0, lookVec.Z).Unit
-                    root.Velocity = Vector3.new(lookVec.X * LongJumpPower, root.Velocity.Y + 35, lookVec.Z * LongJumpPower)
+                    root.AssemblyLinearVelocity = Vector3.new(lookVec.X * LongJumpPower, 45, lookVec.Z * LongJumpPower)
                 end
             end
         end)
     end
 end)
 
--- Config System & Menu Button Resizer
+-- FIXED: Config System & Menu Button Resizer (Local File Storage with custom names)
 local CONFIG_FOLDER = "Gravelcc_Configs"
-if not pcall(function() return isfolder and isfolder(CONFIG_FOLDER) end) or (isfolder and not isfolder(CONFIG_FOLDER)) then
-    pcall(function() makefolder(CONFIG_FOLDER) end)
-end
+pcall(function()
+    if isfolder and not isfolder(CONFIG_FOLDER) then
+        makefolder(CONFIG_FOLDER)
+    end
+end)
 
 local currentConfigName = "default"
 local MenuButtonScale = 1.0
@@ -1264,6 +1267,8 @@ end
 
 local function saveConfig(name)
     if not name or name == "" then name = currentConfigName end
+    if not name or name == "" then name = "default" end
+    
     local data = {
         config = {
             Enabled = config.Enabled,
@@ -1324,7 +1329,7 @@ local function saveConfig(name)
     pcall(function()
         if writefile then
             writefile(CONFIG_FOLDER .. "/" .. name .. ".json", HttpService:JSONEncode(data))
-            safeNotify({Title = "Config Saved", Content = "Config '" .. name .. "' saved successfully!", Length = 2})
+            safeNotify({Title = "Config Saved", Content = "Config '" .. name .. "' saved locally!", Length = 2})
         end
     end)
 end
@@ -1851,8 +1856,10 @@ local function makeui()
 
     local savedConfigsList = getSavedConfigs()
     lib:AddComboBox("Выберите конфиг", savedConfigsList, function(selection)
-        currentConfigName = selection
-        loadConfig(selection)
+        if selection and selection ~= "" then
+            currentConfigName = selection
+            loadConfig(selection)
+        end
     end)
 
     lib:AddButton("Загрузить конфиг", function()
