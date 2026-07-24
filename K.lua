@@ -1,4 +1,4 @@
--- Gravel.cc Legacy (Fixed & Optimized Monolithic Script with Script 2 ESP & SkinChanger)
+-- Gravel.cc Legacy (Fixed & Optimized Monolithic Script with Draggable/Resizable Menu Button & Offset Dragging)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -54,6 +54,8 @@ local config = {
     silentGetTarget = "Closest",
     gp = 200,
 }
+
+local menuButtonSize = 38 -- Smaller default size for the menu button
 
 local Alurt = loadstring(game:HttpGet("https://raw.githubusercontent.com/azir-py/project/refs/heads/main/Zwolf/AlurtUI.lua"))()
 
@@ -117,6 +119,21 @@ do
         end
         function lib:CreateTab() return {} end
         function lib:Tab() end
+    end
+end
+
+if not lib.AddSlider then
+    function lib:AddSlider(name, callback, min, max, default)
+        pcall(function()
+            self:AddInputBox(name, function(val)
+                local num = tonumber(val)
+                if num then
+                    num = math.clamp(num, min, max)
+                    if callback then callback(num) end
+                end
+                return tostring(num or default)
+            end, tostring(min) .. "-" .. tostring(max), tostring(default), {min = min, max = max, isNumber = true})
+        end)
     end
 end
 
@@ -532,6 +549,83 @@ end
 initFOV()
 
 --------------------------------------------------------------------------------
+-- MENU BUTTON DRAGGING & RESIZING MANAGER (Offset-based smooth drag, no teleporting)
+--------------------------------------------------------------------------------
+task.spawn(function()
+    while task.wait(0.4) do
+        pcall(function()
+            local function setupButton(child)
+                if not child:GetAttribute("ManagedDrag") then
+                    child:SetAttribute("ManagedDrag", true)
+                    child.Size = UDim2.new(0, menuButtonSize, 0, menuButtonSize)
+                    
+                    local dragging = false
+                    local dragStart = Vector2.new(0, 0)
+                    local startPos = UDim2.new(0, 0, 0, 0)
+                    
+                    child.InputBegan:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            dragging = true
+                            dragStart = Vector2.new(input.Position.X, input.Position.Y)
+                            startPos = child.Position
+                            
+                            input.Changed:Connect(function()
+                                if input.UserInputState == Enum.UserInputState.End then
+                                    dragging = false
+                                end
+                            end)
+                        end
+                    end)
+                    
+                    UserInputService.InputChanged:Connect(function(input)
+                        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                            local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
+                            child.Position = UDim2.new(
+                                startPos.X.Scale,
+                                startPos.X.Offset + delta.X,
+                                startPos.Y.Scale,
+                                startPos.Y.Offset + delta.Y
+                            )
+                        end
+                    end)
+                    
+                    task.spawn(function()
+                        while child and child.Parent do
+                            child.Size = UDim2.new(0, menuButtonSize, 0, menuButtonSize)
+                            task.wait(0.2)
+                        end
+                    end)
+                end
+            end
+
+            for _, guiObj in ipairs(game:GetService("CoreGui"):GetChildren()) do
+                if guiObj:IsA("ScreenGui") then
+                    for _, child in ipairs(guiObj:GetDescendants()) do
+                        if (child:IsA("ImageButton") or child:IsA("TextButton")) then
+                            if child.Image == "rbxassetid://132214308111067" or child.Name:lower():find("toggle") or child.Name:lower():find("icon") or child.Name:lower():find("button") then
+                                setupButton(child)
+                            end
+                        end
+                    end
+                end
+            end
+
+            for _, guiObj in ipairs(localPlayer:WaitForChild("PlayerGui"):GetChildren()) do
+                if guiObj:IsA("ScreenGui") then
+                    for _, child in ipairs(guiObj:GetDescendants()) do
+                        if (child:IsA("ImageButton") or child:IsA("TextButton")) then
+                            if child.Image == "rbxassetid://132214308111067" or child.Name:lower():find("toggle") or child.Name:lower():find("icon") or child.Name:lower():find("button") then
+                                setupButton(child)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end())
+
+--------------------------------------------------------------------------------
 -- SCRIPT 2 VISUALS / ESP / CHAMS / TRACERS / EFFECTS / SKINCHANGER
 --------------------------------------------------------------------------------
 
@@ -935,7 +1029,6 @@ task.spawn(function()
     end
 end)
 
--- Advanced Bullet Tracers
 local BulletTracersEnabled = false
 local BulletTracerColor = Color3.fromRGB(0, 255, 255)
 local BulletTracerTransparency = 0.3
@@ -1012,7 +1105,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Particle Effects
 local ParticleEffectsEnabled = false
 local ParticleColor = Color3.fromRGB(255, 100, 0)
 local ParticleAmount = 25
@@ -1078,7 +1170,6 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
--- Kill Effects
 local KillEffectsEnabled = false
 local KillEffectColor = Color3.fromRGB(255, 0, 100)
 local KillEffectDuration = 0.8
@@ -1146,7 +1237,6 @@ task.spawn(function()
     end
 end)
 
--- World & Effects (Anti-Flash / Anti-Smoke)
 local AntiFlashEnabled, AntiSmokeEnabled = false, false
 task.spawn(function()
     while task.wait(0.2) do
@@ -1172,7 +1262,6 @@ task.spawn(function()
     end
 end)
 
--- SkinChanger & Custom Knife System
 local scriptRunning = false
 local selectedKnife = "Butterfly Knife"
 local spawned = false
@@ -1396,7 +1485,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- UI CONSTRUCTION (ACXUI Menu with Visuals, SilentAim, and Skins tabs)
+-- UI CONSTRUCTION (ACXUI Menu with Visuals, SilentAim, Skins, and Settings)
 --------------------------------------------------------------------------------
 
 local function makeui()
@@ -1407,8 +1496,9 @@ local function makeui()
     lib:CreateTab("Visuals")
     lib:CreateTab("SilentAim")
     lib:CreateTab("Skins")
+    lib:CreateTab("Settings")
 
-    -- VISUALS TAB (Drawing ESP & Effects from Script 2)
+    -- VISUALS TAB
     lib:Tab("Visuals")
     lib:AddToggle("Enable Player ESP", function(state)
         EspEnabled = state
@@ -1492,7 +1582,7 @@ local function makeui()
         AntiSmokeEnabled = state
     end, false)
 
-    -- SILENT AIM TAB (Script 1)
+    -- SILENT AIM TAB
     lib:Tab("SilentAim")
     lib:AddToggle("Toggle SilentAim", function(state)
         config.Enabled = state
@@ -1545,7 +1635,7 @@ local function makeui()
         return tostring(config.fovsize)
     end, "Enter Value...", tostring(config.fovsize), {min = 0, max = math.huge, isNumber = true})
 
-    -- SKINS TAB (SkinChanger & Custom Knives from Script 2)
+    -- SKINS TAB
     lib:Tab("Skins")
     lib:AddToggle("Enable Skin Changer", function(state)
         SkinChangerEnabled = state
@@ -1598,6 +1688,12 @@ local function makeui()
             setupDropdownForWeapon(n)
         end
     end
+
+    -- SETTINGS TAB (Menu Button Size Slider)
+    lib:Tab("Settings")
+    lib:AddSlider("Menu Button Size", function(value)
+        menuButtonSize = value
+    end, 20, 80, menuButtonSize)
 end
 
 makeui()
