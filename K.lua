@@ -1,4 +1,5 @@
--- Gravel.cc Legacy (Fixed & Optimized Monolithic Script with Draggable/Resizable Menu Button & Offset Dragging)
+-- Gravel.cc Legacy (Fixed & Optimized Monolithic Script with Script 2 ESP, SkinChanger, Config System, Menu Button Resizer, Bhop & Long Jump)
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -7,6 +8,7 @@ local Teams = game:GetService("Teams")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContextActionService = game:GetService("ContextActionService")
+local HttpService = game:GetService("HttpService")
 
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -54,8 +56,6 @@ local config = {
     silentGetTarget = "Closest",
     gp = 200,
 }
-
-local menuButtonSize = 38 -- Smaller default size for the menu button
 
 local Alurt = loadstring(game:HttpGet("https://raw.githubusercontent.com/azir-py/project/refs/heads/main/Zwolf/AlurtUI.lua"))()
 
@@ -119,21 +119,6 @@ do
         end
         function lib:CreateTab() return {} end
         function lib:Tab() end
-    end
-end
-
-if not lib.AddSlider then
-    function lib:AddSlider(name, callback, min, max, default)
-        pcall(function()
-            self:AddInputBox(name, function(val)
-                local num = tonumber(val)
-                if num then
-                    num = math.clamp(num, min, max)
-                    if callback then callback(num) end
-                end
-                return tostring(num or default)
-            end, tostring(min) .. "-" .. tostring(max), tostring(default), {min = min, max = max, isNumber = true})
-        end)
     end
 end
 
@@ -549,83 +534,6 @@ end
 initFOV()
 
 --------------------------------------------------------------------------------
--- MENU BUTTON DRAGGING & RESIZING MANAGER (Offset-based smooth drag, no teleporting)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.4) do
-        pcall(function()
-            local function setupButton(child)
-                if not child:GetAttribute("ManagedDrag") then
-                    child:SetAttribute("ManagedDrag", true)
-                    child.Size = UDim2.new(0, menuButtonSize, 0, menuButtonSize)
-                    
-                    local dragging = false
-                    local dragStart = Vector2.new(0, 0)
-                    local startPos = UDim2.new(0, 0, 0, 0)
-                    
-                    child.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                            dragging = true
-                            dragStart = Vector2.new(input.Position.X, input.Position.Y)
-                            startPos = child.Position
-                            
-                            input.Changed:Connect(function()
-                                if input.UserInputState == Enum.UserInputState.End then
-                                    dragging = false
-                                end
-                            end)
-                        end
-                    end)
-                    
-                    UserInputService.InputChanged:Connect(function(input)
-                        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                            local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
-                            child.Position = UDim2.new(
-                                startPos.X.Scale,
-                                startPos.X.Offset + delta.X,
-                                startPos.Y.Scale,
-                                startPos.Y.Offset + delta.Y
-                            )
-                        end
-                    end)
-                    
-                    task.spawn(function()
-                        while child and child.Parent do
-                            child.Size = UDim2.new(0, menuButtonSize, 0, menuButtonSize)
-                            task.wait(0.2)
-                        end
-                    end)
-                end
-            end
-
-            for _, guiObj in ipairs(game:GetService("CoreGui"):GetChildren()) do
-                if guiObj:IsA("ScreenGui") then
-                    for _, child in ipairs(guiObj:GetDescendants()) do
-                        if (child:IsA("ImageButton") or child:IsA("TextButton")) then
-                            if child.Image == "rbxassetid://132214308111067" or child.Name:lower():find("toggle") or child.Name:lower():find("icon") or child.Name:lower():find("button") then
-                                setupButton(child)
-                            end
-                        end
-                    end
-                end
-            end
-
-            for _, guiObj in ipairs(localPlayer:WaitForChild("PlayerGui"):GetChildren()) do
-                if guiObj:IsA("ScreenGui") then
-                    for _, child in ipairs(guiObj:GetDescendants()) do
-                        if (child:IsA("ImageButton") or child:IsA("TextButton")) then
-                            if child.Image == "rbxassetid://132214308111067" or child.Name:lower():find("toggle") or child.Name:lower():find("icon") or child.Name:lower():find("button") then
-                                setupButton(child)
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end())
-
---------------------------------------------------------------------------------
 -- SCRIPT 2 VISUALS / ESP / CHAMS / TRACERS / EFFECTS / SKINCHANGER
 --------------------------------------------------------------------------------
 
@@ -1029,6 +937,7 @@ task.spawn(function()
     end
 end)
 
+-- Advanced Bullet Tracers
 local BulletTracersEnabled = false
 local BulletTracerColor = Color3.fromRGB(0, 255, 255)
 local BulletTracerTransparency = 0.3
@@ -1105,6 +1014,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- Particle Effects
 local ParticleEffectsEnabled = false
 local ParticleColor = Color3.fromRGB(255, 100, 0)
 local ParticleAmount = 25
@@ -1170,6 +1080,7 @@ UserInputService.InputBegan:Connect(function(input)
     end
 end)
 
+-- Kill Effects
 local KillEffectsEnabled = false
 local KillEffectColor = Color3.fromRGB(255, 0, 100)
 local KillEffectDuration = 0.8
@@ -1237,6 +1148,7 @@ task.spawn(function()
     end
 end)
 
+-- World & Effects (Anti-Flash / Anti-Smoke)
 local AntiFlashEnabled, AntiSmokeEnabled = false, false
 task.spawn(function()
     while task.wait(0.2) do
@@ -1262,6 +1174,216 @@ task.spawn(function()
     end
 end)
 
+-- Bunny Hop & Long Jump Functions
+local BhopEnabled = false
+local LongJumpEnabled = false
+local LongJumpPower = 60
+
+RunService.Heartbeat:Connect(function()
+    if BhopEnabled then
+        pcall(function()
+            local char = localPlayer.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum and hum.FloorMaterial ~= Enum.Material.Air then
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if LongJumpEnabled and input.KeyCode == Enum.KeyCode.Space then
+        pcall(function()
+            local char = localPlayer.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if root and hum and hum.FloorMaterial ~= Enum.Material.Air then
+                    local lookVec = camera.CFrame.LookVector
+                    lookVec = Vector3.new(lookVec.X, 0, lookVec.Z).Unit
+                    root.Velocity = Vector3.new(lookVec.X * LongJumpPower, root.Velocity.Y + 35, lookVec.Z * LongJumpPower)
+                end
+            end
+        end)
+    end
+end)
+
+-- Config System & Menu Button Resizer
+local CONFIG_FOLDER = "Gravelcc_Configs"
+if not pcall(function() return isfolder and isfolder(CONFIG_FOLDER) end) or (isfolder and not isfolder(CONFIG_FOLDER)) then
+    pcall(function() makefolder(CONFIG_FOLDER) end)
+end
+
+local currentConfigName = "default"
+local MenuButtonScale = 1.0
+
+local function applyMenuButtonScale(scale)
+    MenuButtonScale = scale
+    pcall(function()
+        local function checkAndResize(parent)
+            for _, obj in ipairs(parent:GetDescendants()) do
+                if obj:IsA("ImageButton") or obj:IsA("TextButton") then
+                    local nameLower = obj.Name:lower()
+                    if nameLower:find("toggle") or nameLower:find("open") or nameLower:find("button") or (obj.Size.X.Offset <= 65 and obj.Size.Y.Offset <= 65) then
+                        obj.Size = UDim2.new(0, math.floor(35 * scale), 0, math.floor(35 * scale))
+                    end
+                end
+            end
+        end
+        if game:GetService("CoreGui"):FindFirstChild("ACXUI") then
+            checkAndResize(game:GetService("CoreGui").ACXUI)
+        end
+        if localPlayer.PlayerGui:FindFirstChild("ACXUI") then
+            checkAndResize(localPlayer.PlayerGui.ACXUI)
+        end
+    end)
+end
+
+local function getSavedConfigs()
+    local configs = {}
+    pcall(function()
+        if listfiles then
+            for _, file in ipairs(listfiles(CONFIG_FOLDER)) do
+                local name = file:match("([^/]+)$")
+                if name and name:sub(-5) == ".json" then
+                    table.insert(configs, name:sub(1, -6))
+                end
+            end
+        end
+    end)
+    if #configs == 0 then
+        table.insert(configs, "default")
+    end
+    return configs
+end
+
+local function saveConfig(name)
+    if not name or name == "" then name = currentConfigName end
+    local data = {
+        config = {
+            Enabled = config.Enabled,
+            fovsize = config.fovsize,
+            predic = config.predic,
+            rfd = config.rfd,
+            eme = config.eme,
+            wallc = config.wallc,
+            bodypart = config.bodypart,
+            hitchance = config.hitchance,
+            maxExpansion = config.maxExpansion,
+            masterTeamTarget = config.masterTeamTarget,
+            masterTarget = config.masterTarget,
+            masterGetTarget = config.masterGetTarget,
+            silentGetTarget = config.silentGetTarget,
+            gp = config.gp,
+        },
+        visuals = {
+            EspEnabled = EspEnabled,
+            EspBox = EspBox,
+            EspName = EspName,
+            EspHealth = EspHealth,
+            EspDistance = EspDistance,
+            EspSkeleton = EspSkeleton,
+            EspHeadDot = EspHeadDot,
+            EspTracers = EspTracers,
+            EspMaxDistance = EspMaxDistance,
+            RainbowESP = RainbowESP,
+            RainbowESP_Speed = RainbowESP_Speed,
+            RainbowChams = RainbowChams,
+            RainbowChams_Speed = RainbowChams_Speed,
+            ChamsEnabled = ChamsEnabled,
+            WeaponChamsEnabled = WeaponChamsEnabled,
+            BulletTracersEnabled = BulletTracersEnabled,
+            BulletTracerPattern = BulletTracerPattern,
+            ParticleEffectsEnabled = ParticleEffectsEnabled,
+            ParticleStyle = ParticleStyle,
+            KillEffectsEnabled = KillEffectsEnabled,
+            AntiFlashEnabled = AntiFlashEnabled,
+            AntiSmokeEnabled = AntiSmokeEnabled,
+        },
+        skins = {
+            SkinChangerEnabled = SkinChangerEnabled,
+            scriptRunning = scriptRunning,
+            selectedKnife = selectedKnife,
+            SelectedSkins = SelectedSkins,
+            WEAR = WEAR,
+        },
+        movement = {
+            BhopEnabled = BhopEnabled,
+            LongJumpEnabled = LongJumpEnabled,
+            LongJumpPower = LongJumpPower,
+        },
+        ui = {
+            ButtonScale = MenuButtonScale,
+        }
+    }
+    pcall(function()
+        if writefile then
+            writefile(CONFIG_FOLDER .. "/" .. name .. ".json", HttpService:JSONEncode(data))
+            safeNotify({Title = "Config Saved", Content = "Config '" .. name .. "' saved successfully!", Length = 2})
+        end
+    end)
+end
+
+local function loadConfig(name)
+    if not name or name == "" then return end
+    currentConfigName = name
+    pcall(function()
+        local path = CONFIG_FOLDER .. "/" .. name .. ".json"
+        if readfile and isfile and isfile(path) then
+            local content = readfile(path)
+            local data = HttpService:JSONDecode(content)
+            if data.config then
+                for k, v in pairs(data.config) do
+                    config[k] = v
+                end
+            end
+            if data.visuals then
+                EspEnabled = data.visuals.EspEnabled or false
+                EspBox = data.visuals.EspBox ~= false
+                EspName = data.visuals.EspName ~= false
+                EspHealth = data.visuals.EspHealth ~= false
+                EspDistance = data.visuals.EspDistance ~= false
+                EspSkeleton = data.visuals.EspSkeleton or false
+                EspHeadDot = data.visuals.EspHeadDot or false
+                EspTracers = data.visuals.EspTracers or false
+                EspMaxDistance = data.visuals.EspMaxDistance or 0
+                RainbowESP = data.visuals.RainbowESP or false
+                ChamsEnabled = data.visuals.ChamsEnabled or false
+                WeaponChamsEnabled = data.visuals.WeaponChamsEnabled or false
+                BulletTracersEnabled = data.visuals.BulletTracersEnabled or false
+                ParticleEffectsEnabled = data.visuals.ParticleEffectsEnabled or false
+                KillEffectsEnabled = data.visuals.KillEffectsEnabled or false
+                AntiFlashEnabled = data.visuals.AntiFlashEnabled or false
+                AntiSmokeEnabled = data.visuals.AntiSmokeEnabled or false
+            end
+            if data.skins then
+                SkinChangerEnabled = data.skins.SkinChangerEnabled or false
+                scriptRunning = data.skins.scriptRunning or false
+                selectedKnife = data.skins.selectedKnife or "Butterfly Knife"
+                if data.skins.SelectedSkins then
+                    SelectedSkins = data.skins.SelectedSkins
+                end
+            end
+            if data.movement then
+                BhopEnabled = data.movement.BhopEnabled or false
+                LongJumpEnabled = data.movement.LongJumpEnabled or false
+                LongJumpPower = data.movement.LongJumpPower or 60
+            end
+            if data.ui and data.ui.ButtonScale then
+                MenuButtonScale = data.ui.ButtonScale
+                applyMenuButtonScale(MenuButtonScale)
+            end
+            safeNotify({Title = "Config Loaded", Content = "Config '" .. name .. "' loaded successfully!", Length = 2})
+        end
+    end)
+end
+
+-- SkinChanger & Custom Knife System
 local scriptRunning = false
 local selectedKnife = "Butterfly Knife"
 local spawned = false
@@ -1485,7 +1607,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- UI CONSTRUCTION (ACXUI Menu with Visuals, SilentAim, Skins, and Settings)
+-- UI CONSTRUCTION (ACXUI Menu with Visuals, SilentAim, Skins, and Menu Settings tabs)
 --------------------------------------------------------------------------------
 
 local function makeui()
@@ -1496,9 +1618,9 @@ local function makeui()
     lib:CreateTab("Visuals")
     lib:CreateTab("SilentAim")
     lib:CreateTab("Skins")
-    lib:CreateTab("Settings")
+    lib:CreateTab("Настройка меню")
 
-    -- VISUALS TAB
+    -- VISUALS TAB (Drawing ESP & Effects from Script 2)
     lib:Tab("Visuals")
     lib:AddToggle("Enable Player ESP", function(state)
         EspEnabled = state
@@ -1582,7 +1704,7 @@ local function makeui()
         AntiSmokeEnabled = state
     end, false)
 
-    -- SILENT AIM TAB
+    -- SILENT AIM TAB & MOVEMENT (Script 1)
     lib:Tab("SilentAim")
     lib:AddToggle("Toggle SilentAim", function(state)
         config.Enabled = state
@@ -1635,7 +1757,23 @@ local function makeui()
         return tostring(config.fovsize)
     end, "Enter Value...", tostring(config.fovsize), {min = 0, max = math.huge, isNumber = true})
 
-    -- SKINS TAB
+    lib:AddToggle("Бани Хоп (Bhop)", function(state)
+        BhopEnabled = state
+    end, false)
+
+    lib:AddToggle("Длинный Прыжок (Long Jump)", function(state)
+        LongJumpEnabled = state
+    end, false)
+
+    lib:AddInputBox("Сила прыжка (Long Jump Power)", function(text)
+        local n = tonumber(text)
+        if n and n > 0 then
+            LongJumpPower = n
+        end
+        return tostring(LongJumpPower)
+    end, "60", tostring(LongJumpPower), {min = 10, max = 200, isNumber = true})
+
+    -- SKINS TAB (SkinChanger & Custom Knives from Script 2)
     lib:Tab("Skins")
     lib:AddToggle("Enable Skin Changer", function(state)
         SkinChangerEnabled = state
@@ -1689,11 +1827,37 @@ local function makeui()
         end
     end
 
-    -- SETTINGS TAB (Menu Button Size Slider)
-    lib:Tab("Settings")
-    lib:AddSlider("Menu Button Size", function(value)
-        menuButtonSize = value
-    end, 20, 80, menuButtonSize)
+    -- НАСТРОЙКА МЕНЮ TAB (Menu Button Resizer & Config System)
+    lib:Tab("Настройка меню")
+
+    lib:AddInputBox("Масштаб кнопки меню", function(text)
+        local n = tonumber(text)
+        if n and n >= 0.3 and n <= 2.0 then
+            applyMenuButtonScale(n)
+        end
+        return tostring(MenuButtonScale)
+    end, "0.5 - 1.5", tostring(MenuButtonScale), {min = 0.3, max = 2.0, isNumber = true})
+
+    lib:AddInputBox("Имя конфига", function(text)
+        if text and text ~= "" then
+            currentConfigName = text
+        end
+        return currentConfigName
+    end, "Введите имя...", currentConfigName)
+
+    lib:AddButton("Сохранить конфиг", function()
+        saveConfig(currentConfigName)
+    end)
+
+    local savedConfigsList = getSavedConfigs()
+    lib:AddComboBox("Выберите конфиг", savedConfigsList, function(selection)
+        currentConfigName = selection
+        loadConfig(selection)
+    end)
+
+    lib:AddButton("Загрузить конфиг", function()
+        loadConfig(currentConfigName)
+    end)
 end
 
 makeui()
