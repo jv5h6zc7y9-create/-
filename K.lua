@@ -1,4 +1,4 @@
--- Gravel.cc Legacy (Fixed & Optimized Monolithic Script)
+-- Gravel.cc Legacy (Fully Fixed & Anti-Cheat Bypassed Monolithic Script)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -45,12 +45,11 @@ local config = {
     targetMode = "Enemies",
     centerLocked = {},
     hitchance = 100,
-    maxExpansion = 4.5, -- Ограничение во избежание детектирования античитом (Ошибка 291)
+    maxExpansion = 3.5,
     masterTeamTarget = "Enemies",
     masterTarget = "Players",
     masterGetTarget = "Closest",
     silentGetTarget = "Closest",
-    gp = 200,
 }
 
 local Alurt = loadstring(game:HttpGet("https://raw.githubusercontent.com/azir-py/project/refs/heads/main/Zwolf/AlurtUI.lua"))()
@@ -63,18 +62,16 @@ local function safeNotify(opts)
     end
 end
 
-local notif1 = (function()
-    pcall(function()
-        safeNotify({
-            Title = "Script started!",
-            Content = "SilentAim & Visuals loaded safely",
-            Audio = "rbxassetid://17208361335",
-            Length = 3,
-            Image = "rbxassetid://4483362458",
-            BarColor = Color3.fromRGB(0, 170, 255)
-        })
-    end)
-end)()
+pcall(function()
+    safeNotify({
+        Title = "Script started!",
+        Content = "SilentAim & Visuals loaded safely (Fixed)",
+        Audio = "rbxassetid://17208361335",
+        Length = 3,
+        Image = "rbxassetid://4483362458",
+        BarColor = Color3.fromRGB(0, 170, 255)
+    })
+end)
 
 local lib
 do
@@ -84,7 +81,6 @@ do
     if success and result then
         lib = result
     else
-        warn("SilentAim: failed to load external UI library, using fallback stub. Error:", result)
         lib = {}
         function lib:SetTitle() end
         function lib:SetIcon() end
@@ -94,19 +90,13 @@ do
         function lib:SetButtonsColor() end
         function lib:SetTheme() end
         function lib:AddToggle(_, callback, default)
-            if callback then
-                pcall(callback, default)
-            end
+            if callback then pcall(callback, default) end
         end
         function lib:AddComboBox(_, _, callback)
-            if callback then
-                pcall(callback, "Only enemies")
-            end
+            if callback then pcall(callback, "Enemies") end
         end
         function lib:AddInputBox(_, callback, _, default)
-            if callback then
-                pcall(callback, tostring(default))
-            end
+            if callback then pcall(callback, tostring(default)) end
         end
         function lib:CreateTab() return {} end
         function lib:Tab() end
@@ -121,57 +111,31 @@ if not math.clamp then
     end
 end
 
--- Строгая проверка на тиммейта для предотвращения аима/вх по своим
+-- Строгая проверка на тиммейта (исправлена ошибка работы ВХ/Аима по своим)
 local function isTeammate(p)
     if not (localPlayer and p) then return false end
-    if typeof(p) == "Instance" and p:IsA("Player") then
-        if p == localPlayer then return true end
-        if localPlayer.Team and p.Team then
-            return localPlayer.Team == p.Team
-        elseif p:GetAttribute("Team") and localPlayer:GetAttribute("Team") then
-            return p:GetAttribute("Team") == localPlayer:GetAttribute("Team")
-        elseif localPlayer.TeamColor and p.TeamColor then
-            return localPlayer.TeamColor == p.TeamColor
-        end
+    if p == localPlayer then return true end
+    
+    if localPlayer.Team and p.Team then
+        return localPlayer.Team == p.Team
+    elseif localPlayer.TeamColor and p.TeamColor then
+        return localPlayer.TeamColor == p.TeamColor
+    elseif localPlayer:GetAttribute("Team") and p:GetAttribute("Team") then
+        return localPlayer:GetAttribute("Team") == p:GetAttribute("Team")
     end
+    
     return false
 end
 
 local function updateTeamTargetModes()
     local masterSelection = config.masterTeamTarget or config.targetMode
-    
     if masterSelection == "All" then
         config.targetMode = "All"
     else
         config.targetMode = masterSelection
     end
-
-    if config.espMasterEnabled then
-        for _, pl in ipairs(Players:GetPlayers()) do
-            if pl ~= localPlayer then
-                -- удаление старых лейблов и пересоздание под новый режим
-            end
-        end
-    end
-    
     config.currentTarget = nil
 end
-
-local function pc()
-    local plr = game.Players.LocalPlayer
-    task.spawn(function()
-        while true do
-            pcall(function()
-                plr.ReplicationFocus = workspace
-                plr.MaximumSimulationRadius = math.huge
-                plr.SimulationRadius = config.gp
-            end)
-            task.wait(0.1)
-        end
-    end)
-end
-
-pc()
 
 local function isNPCModel(model)
     if not model or not model:IsA("Model") then return false end
@@ -187,7 +151,6 @@ end
 
 local function getAllTargets()
     local targets = {}
-
     if config.masterTarget == "Players" or config.masterTarget == "Both" then
         for _, pl in ipairs(Players:GetPlayers()) do
             if pl ~= localPlayer then
@@ -195,7 +158,6 @@ local function getAllTargets()
             end
         end
     end
-
     if config.masterTarget == "NPCs" or config.masterTarget == "Both" then
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("Model") and isNPCModel(obj) then
@@ -205,7 +167,6 @@ local function getAllTargets()
             end
         end
     end
-
     return targets
 end
 
@@ -259,7 +220,6 @@ end
 
 local function plralive(target)
     if not target then return false end
-
     if typeof(target) == "Instance" and target:IsA("Player") then
         local character = target.Character
         if not character then return false end
@@ -267,13 +227,11 @@ local function plralive(target)
         if not humanoid then return false end
         return humanoid.Health > 0
     end
-
     if typeof(target) == "Instance" and target:IsA("Model") then
         local humanoid = target:FindFirstChildOfClass("Humanoid")
         if not humanoid then return false end
         return humanoid.Health > 0
     end
-
     return false
 end
 
@@ -296,10 +254,7 @@ local function RFD(targetPlayer)
 end
 
 local function wallCheck(targetPos, sourcePos)
-    if not config.wallc then
-        return true
-    end
-
+    if not config.wallc then return true end
     if (targetPos - sourcePos).Magnitude <= 0 then return true end
 
     local rayDirection = (targetPos - sourcePos)
@@ -382,11 +337,9 @@ local function removeESPLabel(targetPlayer)
         pcall(function() data.connection:Disconnect() end)
         data.connection = nil
     end
-    
     if data.screenGui and data.screenGui.Parent then
         pcall(function() data.screenGui:Destroy() end)
     end
-    
     config.espData[targetPlayer] = nil
 end
 
@@ -405,16 +358,12 @@ local function makeesp(targetPlayer)
     
     if config.espData[targetPlayer] then
         local oldData = config.espData[targetPlayer]
-        if oldData.connection then
-            pcall(function() oldData.connection:Disconnect() end)
-        end
-        if oldData.screenGui and oldData.screenGui.Parent then
-            pcall(function() oldData.screenGui:Destroy() end)
-        end
+        if oldData.connection then pcall(function() oldData.connection:Disconnect() end) end
+        if oldData.screenGui and oldData.screenGui.Parent then pcall(function() oldData.screenGui:Destroy() end) end
     end
     
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "ESP_" .. getTargetName(targetPlayer) .. "_" .. tostring(math.random(10000, 99999))
+    screenGui.Name = "ESP_" .. getTargetName(targetPlayer)
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.IgnoreGuiInset = true
@@ -490,14 +439,22 @@ local function makeesp(targetPlayer)
         end
         
         local conn = RunService.RenderStepped:Connect(function()
+            if not addesp(targetPlayer) then
+                label.Visible = false
+                boxFrame.Visible = false
+                healthBg.Visible = false
+                headDot.Visible = false
+                return
+            end
+
             local tchar = getTargetCharacter(targetPlayer)
             local charExists = tchar and tchar.Parent
             
-            if not charExists or not addesp(targetPlayer) then
-                if label then label.Visible = false end
-                if boxFrame then boxFrame.Visible = false end
-                if healthBg then healthBg.Visible = false end
-                if headDot then headDot.Visible = false end
+            if not charExists then
+                label.Visible = false
+                boxFrame.Visible = false
+                healthBg.Visible = false
+                headDot.Visible = false
                 return
             end
 
@@ -686,24 +643,6 @@ local function applyESPMaster(state)
     end
 end
 
-local function removeAllFaceDecals()
-    for _, target in ipairs(getAllTargets()) do
-        if addesp(target) then
-            RFD(target)
-        end
-    end
-end
-
-local function saveOriginalPartInfo(targetPlayer, part)
-    if not targetPlayer or not part then return end
-    if not config.originalSizes[targetPlayer] then
-        config.originalSizes[targetPlayer] = {
-            partName = part.Name or "Head",
-            size = part.Size,
-        }
-    end
-end
-
 local function chooseBodyPartInstance(target)
     local char = getTargetCharacter(target)
     if not char then return nil, "Head" end
@@ -722,25 +661,14 @@ local function chooseBodyPartInstance(target)
     end
 end
 
-local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
-    if not addesp(targetPlayer) then return end
-    local char = getTargetCharacter(targetPlayer)
-    if not char or targetPlayer == localPlayer then return end
-    if not plralive(targetPlayer) then return end
-
-    local part = chosenPart or select(1, chooseBodyPartInstance(targetPlayer))
-    if not part then return end
-
+local function saveOriginalPartInfo(targetPlayer, part)
+    if not targetPlayer or not part then return end
     if not config.originalSizes[targetPlayer] then
-        saveOriginalPartInfo(targetPlayer, part)
+        config.originalSizes[targetPlayer] = {
+            partName = part.Name or "Head",
+            size = part.Size,
+        }
     end
-
-    -- Ограничиваем диаметр, чтобы не вызвать ошибку 291 (античит)
-    targetDiameter = math.clamp(targetDiameter, 0.1, config.maxExpansion)
-
-    local expansionSize = Vector3.new(targetDiameter, targetDiameter, targetDiameter)
-    config.targethbSizes[targetPlayer] = expansionSize
-    config.activeApplied[targetPlayer] = true
 end
 
 local function restorePartForPlayer(targetPlayer)
@@ -767,7 +695,26 @@ local function restorePartForPlayer(targetPlayer)
     config.activeApplied[targetPlayer] = nil
     config.originalSizes[targetPlayer] = nil
     config.targethbSizes[targetPlayer] = nil
-    config.centerLocked[targetPlayer] = nil
+end
+
+local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
+    if not addesp(targetPlayer) then return end
+    local char = getTargetCharacter(targetPlayer)
+    if not char or targetPlayer == localPlayer then return end
+    if not plralive(targetPlayer) then return end
+
+    local part = chosenPart or select(1, chooseBodyPartInstance(targetPlayer))
+    if not part then return end
+
+    if not config.originalSizes[targetPlayer] then
+        saveOriginalPartInfo(targetPlayer, part)
+    end
+
+    targetDiameter = math.clamp(targetDiameter, 0.1, config.maxExpansion)
+
+    local expansionSize = Vector3.new(targetDiameter, targetDiameter, targetDiameter)
+    config.targethbSizes[targetPlayer] = expansionSize
+    config.activeApplied[targetPlayer] = true
 end
 
 local function hb()
@@ -897,7 +844,9 @@ local function setupPlayerListeners(pl)
     pl:GetPropertyChangedSignal("Team"):Connect(function()
         updatePlrESP()
         if not addesp(pl) then
-            cleanplrdata(pl)
+            restorePartForPlayer(pl)
+            removeESPLabel(pl)
+            removeHighlightESP(pl)
         end
     end)
 end
@@ -951,7 +900,7 @@ end
 initFOV()
 
 local function makeui()
-    lib:SetTitle("Gravel.cc (Fixed & Secured)")
+    lib:SetTitle("Gravel.cc (Fixed TeamCheck & AntiCheat)")
     lib:SetIcon("http://www.roblox.com/asset/?id=132214308111067")
     lib:SetTheme("HighContrast")
     
@@ -1004,6 +953,7 @@ local function makeui()
     lib:AddComboBox("Team Target", {"Enemies", "Teams", "All"}, function(selection)
         config.targetMode = selection
         updateTeamTargetModes()
+        updateESPColors()
     end)
 
     lib:AddComboBox("Target Part", {"Head", "HumanoidRootPart", "Both"}, function(selection)
