@@ -300,34 +300,41 @@ local function getTargetName(target)
     return tostring(target)
 end
 
--- ФИКС: Правильная проверка на союзников
+-- ФИКС: Полная проверка на союзников
 local function isTeammate(p)
     if not (localPlayer and p) then return false end
     if typeof(p) == "Instance" and p:IsA("Player") then
-        -- Проверка через Team
+        -- 1. Стандартная проверка Team
         if localPlayer.Team and p.Team then
             return localPlayer.Team == p.Team
         end
-        -- Проверка через TeamColor
+        -- 2. Проверка TeamColor
         if localPlayer.TeamColor and p.TeamColor then
             return localPlayer.TeamColor == p.TeamColor
         end
-        -- Проверка через атрибуты
+        -- 3. Проверка атрибутов Team
         local localTeamAttr = localPlayer:GetAttribute("Team")
         local targetTeamAttr = p:GetAttribute("Team")
         if localTeamAttr and targetTeamAttr then
             return localTeamAttr == targetTeamAttr
         end
+        -- 4. Проверка атрибутов Side
         local localSideAttr = localPlayer:GetAttribute("Side")
         local targetSideAttr = p:GetAttribute("Side")
         if localSideAttr and targetSideAttr then
             return localSideAttr == targetSideAttr
         end
-        -- Проверка через вложенные объекты
+        -- 5. Проверка вложенных объектов Team
         local localTeamObj = localPlayer:FindFirstChild("Team")
         local targetTeamObj = p:FindFirstChild("Team")
         if localTeamObj and targetTeamObj then
             return localTeamObj.Value == targetTeamObj.Value
+        end
+        -- 6. Проверка вложенных объектов Side
+        local localSideObj = localPlayer:FindFirstChild("Side")
+        local targetSideObj = p:FindFirstChild("Side")
+        if localSideObj and targetSideObj then
+            return localSideObj.Value == targetSideObj.Value
         end
     end
     return false
@@ -1614,19 +1621,92 @@ local function chooseBodyPartInstance(target)
     end
 end
 
--- ФИКС: Убрана логика увеличения боксов из Silent Aim
--- applySizeToPart и restorePartForPlayer теперь не будут вызываться из onRenderStep
--- Они оставлены только для hitbox expander
-
+-- ФУНКЦИИ ДЛЯ HITBOX EXPANDER (НЕ ТРОГАТЬ)
 local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
-    -- Эта функция больше не используется Silent Aim'ом
-    -- Она оставлена только для совместимости с hitbox expander
-    return
+    local char = getTargetCharacter(targetPlayer)
+    if not char or targetPlayer == localPlayer then return end
+    if not plralive(targetPlayer) then return end
+
+    local part = chosenPart
+    local partName = nil
+    if not part then
+        part, partName = chooseBodyPartInstance(targetPlayer)
+    else
+        partName = part.Name
+    end
+    if not part then return end
+
+    if not config.originalSizes[targetPlayer] then
+        saveOriginalPartInfo(targetPlayer, part)
+    end
+
+    local expansionSize = Vector3.new(
+        targetDiameter,
+        targetDiameter,
+        targetDiameter
+    )
+
+    local useExpanded = true
+    local chance = math.clamp(tonumber(config.hitchance) or 100, 0, 100)
+    if chance <= 0 then
+        useExpanded = false
+    elseif chance < 100 then
+        if math.random(1, 100) <= chance then
+            useExpanded = true
+        else
+            useExpanded = false
+        end
+    else
+        useExpanded = true
+    end
+
+    if useExpanded then
+        config.targethbSizes[targetPlayer] = expansionSize
+    else
+        local original = config.originalSizes[targetPlayer]
+        if original and original.size then
+            config.targethbSizes[targetPlayer] = original.size
+        else
+            config.targethbSizes[targetPlayer] = Vector3.new(0.05, 0.05, 0.05)
+        end
+    end
+
+    config.activeApplied[targetPlayer] = true
 end
 
 local function restorePartForPlayer(targetPlayer)
-    -- Эта функция больше не используется Silent Aim'ом
-    return
+    if not targetPlayer or targetPlayer == localPlayer then return end
+
+    local char = getTargetCharacter(targetPlayer)
+    local original = config.originalSizes[targetPlayer]
+    if not original then
+        config.activeApplied[targetPlayer] = nil
+        config.targethbSizes[targetPlayer] = nil
+        return
+    end
+
+    local part = nil
+    if char then
+        part = char:FindFirstChild(original.partName) or char:FindFirstChild(config.bodypart) or char:FindFirstChild("Head")
+    end
+
+    if part and original.size then
+        pcall(function()
+            part.Size = original.size
+            part.Transparency = 1
+            part.CanCollide = false
+            part.Massless = false
+            if part:IsA("BasePart") then
+                part.Velocity = Vector3.new(0, 0, 0)
+                part.RotVelocity = Vector3.new(0, 0, 0)
+            end
+        end)
+    end
+
+    config.activeApplied[targetPlayer] = nil
+    config.originalSizes[targetPlayer] = nil
+    config.targethbSizes[targetPlayer] = nil
+    config.centerLocked[targetPlayer] = nil
 end
 
 local function tnormalsize(targetPlayer)
@@ -1776,8 +1856,40 @@ end
 
 RunService.Heartbeat:Connect(updateHitboxes)
 
--- ФИКС: Убрана hb() функция которая изменяла боксы
--- Теперь только hitbox expander изменяет боксы
+-- ФУНКЦИЯ HB ТОЛЬКО ДЛЯ HITBOX EXPANDER
+local function hb()
+    for playerObj, targetSize in pairs(config.targethbSizes) do
+        if playerObj and playerObj ~= localPlayer and getTargetCharacter(playerObj) and plralive(playerObj) then
+            local part = getTargetCharacter(playerObj):FindFirstChild(config.originalSizes[playerObj] and config.originalSizes[playerObj].partName) 
+                         or getTargetCharacter(playerObj):FindFirstChild(config.bodypart) 
+                         or getTargetCharacter(playerObj):FindFirstChild("Head")
+            if not part then
+                local p1 = getTargetCharacter(playerObj):FindFirstChild("HumanoidRootPart")
+                local p2 = getTargetCharacter(playerObj):FindFirstChild("Head")
+                part = p1 or p2
+            end
+
+            if part then
+                local currentSize = part.Size
+                local lerpAlpha = math.clamp(tonumber(config.predic) or 1, 0, 1)
+                local newSize = currentSize:Lerp(targetSize, lerpAlpha)
+
+                pcall(function()
+                    part.Size = newSize
+                    part.Transparency = 1
+                    part.CanCollide = false
+                    part.Massless = (part.Name ~= "HumanoidRootPart")
+                end)
+            end
+        else
+            if playerObj ~= localPlayer then
+                restorePartForPlayer(playerObj)
+            end
+        end
+    end
+    
+    updateHitboxes()
+end
 
 local function shouldTargetAimbot(target)
     if not target then return false end
@@ -1792,7 +1904,6 @@ local function shouldTargetAimbot(target)
         end
     end
 
-    -- ФИКС: Проверка на союзников для аимбота
     local mode = config.aimbotTeamTarget or "Enemies"
     if mode == "Enemies" then
         return not isTeammate(target)
@@ -2063,11 +2174,11 @@ local function toggleOmnidirectionalAimbot(state)
     end
 end
 
--- ФИКС: Убрана hb() из Heartbeat
+RunService.Heartbeat:Connect(hb)
 RunService.RenderStepped:Connect(aimbotUpdate)
 RunService.Heartbeat:Connect(antiAimUpdate)
 
--- ФИКС: Полностью переписан onRenderStep - убрано изменение боксов
+-- ФИКС: Переписан onRenderStep - УБРАНО ИЗМЕНЕНИЕ БОКСОВ
 local function onRenderStep()
     if not camera or not camera.Parent then
         camera = workspace.CurrentCamera
@@ -2179,8 +2290,9 @@ local function onRenderStep()
         updateESPColors()
     end
 
-    -- ФИКС: Убрано изменение боксов из Silent Aim
-    -- Silent Aim теперь только показывает FOV кольцо и выбирает цель
+    -- ФИКС: УБРАНО ВСЯКОЕ ИЗМЕНЕНИЕ БОКСОВ
+    -- Silent Aim теперь ТОЛЬКО показывает FOV кольцо и выбирает цель
+    -- Боксы НЕ изменяются!
 
     if config.rfd and best then
         RFD(best.player)
@@ -2201,6 +2313,7 @@ local function setupDeathListener(targetPlayer)
 
     config.characterConnections[targetPlayer] = humanoid.HealthChanged:Connect(function(health)
         if health <= 0 then
+            restorePartForPlayer(targetPlayer)
             restoreTorso(targetPlayer)
             if config.currentTarget == targetPlayer then
                 config.currentTarget = nil
@@ -2224,6 +2337,7 @@ local function cleanplrdata(targetPlayer)
         config.currentAutoFarmTarget = nil
     end
 
+    restorePartForPlayer(targetPlayer)
     restoreTorso(targetPlayer)
     removeESPLabel(targetPlayer)
     removeHighlightESP(targetPlayer)
@@ -2240,6 +2354,9 @@ local function cleanplrdata(targetPlayer)
         config.characterConnections[targetPlayer] = nil
     end
 
+    config.activeApplied[targetPlayer] = nil
+    config.originalSizes[targetPlayer] = nil
+    config.targethbSizes[targetPlayer] = nil
     config.hitboxExpandedParts[targetPlayer] = nil
     config.hitboxOriginalSizes[targetPlayer] = nil
 
@@ -3785,6 +3902,10 @@ local function cleanup()
     if config.hotkeyConnection then
         pcall(function() config.hotkeyConnection:Disconnect() end)
         config.hotkeyConnection = nil
+    end
+
+    for pl, _ in pairs(config.activeApplied) do
+        restorePartForPlayer(pl)
     end
 
     if config.aimbot360Enabled then
