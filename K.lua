@@ -1,11 +1,14 @@
 -- This is a full recovery version of the script it wouldn't contain any updates
 -- Gravel.cc Legacy
+-- FIXED: Silent Aim no longer modifies hitboxes, proper teammate check added
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Teams = game:GetService("Teams")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local localPlayer = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -112,8 +115,13 @@ local config = {
     aimbotGetTarget = "Closest",
     silentGetTarget = "Closest",
     antiAimGetTarget = "Closest",
+    silentWallCheck = false,
+    silentFOVColor = Color3.fromRGB(255, 255, 255),
+    silentFOVColorTarget = Color3.fromRGB(255, 255, 0),
+    silentFOVRing = nil,
 }
 
+-- UI Library
 local Alurt = loadstring(game:HttpGet("https://raw.githubusercontent.com/azir-py/project/refs/heads/main/Zwolf/AlurtUI.lua"))()
 
 local function safeNotify(opts)
@@ -124,19 +132,7 @@ local function safeNotify(opts)
     end
 end
 
-local notif1 = (function()
-    pcall(function()
-        safeNotify({
-            Title = "Script started!",
-            Content = "May be unstable/dont work on some games",
-            Audio = "rbxassetid://17208361335",
-            Length = 3,
-            Image = "rbxassetid://4483362458",
-            BarColor = Color3.fromRGB(0, 170, 255)
-        })
-    end)
-end)()
-
+-- UI Library fallback
 local lib
 do
     local success, result = pcall(function()
@@ -182,104 +178,62 @@ if not math.clamp then
     end
 end
 
-local function updateTeamTargetModes()
-    local masterSelection = config.masterTeamTarget or config.targetMode
-    
-    if masterSelection == "All" then
-        config.targetMode = "All"
-        config.aimbotTeamTarget = "All"
-        config.hitboxTeamTarget = "All"
-    else
-        config.targetMode = masterSelection
-        config.aimbotTeamTarget = masterSelection
-        config.hitboxTeamTarget = masterSelection
-    end
-    
-    if config.masterGetTarget then
-        config.aimbotGetTarget = config.masterGetTarget
-        config.silentGetTarget = config.masterGetTarget
-        config.antiAimGetTarget = config.masterGetTarget
-    end
-
-    if config.espMasterEnabled then
-        for _, pl in ipairs(Players:GetPlayers()) do
-            if pl ~= localPlayer then
-                removeESPLabel(pl)
-                if addesp(pl) then
-                    makeesp(pl)
-                end
-            end
+-- ============================================
+-- TEAM CHECK - FIXED: Full teammate detection
+-- ============================================
+local function isTeammate(p)
+    if not (localPlayer and p) then return false end
+    if typeof(p) == "Instance" and p:IsA("Player") then
+        -- 1. Standard Team check
+        if localPlayer.Team and p.Team then
+            return localPlayer.Team == p.Team
         end
-    end
-    
-    if config.espMasterEnabled and config.prefHighlightESP then
-        for _, pl in ipairs(Players:GetPlayers()) do
-            if pl ~= localPlayer then
-                removeHighlightESP(pl)
-                if addesp(pl) and pl.Character then
-                    high(pl)
-                end
-            end
+        -- 2. TeamColor check
+        if localPlayer.TeamColor and p.TeamColor then
+            return localPlayer.TeamColor == p.TeamColor
         end
-    end
-    applyhb()
-    config.aimbotCurrentTarget = nil
-    config.currentTarget = nil
-    updateESPColors()
-end
-
-local function pc()
-local plr = game.Players.LocalPlayer
-task.spawn(function()
-    while true do
-        pcall(function()
-            plr.ReplicationFocus = workspace
-            plr.MaximumSimulationRadius = math.huge
-            plr.SimulationRadius = config.gp
-        end)
-        task.wait(0.1)
-    end
-end)
-end
-
-pc()
-
-local function isNPCModel(model)
-    if not model or not model:IsA("Model") then return false end
-    if Players:GetPlayerFromCharacter(model) then return false end
-    local humanoid = model:FindFirstChildOfClass("Humanoid")
-    if humanoid and humanoid.Health ~= nil then
-        if model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") then
-            return true
+        -- 3. Attribute "Team"
+        local localTeamAttr = localPlayer:GetAttribute("Team")
+        local targetTeamAttr = p:GetAttribute("Team")
+        if localTeamAttr and targetTeamAttr then
+            return localTeamAttr == targetTeamAttr
+        end
+        -- 4. Attribute "Side"
+        local localSideAttr = localPlayer:GetAttribute("Side")
+        local targetSideAttr = p:GetAttribute("Side")
+        if localSideAttr and targetSideAttr then
+            return localSideAttr == targetSideAttr
+        end
+        -- 5. Nested object "Team"
+        local localTeamObj = localPlayer:FindFirstChild("Team")
+        local targetTeamObj = p:FindFirstChild("Team")
+        if localTeamObj and targetTeamObj then
+            return localTeamObj.Value == targetTeamObj.Value
+        end
+        -- 6. Nested object "Side"
+        local localSideObj = localPlayer:FindFirstChild("Side")
+        local targetSideObj = p:FindFirstChild("Side")
+        if localSideObj and targetSideObj then
+            return localSideObj.Value == targetSideObj.Value
+        end
+        -- 7. Check by name prefixes (some games use this)
+        local localName = localPlayer.Name:lower()
+        local targetName = p.Name:lower()
+        if string.find(targetName, "enemy") and not string.find(localName, "enemy") then
+            return false
+        end
+        if string.find(targetName, "team") and string.find(localName, "team") then
+            if string.sub(targetName, -1) == string.sub(localName, -1) then
+                return true
+            end
         end
     end
     return false
 end
 
-local function getAllTargets()
-    local targets = {}
-
-    if config.masterTarget == "Players" or config.masterTarget == "Both" then
-        for _, pl in ipairs(Players:GetPlayers()) do
-            if pl ~= localPlayer then
-                table.insert(targets, pl)
-            end
-        end
-    end
-
-    if config.masterTarget == "NPCs" or config.masterTarget == "Both" then
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("Model") and isNPCModel(obj) then
-                if not Players:GetPlayerFromCharacter(obj) then
-                    table.insert(targets, obj)
-                end
-            end
-        end
-    end
-
-    return targets
-end
-
+-- ============================================
+-- CORE FUNCTIONS
+-- ============================================
 local function getTargetCharacter(target)
     if not target then return nil end
     if typeof(target) == "Instance" then
@@ -300,42 +254,52 @@ local function getTargetName(target)
     return tostring(target)
 end
 
--- ФИКС: Полная проверка на союзников
-local function isTeammate(p)
-    if not (localPlayer and p) then return false end
-    if typeof(p) == "Instance" and p:IsA("Player") then
-        -- 1. Стандартная проверка Team
-        if localPlayer.Team and p.Team then
-            return localPlayer.Team == p.Team
+local function isNPCModel(model)
+    if not model or not model:IsA("Model") then return false end
+    if Players:GetPlayerFromCharacter(model) then return false end
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health ~= nil then
+        if model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") then
+            return true
         end
-        -- 2. Проверка TeamColor
-        if localPlayer.TeamColor and p.TeamColor then
-            return localPlayer.TeamColor == p.TeamColor
+    end
+    return false
+end
+
+local function getAllTargets()
+    local targets = {}
+    if config.masterTarget == "Players" or config.masterTarget == "Both" then
+        for _, pl in ipairs(Players:GetPlayers()) do
+            if pl ~= localPlayer then
+                table.insert(targets, pl)
+            end
         end
-        -- 3. Проверка атрибутов Team
-        local localTeamAttr = localPlayer:GetAttribute("Team")
-        local targetTeamAttr = p:GetAttribute("Team")
-        if localTeamAttr and targetTeamAttr then
-            return localTeamAttr == targetTeamAttr
+    end
+    if config.masterTarget == "NPCs" or config.masterTarget == "Both" then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and isNPCModel(obj) then
+                if not Players:GetPlayerFromCharacter(obj) then
+                    table.insert(targets, obj)
+                end
+            end
         end
-        -- 4. Проверка атрибутов Side
-        local localSideAttr = localPlayer:GetAttribute("Side")
-        local targetSideAttr = p:GetAttribute("Side")
-        if localSideAttr and targetSideAttr then
-            return localSideAttr == targetSideAttr
-        end
-        -- 5. Проверка вложенных объектов Team
-        local localTeamObj = localPlayer:FindFirstChild("Team")
-        local targetTeamObj = p:FindFirstChild("Team")
-        if localTeamObj and targetTeamObj then
-            return localTeamObj.Value == targetTeamObj.Value
-        end
-        -- 6. Проверка вложенных объектов Side
-        local localSideObj = localPlayer:FindFirstChild("Side")
-        local targetSideObj = p:FindFirstChild("Side")
-        if localSideObj and targetSideObj then
-            return localSideObj.Value == targetSideObj.Value
-        end
+    end
+    return targets
+end
+
+local function plralive(target)
+    if not target then return false end
+    if typeof(target) == "Instance" and target:IsA("Player") then
+        local character = target.Character
+        if not character then return false end
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return false end
+        return humanoid.Health > 0
+    end
+    if typeof(target) == "Instance" and target:IsA("Model") then
+        local humanoid = target:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return false end
+        return humanoid.Health > 0
     end
     return false
 end
@@ -343,7 +307,6 @@ end
 local function addesp(targetPlayer)
     if not targetPlayer then return false end
     if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") and targetPlayer == localPlayer then return false end
-
     local mode = config.targetMode or "Enemies"
     if mode == "Enemies" then
         if typeof(targetPlayer) == "Instance" and targetPlayer:IsA("Player") then
@@ -376,673 +339,98 @@ local function addesp(targetPlayer)
     end
 end
 
-local function plralive(target)
-    if not target then return false end
-
-    if typeof(target) == "Instance" and target:IsA("Player") then
-        local character = target.Character
-        if not character then return false end
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if not humanoid then return false end
-        return humanoid.Health > 0
-    end
-
-    if typeof(target) == "Instance" and target:IsA("Model") then
-        local humanoid = target:FindFirstChildOfClass("Humanoid")
-        if not humanoid then return false end
-        return humanoid.Health > 0
-    end
-
-    return false
-end
-
-
-local function saveTargetOriginalPosition(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar then return end
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return end
-    
-    config.autoFarmOriginalPositions[target] = {
-        position = targetRoot.Position,
-        cframe = targetRoot.CFrame,
-        timestamp = tick()
-    }
-end
-
-local function restoreTargetOriginalPosition(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar then return end
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return end
-    
-    local savedData = config.autoFarmOriginalPositions[target]
-    if savedData then
-        pcall(function()
-            targetRoot.CFrame = savedData.cframe
-        end)
-        config.autoFarmOriginalPositions[target] = nil
-    end
-end
-
-local function getValidAutoFarmTargets()
-    local validTargets = {}
-    
-    local candidates = getAllTargets()
-    for _, t in ipairs(candidates) do
-        if t ~= localPlayer and plralive(t) then
-            local shouldTarget = false
-            if config.masterTarget == "NPCs" then
-                if typeof(t) == "Instance" and t:IsA("Model") then
-                    shouldTarget = true
-                else
-                    shouldTarget = false
-                end
-            elseif config.masterTarget == "Players" then
-                if typeof(t) == "Instance" and t:IsA("Player") then
-                    if not isTeammate(t) or config.masterTeamTarget == "All" then
-                        shouldTarget = true
-                    else
-                        shouldTarget = false
-                    end
-                else
-                    shouldTarget = false
-                end
-            elseif config.masterTarget == "Both" then
-                shouldTarget = true
-            end
-
-            if shouldTarget then
-                local humanoid = nil
-                local char = getTargetCharacter(t)
-                if char then
-                    humanoid = char:FindFirstChildOfClass("Humanoid")
-                end
-                if humanoid and humanoid.Health > 0 then
-                    if not config.autoFarmCompleted[t] then
-                        table.insert(validTargets, t)
-                    end
-                end
-            end
-        end
-    end
-
-    table.sort(validTargets, function(a, b)
-        local charA = getTargetCharacter(a)
-        local charB = getTargetCharacter(b)
-        local rootA = charA and (charA:FindFirstChild("HumanoidRootPart") or charA:FindFirstChild("Head"))
-        local rootB = charB and (charB:FindFirstChild("HumanoidRootPart") or charB:FindFirstChild("Head"))
-        local localRoot = localPlayer.Character and (localPlayer.Character:FindFirstChild("HumanoidRootPart") or localPlayer.Character:FindFirstChild("Head"))
-        
-        if not localRoot then return false end
-        if not rootA then return false end
-        if not rootB then return true end
-        
-        local distA = (localRoot.Position - rootA.Position).Magnitude
-        local distB = (localRoot.Position - rootB.Position).Magnitude
-        
-        return distA < distB
-    end)
-    
-    return validTargets
-end
-
-local function tptocross(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar or not localPlayer.Character or not camera then 
-        return false 
-    end
-    
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    local targetHead = targetChar:FindFirstChild("Head")
-    if not targetRoot then return false end
-    local targetPart = nil
-    if config.autoFarmTargetPart == "Head" and targetHead then
-        targetPart = targetHead
-    else
-        targetPart = targetRoot
-    end
-    
-    if not targetPart then return false end
-    local cameraPos = camera.CFrame.Position
-    local cameraLook = camera.CFrame.LookVector
-    local crosshairWorldPos = cameraPos + (cameraLook * config.autoFarmDistance)
-    crosshairWorldPos = crosshairWorldPos + Vector3.new(0, config.autoFarmVerticalOffset, 0)
-    local partOffset = targetPart.Position - targetRoot.Position
-    local newRootPosition = crosshairWorldPos - partOffset
-    pcall(function()
-        targetRoot.CFrame = CFrame.new(newRootPosition)
-        local humanoid = targetChar:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid:MoveTo(cameraPos)
-        end
-    end)
-    
-    return true
-end
-
-local function tptocrossExact(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar or not localPlayer.Character or not camera then 
-        return false 
-    end
-    
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    local targetHead = targetChar:FindFirstChild("Head")
-    if not targetRoot then return false end
-    
-    local targetPart = nil
-    if config.autoFarmTargetPart == "Head" and targetHead then
-        targetPart = targetHead
-    else
-        targetPart = targetRoot
-    end
-    
-    if not targetPart then return false end
-    
-    local viewportSize = camera.ViewportSize
-    local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-    local ray = camera:ScreenPointToRay(screenCenter.X, screenCenter.Y)
-    local crosshairWorldPos = ray.Origin + (ray.Direction * config.autoFarmDistance)
-    crosshairWorldPos = crosshairWorldPos + Vector3.new(0, config.autoFarmVerticalOffset, 0)
-    local partOffset = targetPart.Position - targetRoot.Position
-    local newRootPosition = crosshairWorldPos - partOffset
-    pcall(function()
-        targetRoot.CFrame = CFrame.new(newRootPosition)
-        
-        local humanoid = targetChar:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            local lookAt = CFrame.new(targetRoot.Position, camera.CFrame.Position)
-            targetRoot.CFrame = lookAt
-        end
-    end)
-    
-    return true
-end
-local function tptocrossWithAlignment(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar or not localPlayer.Character or not camera then 
-        return false 
-    end
-    
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    local targetHead = targetChar:FindFirstChild("Head")
-    if not targetRoot then return false end
-    
-    if not config.autoFarmOriginalPositions[target] then
-        saveTargetOriginalPosition(target)
-    end
-
-    local cameraCFrame = camera.CFrame
-    local forward = cameraCFrame.LookVector
-    local cameraPos = cameraCFrame.Position
-    local targetPos = cameraPos + (forward * config.autoFarmDistance)
-    targetPos = targetPos + Vector3.new(0, config.autoFarmVerticalOffset, 0)
-    local alignPart = nil
-    if config.autoFarmTargetPart == "Head" and targetHead then
-        alignPart = targetHead
-    else
-        alignPart = targetRoot
-    end
-    
-    if not alignPart then return false end
-    local offsetFromRoot = alignPart.Position - targetRoot.Position
-    local newRootPos = targetPos - offsetFromRoot
-
-    pcall(function()
-        local directionToCamera = (cameraPos - newRootPos).Unit
-        local lookAt = CFrame.new(newRootPos, newRootPos + directionToCamera)
-        targetRoot.CFrame = lookAt
-    end)
-    
-    return true
-end
-
-
-local function checkTargetHealth(target)
-    if not target then return false end
+local function chooseBodyPartInstance(target)
     local char = getTargetCharacter(target)
-    if not char then return false end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-    
-    return humanoid.Health > 0
-end
-local function autoFarmProcess()
-    if config.autoFarmLoop then
-        config.autoFarmLoop:Disconnect()
-        config.autoFarmLoop = nil
-    end
-    
-    config.autoFarmLoop = RunService.Heartbeat:Connect(function()
-        if not config.autoFarmEnabled or not localPlayer.Character or not camera then
-            if config.autoFarmLoop then
-                config.autoFarmLoop:Disconnect()
-                config.autoFarmLoop = nil
-            end
-            return
-        end
-
-        local validTargets = getValidAutoFarmTargets()
-        if #validTargets == 0 then
-            config.currentAutoFarmTarget = nil
-            config.autoFarmIndex = 1
-            config.autoFarmCompleted = {}
-            return
-        end
-        
-        if not config.currentAutoFarmTarget or config.autoFarmCompleted[config.currentAutoFarmTarget] then
-            for i = config.autoFarmIndex, #validTargets do
-                local target = validTargets[i]
-                if not config.autoFarmCompleted[target] then
-                    config.currentAutoFarmTarget = target
-                    config.autoFarmIndex = i
-                    break
-                end
-            end
-            
-            if not config.currentAutoFarmTarget then
-                config.autoFarmIndex = 1
-                config.currentAutoFarmTarget = validTargets[1]
-            end
-            
-            if config.currentAutoFarmTarget then
-            end
-        end
-        
-        if config.currentAutoFarmTarget and getTargetCharacter(config.currentAutoFarmTarget) then
-            if not checkTargetHealth(config.currentAutoFarmTarget) then
-                restoreTargetOriginalPosition(config.currentAutoFarmTarget)
-                config.autoFarmCompleted[config.currentAutoFarmTarget] = true
-                config.currentAutoFarmTarget = nil
-                return
-            end
-            
-            if not config.autoFarmOriginalPositions[config.currentAutoFarmTarget] then
-                saveTargetOriginalPosition(config.currentAutoFarmTarget)
-            end
-
-            local success = tptocrossWithAlignment(config.currentAutoFarmTarget)
-            if not success then
-                teleportTargetToLocalPlayerFront(config.currentAutoFarmTarget)
-            end
-        end
-    end)
-end
-
-local function stopAutoFarm()
-    if config.autoFarmLoop then
-        config.autoFarmLoop:Disconnect()
-        config.autoFarmLoop = nil
-    end
-    
-    for target, _ in pairs(config.autoFarmOriginalPositions) do
-        if target and getTargetCharacter(target) then
-            restoreTargetOriginalPosition(target)
-        end
-    end
-    
-    config.currentAutoFarmTarget = nil
-    config.autoFarmIndex = 1
-    config.autoFarmCompleted = {}
-    config.autoFarmOriginalPositions = {}
-    config.autoFarmEnabled = false
-end
-
-local function teleportTargetToLocalPlayerFront(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar or not localPlayer.Character then 
-        return false 
-    end
-    
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot or not localRoot then return false end
-    
-    local localCFrame = localRoot.CFrame
-    local frontOffset = localCFrame.LookVector * config.autoFarmDistance
-    local frontPos = localRoot.Position + frontOffset
-    frontPos = Vector3.new(frontPos.X, targetRoot.Position.Y, frontPos.Z)
-    
-    pcall(function()
-        targetRoot.CFrame = CFrame.new(frontPos, localRoot.Position)
-    end)
-    
-    return true
-end
-
-local function raycastFromPlayer(player)
-    if not player or not player.Character then return false end
-    local character = player.Character
-    local head = character:FindFirstChild("Head")
-    if not head then return false end
-    
-    local lookVector = head.CFrame.LookVector
-    local rayOrigin = head.Position
-    local rayDirection = lookVector * 1000
-    local ray = Ray.new(rayOrigin, rayDirection)
-    
-    local ignoreList = {character}
-    
-    local hit, position = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
-    
-    if hit then
-        local hitParent = hit.Parent
-        if hitParent and hitParent:IsA("Model") then
-            local hitPlayer = Players:GetPlayerFromCharacter(hitParent)
-            if hitPlayer == localPlayer then
-                return true, position, lookVector
-            end
-        end
-    end
-    
-    return false, nil, nil
-end
-
-local function teleportLocalPlayer(direction, distance)
-    if not localPlayer.Character then return end
-    local humanoidRootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-    
-    local currentPos = humanoidRootPart.Position
-    local newPos = currentPos + (direction * distance)
-    
-    if not config.originalPosition then
-        config.originalPosition = currentPos
-    end
-    
-    pcall(function()
-        humanoidRootPart.CFrame = CFrame.new(newPos)
-    end)
-    
-    config.isTeleported = true
-end
-
-local function returnToOriginalPosition()
-    if not config.originalPosition or not localPlayer.Character then return end
-    local humanoidRootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-    
-    pcall(function()
-        humanoidRootPart.CFrame = CFrame.new(config.originalPosition)
-    end)
-    
-    config.originalPosition = nil
-    config.isTeleported = false
-    config.currentAntiAimTarget = nil
-end
-
-local function teleportAboveTarget(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar or not localPlayer.Character then return end
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot or not localRoot then return end
-    
-    local targetPos = targetRoot.Position
-    local abovePos = targetPos + Vector3.new(0, config.antiAimAboveHeight, 0)
-    
-    if not config.originalPosition then
-        config.originalPosition = localRoot.Position
-    end
-    
-    pcall(function()
-        localRoot.CFrame = CFrame.new(abovePos)
-    end)
-    
-    config.currentAntiAimTarget = target
-    config.isTeleported = true
-end
-
-local function teleportBehindTarget(target)
-    local targetChar = getTargetCharacter(target)
-    if not targetChar or not localPlayer.Character then return end
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot or not localRoot then return end
-    
-    local targetCFrame = targetRoot.CFrame
-    local behindOffset = -targetCFrame.LookVector * config.antiAimBehindDistance
-    local behindPos = targetRoot.Position + behindOffset
-    
-    if not config.originalPosition then
-        config.originalPosition = localRoot.Position
-    end
-    
-    pcall(function()
-        localRoot.CFrame = CFrame.new(behindPos)
-    end)
-    
-    config.currentAntiAimTarget = target
-    config.isTeleported = true
-end
-
-
-local function findClosestEnemy()
-    if not localPlayer.Character then return nil end
-    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not localRoot then return nil end
-    
-    local best = nil
-    local bestMetric = nil
-    local mode = config.antiAimGetTarget or config.masterGetTarget or "Closest"
-
-    for _, t in ipairs(getAllTargets()) do
-        if t ~= localPlayer and plralive(t) then
-            local shouldTarget = false
-            if config.masterTarget == "NPCs" then
-                if typeof(t) == "Instance" and t:IsA("Model") then
-                    shouldTarget = true
-                end
-            elseif config.masterTarget == "Players" then
-                if typeof(t) == "Instance" and t:IsA("Player") then
-                    if config.targetMode == "Enemies" then
-                        shouldTarget = not isTeammate(t)
-                    elseif config.targetMode == "Teams" then
-                        shouldTarget = isTeammate(t)
-                    elseif config.targetMode == "All" then
-                        shouldTarget = true
-                    end
-                end
-            elseif config.masterTarget == "Both" then
-                if typeof(t) == "Instance" and t:IsA("Player") then
-                    if config.targetMode == "Enemies" then
-                        shouldTarget = not isTeammate(t)
-                    elseif config.targetMode == "Teams" then
-                        shouldTarget = isTeammate(t)
-                    elseif config.targetMode == "All" then
-                        shouldTarget = true
-                    end
-                else
-                    shouldTarget = true
-                end
-            end
-            
-            if shouldTarget then
-                local tgtChar = getTargetCharacter(t)
-                local playerRoot = tgtChar and (tgtChar:FindFirstChild("HumanoidRootPart") or tgtChar:FindFirstChild("Head"))
-                local humanoid = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
-                if playerRoot then
-                    local distance = (localRoot.Position - playerRoot.Position).Magnitude
-                    if mode == "Closest" then
-                        if best == nil or distance < bestMetric then
-                            bestMetric = distance
-                            best = t
-                        end
-                    else
-                        local healthVal = 1e6
-                        if humanoid then
-                            healthVal = humanoid.Health
-                        end
-                        if best == nil or healthVal < bestMetric then
-                            bestMetric = healthVal
-                            best = t
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    return best
-end
-
-local function antiAimUpdate()
-    if not config.antiAimEnabled then
-        if config.isTeleported then
-            returnToOriginalPosition()
-        end
-        return
-    end
-    
-    if config.antiAimOrbitEnabled then
-        local closestEnemy = findClosestEnemy()
-        if closestEnemy and getTargetCharacter(closestEnemy) then
-            local targetChar = getTargetCharacter(closestEnemy)
-            local targetPart = targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart")
-            if targetPart and localPlayer.Character then
-                config.currentAntiAimTarget = closestEnemy
-                if not config.originalPosition then
-                    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if localRoot then
-                        config.originalPosition = localRoot.Position
-                    end
-                end
-                local tpos = targetPart.Position
-                local angle = tick() * (config.antiAimOrbitSpeed or 8)
-                local radius = config.antiAimOrbitRadius or 5
-                local height = config.antiAimOrbitHeight or 0
-                local offset = Vector3.new(math.cos(angle) * radius, height, math.sin(angle) * radius)
-                local newPos = tpos + offset
-                pcall(function()
-                    local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if localRoot then
-                        localRoot.CFrame = CFrame.new(newPos, tpos)
-                    end
-                    if camera and targetPart then
-                        camera.CFrame = CFrame.lookAt(camera.CFrame.Position, targetPart.Position)
-                    end
-                end)
-                config.isTeleported = true
-            end
+    if not char then return nil, "Head" end
+    local bp = config.bodypart or "Head"
+    if bp == "Head" then
+        return char:FindFirstChild("Head"), "Head"
+    elseif bp == "HumanoidRootPart" then
+        return char:FindFirstChild("HumanoidRootPart"), "HumanoidRootPart"
+    elseif bp == "Both" then
+        local roll = math.random(1, 100)
+        local primaryName, secondaryName
+        if roll <= 85 then
+            primaryName = "HumanoidRootPart"
+            secondaryName = "Head"
         else
-            if config.isTeleported then
-                returnToOriginalPosition()
-            end
-            config.currentAntiAimTarget = nil
+            primaryName = "Head"
+            secondaryName = "HumanoidRootPart"
         end
-        return
-    end
-
-    if config.antiAimAbovePlayer then
-        local closestEnemy = findClosestEnemy()
-        if closestEnemy then
-            teleportAboveTarget(closestEnemy)
+        local primaryPart = char:FindFirstChild(primaryName)
+        if primaryPart then
+            return primaryPart, primaryName
+        else
+            local fallback = char:FindFirstChild(secondaryName)
+            return fallback, secondaryName
         end
-        return
-    end
-    
-    if config.antiAimBehindPlayer then
-        local closestEnemy = findClosestEnemy()
-        if closestEnemy then
-            teleportBehindTarget(closestEnemy)
-        end
-        return
-    end
-    if config.autoFarmEnabled then
-        if config.isTeleported then
-            returnToOriginalPosition()
-        end
-        return
-    end
-    
-    if not config.antiAimEnabled then
-        if config.isTeleported then
-            returnToOriginalPosition()
-        end
-        return
-    end
-    if config.raycastAntiAim then
-        local wasTargeted = false
-        
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= localPlayer and plralive(player) then
-                local isLooking, hitPosition, lookVector = raycastFromPlayer(player)
-                if isLooking then
-                    wasTargeted = true
-                    config.currentAntiAimTarget = player
-                    
-                    local teleportDirection = Vector3.new(-lookVector.Z, 0, lookVector.X)
-                    
-                    if math.random(1, 2) == 1 then
-                        teleportDirection = -teleportDirection
-                    end
-                    
-                    teleportLocalPlayer(teleportDirection.Unit, config.antiAimTPDistance)
-                    break
-                end
-            end
-        end
-        
-        if not wasTargeted and config.isTeleported then
-            returnToOriginalPosition()
-        end
-    end
-end
-
-local function RFD(targetPlayer)
-    local char = getTargetCharacter(targetPlayer)
-    if not char then return end
-    local head = char:FindFirstChild("Head")
-    if head then
-        for _, child in ipairs(head:GetChildren()) do
-            if child:IsA("Decal") then
-                local ok, t = pcall(function() return child.Texture end)
-                local nameLower = tostring(child.Name):lower()
-                local texLower = tostring(t or ""):lower()
-                if nameLower == "face" or string.find(nameLower, "face") or string.find(texLower, "face") then
-                    pcall(function() child:Destroy() end)
-                end
-            end
-        end
+    else
+        local found = char:FindFirstChild(bp) or char:FindFirstChild("Head")
+        return found, (found and found.Name) or "Head"
     end
 end
 
 local function wallCheck(targetPos, sourcePos)
-    if not config.wallc then
-        return true
-    end
-
+    if not config.wallc then return true end
     if (targetPos - sourcePos).Magnitude <= 0 then return true end
-
     local rayDirection = (targetPos - sourcePos)
     local ray = Ray.new(sourcePos, rayDirection.Unit * rayDirection.Magnitude)
     local ignoreList = {}
-
     if localPlayer and localPlayer.Character then
         table.insert(ignoreList, localPlayer.Character)
     end
-
     for _, otherPlayer in ipairs(Players:GetPlayers()) do
         if otherPlayer.Character then
             table.insert(ignoreList, otherPlayer.Character)
         end
     end
-
     local hit, position = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
     if hit and position then
         local distanceToTarget = (targetPos - sourcePos).Magnitude
         local distanceToHit = (position - sourcePos).Magnitude
         return distanceToHit >= (distanceToTarget - 2)
     end
-
     return true
+end
+
+-- ============================================
+-- ESP FUNCTIONS
+-- ============================================
+local function healthColor(humanoid)
+    if not humanoid then return config.espc end
+    local maxH = humanoid.MaxHealth or 100
+    local health = math.clamp(humanoid.Health / maxH, 0, 1)
+    local r = 1 - health
+    local g = health
+    return Color3.new(r, g, 0)
+end
+
+local function removeESPLabel(targetPlayer)
+    if not targetPlayer then return end
+    local data = config.espData[targetPlayer]
+    if not data then return end
+    if data.connection then
+        pcall(function() data.connection:Disconnect() end)
+        data.connection = nil
+    end
+    if data.screenGui and data.screenGui.Parent then
+        pcall(function() data.screenGui:Destroy() end)
+    end
+    config.espData[targetPlayer] = nil
+end
+
+local function removeHighlightESP(targetPlayer)
+    if not targetPlayer then return end
+    local h = config.highlightData[targetPlayer]
+    if h and h.Parent then
+        pcall(function() h:Destroy() end)
+    end
+    config.highlightData[targetPlayer] = nil
 end
 
 local function high(targetPlayer)
     if not targetPlayer or not getTargetCharacter(targetPlayer) then return end
     if not addesp(targetPlayer) then return end
-
     if config.highlightData[targetPlayer] then
         local existing = config.highlightData[targetPlayer]
         if existing and existing.Parent then
@@ -1056,66 +444,27 @@ local function high(targetPlayer)
             config.highlightData[targetPlayer] = nil
         end
     end
-
     local character = getTargetCharacter(targetPlayer)
     if not character then return end
-
     local highlight = Instance.new("Highlight")
     highlight.Name = "PlayerHighlight"
     highlight.FillColor = config.espc
     highlight.FillTransparency = 0.5
     highlight.OutlineColor = Color3.new(1, 1, 1)
     highlight.OutlineTransparency = 0
-    local okDepth, _ = pcall(function() highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop end)
-    if not okDepth then
-    end
+    pcall(function() highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop end)
     highlight.Parent = character
-
     if targetPlayer == config.currentTarget or targetPlayer == config.aimbotCurrentTarget then
         highlight.FillColor = config.esptargetc
     else
         highlight.FillColor = config.espc
     end
-
     config.highlightData[targetPlayer] = highlight
 end
 
-local function removeHighlightESP(targetPlayer)
-    if not targetPlayer then return end
-    local h = config.highlightData[targetPlayer]
-    if h and h.Parent then
-        pcall(function() h:Destroy() end)
-    end
-    config.highlightData[targetPlayer] = nil
-end
-local function removeESPLabel(targetPlayer)
-    if not targetPlayer then return end
-    local data = config.espData[targetPlayer]
-    if not data then return end
-    if data.connection then
-        pcall(function() data.connection:Disconnect() end)
-        data.connection = nil
-    end
-    
-    if data.screenGui and data.screenGui.Parent then
-        pcall(function() data.screenGui:Destroy() end)
-    end
-    
-    config.espData[targetPlayer] = nil
-end
-
-local function healthColor(humanoid)
-    if not humanoid then return config.espc end
-    local maxH = humanoid.MaxHealth or 100
-    local health = math.clamp(humanoid.Health / maxH, 0, 1)
-    local r = 1 - health
-    local g = health
-    return Color3.new(r, g, 0)
-end
 local function makeesp(targetPlayer)
     if not targetPlayer then return end
     if not addesp(targetPlayer) then return end
-    
     if config.espData[targetPlayer] then
         local oldData = config.espData[targetPlayer]
         if oldData.connection then
@@ -1131,19 +480,11 @@ local function makeesp(targetPlayer)
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.IgnoreGuiInset = true
-    
     local parent = localPlayer:FindFirstChild("PlayerGui")
     if not parent then
         parent = game:GetService("CoreGui")
     end
     screenGui.Parent = parent
-
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "ESP_" .. getTargetName(targetPlayer)
-    screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    screenGui.IgnoreGuiInset = true
-    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
     local label = Instance.new("TextLabel")
     label.Name = "ESPLabel"
@@ -1209,6 +550,7 @@ local function makeesp(targetPlayer)
     if targetPlayer == config.currentTarget or targetPlayer == config.aimbotCurrentTarget then
         label.TextColor3 = config.esptargetc
     end
+
     local function startUpdater()
         if config.espData[targetPlayer] and config.espData[targetPlayer].connection then
             pcall(function() config.espData[targetPlayer].connection:Disconnect() end)
@@ -1217,7 +559,6 @@ local function makeesp(targetPlayer)
         local conn = RunService.RenderStepped:Connect(function()
             local tchar = getTargetCharacter(targetPlayer)
             local charExists = tchar and tchar.Parent
-            
             if not charExists then
                 if label then label.Visible = false end
                 if boxFrame then boxFrame.Visible = false end
@@ -1225,7 +566,6 @@ local function makeesp(targetPlayer)
                 if headDot then headDot.Visible = false end
                 return
             end
-
             if not addesp(targetPlayer) then
                 label.Visible = false
                 boxFrame.Visible = false
@@ -1233,7 +573,6 @@ local function makeesp(targetPlayer)
                 headDot.Visible = false
                 return
             end
-
             local head = tchar:FindFirstChild("Head")
             local root = tchar:FindFirstChild("HumanoidRootPart") or tchar:FindFirstChild("Torso") or tchar:FindFirstChild("UpperTorso")
             if not head or not root then
@@ -1243,7 +582,6 @@ local function makeesp(targetPlayer)
                 headDot.Visible = false
                 return
             end
-
             local topPos = head.Position + Vector3.new(0, 0.4, 0)
             local bottomPos = root.Position - Vector3.new(0, 1.0, 0)
             local midPos = (topPos + bottomPos) * 0.5
@@ -1257,7 +595,6 @@ local function makeesp(targetPlayer)
             local heightPx = math.abs(bottomScreenY - topScreenY)
             if heightPx <= 2 then heightPx = 2 end
             local widthPx = math.clamp(heightPx * 0.45, 4, 400)
-
             local humanoid = tchar:FindFirstChildOfClass("Humanoid")
             local hpRatio = 1
             if humanoid then
@@ -1266,7 +603,6 @@ local function makeesp(targetPlayer)
                     hpRatio = math.clamp(humanoid.Health / maxH, 0, 1)
                 end
             end
-
             local hpColor = Color3.new(1,1,1)
             if humanoid then
                 hpColor = healthColor(humanoid)
@@ -1275,7 +611,6 @@ local function makeesp(targetPlayer)
             if config.espMasterEnabled and config.prefTextESP then
                 local text = string.format("%s [%d]", getTargetName(targetPlayer), humanoid and math.floor(humanoid.Health) or 0)
                 label.Text = text
-
                 local absWidth = 200
                 pcall(function()
                     if label.TextBounds and label.TextBounds.X and label.TextBounds.X > 0 then
@@ -1284,7 +619,6 @@ local function makeesp(targetPlayer)
                         absWidth = label.AbsoluteSize.X
                     end
                 end)
-
                 label.Size = UDim2.new(0, absWidth, 0, 18)
                 label.Position = UDim2.new(0, centerX, 0, topScreenY - 4)
                 label.Visible = onScreen
@@ -1303,7 +637,6 @@ local function makeesp(targetPlayer)
                 boxFrame.Visible = onScreen
                 boxFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
                 boxFrame.BackgroundTransparency = 0.7
-
                 if config.prefColorByHealth and humanoid then
                     boxOutline.Color = hpColor
                 else
@@ -1340,7 +673,6 @@ local function makeesp(targetPlayer)
             else
                 headDot.Visible = false
             end
-
         end)
 
         config.espData[targetPlayer] = {
@@ -1384,7 +716,6 @@ local function updateESPColors()
                 local tchar = getTargetCharacter(targetPlayer)
                 local humanoid = tchar and tchar:FindFirstChildOfClass("Humanoid")
                 local hpColor = (humanoid and config.prefColorByHealth) and healthColor(humanoid) or nil
-
                 if data.label then
                     if config.espMasterEnabled and config.prefTextESP then
                         if hpColor then
@@ -1397,7 +728,6 @@ local function updateESPColors()
                         data.label.Visible = false
                     end
                 end
-
                 if data.box then
                     if config.espMasterEnabled and config.prefBoxESP then
                         data.box.Visible = true
@@ -1408,7 +738,6 @@ local function updateESPColors()
                         data.box.Visible = false
                     end
                 end
-
                 if data.healthBG then
                     if config.espMasterEnabled and config.prefHealthESP and humanoid then
                         data.healthBG.Visible = true
@@ -1420,7 +749,6 @@ local function updateESPColors()
                         data.healthBG.Visible = false
                     end
                 end
-
                 if data.headDot then
                     if config.espMasterEnabled and config.prefHeadDotESP then
                         data.headDot.Visible = true
@@ -1436,11 +764,9 @@ local function updateESPColors()
             end
         end
     end
-
     for _, targetPlayer in ipairs(toRemove) do
         config.espData[targetPlayer] = nil
     end
-
     local toRemoveHighlights = {}
     for targetPlayer, highlight in pairs(config.highlightData) do
         if not targetPlayer or not highlight or not highlight.Parent then
@@ -1457,7 +783,6 @@ local function updateESPColors()
             end
         end
     end
-
     for _, targetPlayer in ipairs(toRemoveHighlights) do
         config.highlightData[targetPlayer] = nil
     end
@@ -1466,7 +791,6 @@ end
 local function toggleHighlightESP(enabled)
     config.prefHighlightESP = enabled
     config.highlightesp = enabled and config.espMasterEnabled or false
-
     if config.espMasterEnabled and enabled then
         for _, target in ipairs(getAllTargets()) do
             if addesp(target) and target.Character then
@@ -1484,7 +808,6 @@ end
 local function toggleTextESP(enabled)
     config.prefTextESP = enabled
     config.espEnabled = enabled and config.espMasterEnabled or false
-
     if config.espMasterEnabled and enabled then
         for _, target in ipairs(getAllTargets()) do
             if addesp(target) then
@@ -1529,19 +852,16 @@ local function toggleHealthESP(enabled)
             end
         end
         updateESPColors()
-    else
     end
 end
 
 local function applyESPMaster(state)
     config.espMasterEnabled = state
-
     if not state then
         for targetPlayer, _ in pairs(config.espData) do
             removeESPLabel(targetPlayer)
         end
         config.espData = {}
-
         for targetPlayer, _ in pairs(config.highlightData) do
             removeHighlightESP(targetPlayer)
         end
@@ -1566,20 +886,12 @@ local function applyESPMaster(state)
             config.highlightesp = config.prefHighlightESP
         end
     end
-
     updateESPColors()
 end
 
-local function toggleESP(enabled)
-    toggleTextESP(enabled)
-end
-
-local function removeAllFaceDecals()
-    for _, target in ipairs(getAllTargets()) do
-        RFD(target)
-    end
-end
-
+-- ============================================
+-- HITBOX EXPANDER FUNCTIONS (Separate from Silent Aim)
+-- ============================================
 local function saveOriginalPartInfo(targetPlayer, part)
     if not targetPlayer or not part then return end
     config.originalSizes[targetPlayer] = {
@@ -1588,45 +900,10 @@ local function saveOriginalPartInfo(targetPlayer, part)
     }
 end
 
-local function chooseBodyPartInstance(target)
-    local char = getTargetCharacter(target)
-    if not char then return nil, "Head" end
-
-    local bp = config.bodypart or "Head"
-
-    if bp == "Head" then
-        return char:FindFirstChild("Head"), "Head"
-    elseif bp == "HumanoidRootPart" then
-        return char:FindFirstChild("HumanoidRootPart"), "HumanoidRootPart"
-    elseif bp == "Both" then
-        local roll = math.random(1, 100)
-        local primaryName, secondaryName
-        if roll <= 85 then
-            primaryName = "HumanoidRootPart"
-            secondaryName = "Head"
-        else
-            primaryName = "Head"
-            secondaryName = "HumanoidRootPart"
-        end
-        local primaryPart = char:FindFirstChild(primaryName)
-        if primaryPart then
-            return primaryPart, primaryName
-        else
-            local fallback = char:FindFirstChild(secondaryName)
-            return fallback, secondaryName
-        end
-    else
-        local found = char:FindFirstChild(bp) or char:FindFirstChild("Head")
-        return found, (found and found.Name) or "Head"
-    end
-end
-
--- ФУНКЦИИ ДЛЯ HITBOX EXPANDER (НЕ ТРОГАТЬ)
 local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
     local char = getTargetCharacter(targetPlayer)
     if not char or targetPlayer == localPlayer then return end
     if not plralive(targetPlayer) then return end
-
     local part = chosenPart
     local partName = nil
     if not part then
@@ -1635,17 +912,10 @@ local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
         partName = part.Name
     end
     if not part then return end
-
     if not config.originalSizes[targetPlayer] then
         saveOriginalPartInfo(targetPlayer, part)
     end
-
-    local expansionSize = Vector3.new(
-        targetDiameter,
-        targetDiameter,
-        targetDiameter
-    )
-
+    local expansionSize = Vector3.new(targetDiameter, targetDiameter, targetDiameter)
     local useExpanded = true
     local chance = math.clamp(tonumber(config.hitchance) or 100, 0, 100)
     if chance <= 0 then
@@ -1659,7 +929,6 @@ local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
     else
         useExpanded = true
     end
-
     if useExpanded then
         config.targethbSizes[targetPlayer] = expansionSize
     else
@@ -1670,13 +939,11 @@ local function applySizeToPart(targetPlayer, targetDiameter, chosenPart)
             config.targethbSizes[targetPlayer] = Vector3.new(0.05, 0.05, 0.05)
         end
     end
-
     config.activeApplied[targetPlayer] = true
 end
 
 local function restorePartForPlayer(targetPlayer)
     if not targetPlayer or targetPlayer == localPlayer then return end
-
     local char = getTargetCharacter(targetPlayer)
     local original = config.originalSizes[targetPlayer]
     if not original then
@@ -1684,12 +951,10 @@ local function restorePartForPlayer(targetPlayer)
         config.targethbSizes[targetPlayer] = nil
         return
     end
-
     local part = nil
     if char then
         part = char:FindFirstChild(original.partName) or char:FindFirstChild(config.bodypart) or char:FindFirstChild("Head")
     end
-
     if part and original.size then
         pcall(function()
             part.Size = original.size
@@ -1702,7 +967,6 @@ local function restorePartForPlayer(targetPlayer)
             end
         end)
     end
-
     config.activeApplied[targetPlayer] = nil
     config.originalSizes[targetPlayer] = nil
     config.targethbSizes[targetPlayer] = nil
@@ -1712,9 +976,7 @@ end
 local function tnormalsize(targetPlayer)
     local char = getTargetCharacter(targetPlayer)
     if not char then return end  
-
     local torso = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
-
     if torso and not config.hitboxOriginalSizes[targetPlayer] then
         config.hitboxOriginalSizes[targetPlayer] = {
             part = torso,
@@ -1722,25 +984,22 @@ local function tnormalsize(targetPlayer)
         }
     end
 end
+
 local function expandhb(targetPlayer, size)
     if not targetPlayer then return end
     if targetPlayer == localPlayer then return end
     if not plralive(targetPlayer) then return end  
-
     local char = getTargetCharacter(targetPlayer)
     if not char then return end
     local torso = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")  
     if not torso then return end  
-
     tnormalsize(targetPlayer)
     local expansionSize = Vector3.new(size, size, size)
     config.hitboxLastSize[targetPlayer] = size
-
     config.hitboxExpandedParts[targetPlayer] = {
         part = torso,
         targetSize = expansionSize
     }
-    
     if config.hitboxEnabled then
         pcall(function()
             torso.Size = expansionSize
@@ -1753,7 +1012,6 @@ end
 
 local function restoreTorso(targetPlayer)
     if not targetPlayer then return end  
-
     local original = config.hitboxOriginalSizes[targetPlayer]
     if original and original.part and original.part.Parent then
         pcall(function()
@@ -1762,7 +1020,6 @@ local function restoreTorso(targetPlayer)
             original.part.CanCollide = true
         end)
     end
-
     config.hitboxExpandedParts[targetPlayer] = nil
     config.hitboxOriginalSizes[targetPlayer] = nil
 end
@@ -1774,7 +1031,6 @@ local function updateHitboxes()
         end  
         return  
     end
-
     for player, data in pairs(config.hitboxExpandedParts) do
         if not player or not plralive(player) or not getTargetCharacter(player) then
             restoreTorso(player)
@@ -1795,16 +1051,13 @@ end
 local function targethb(player)
     if not player or player == localPlayer then return false end  
     if not plralive(player) then return false end  
-
     local mode = config.hitboxTeamTarget or "Enemies"
-
     if typeof(player) == "Instance" and player:IsA("Model") then
         if mode == "Teams" then
             return false
         end
         return true
     end
-
     if mode == "Enemies" then
         return not isTeammate(player)
     elseif mode == "Teams" then
@@ -1812,13 +1065,11 @@ local function targethb(player)
     elseif mode == "All" then
         return true
     end
-
     return false
 end
 
 local function applyhb()
     if not config.hitboxEnabled then return end  
-
     for _, target in ipairs(getAllTargets()) do  
         if targethb(target) then
             local size = config.hitboxSize
@@ -1833,7 +1084,6 @@ end
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function(char)
         task.wait(0.3)
-
         if config.hitboxEnabled and targethb(player) then
             local size = config.hitboxSize
             config.hitboxLastSize[player] = size
@@ -1845,7 +1095,6 @@ end)
 for _, player in ipairs(Players:GetPlayers()) do
     player.CharacterAdded:Connect(function()
         task.wait(0.3)
-
         if config.hitboxEnabled and targethb(player) then
             local size = config.hitboxSize
             config.hitboxLastSize[player] = size
@@ -1856,7 +1105,6 @@ end
 
 RunService.Heartbeat:Connect(updateHitboxes)
 
--- ФУНКЦИЯ HB ТОЛЬКО ДЛЯ HITBOX EXPANDER
 local function hb()
     for playerObj, targetSize in pairs(config.targethbSizes) do
         if playerObj and playerObj ~= localPlayer and getTargetCharacter(playerObj) and plralive(playerObj) then
@@ -1868,12 +1116,10 @@ local function hb()
                 local p2 = getTargetCharacter(playerObj):FindFirstChild("Head")
                 part = p1 or p2
             end
-
             if part then
                 local currentSize = part.Size
                 local lerpAlpha = math.clamp(tonumber(config.predic) or 1, 0, 1)
                 local newSize = currentSize:Lerp(targetSize, lerpAlpha)
-
                 pcall(function()
                     part.Size = newSize
                     part.Transparency = 1
@@ -1887,15 +1133,18 @@ local function hb()
             end
         end
     end
-    
     updateHitboxes()
 end
 
+RunService.Heartbeat:Connect(hb)
+
+-- ============================================
+-- AIMBOT FUNCTIONS
+-- ============================================
 local function shouldTargetAimbot(target)
     if not target then return false end
     if target == localPlayer then return false end
     if not plralive(target) then return false end
-    
     if typeof(target) == "Instance" and target:IsA("Model") then
         if config.masterTarget == "NPCs" or config.masterTarget == "Both" then
             return true
@@ -1903,7 +1152,6 @@ local function shouldTargetAimbot(target)
             return false
         end
     end
-
     local mode = config.aimbotTeamTarget or "Enemies"
     if mode == "Enemies" then
         return not isTeammate(target)
@@ -1915,33 +1163,26 @@ local function shouldTargetAimbot(target)
     return false
 end
 
-
 local function aimbotWallCheck(targetPos, sourcePos)
     if not config.aimbotWallCheck then return true end
-    
     if (targetPos - sourcePos).Magnitude <= 0 then return true end
-
     local rayDirection = (targetPos - sourcePos)
     local ray = Ray.new(sourcePos, rayDirection.Unit * rayDirection.Magnitude)
     local ignoreList = {}
-
     if localPlayer and localPlayer.Character then
         table.insert(ignoreList, localPlayer.Character)
     end
-
     for _, otherPlayer in ipairs(Players:GetPlayers()) do
         if otherPlayer.Character then
             table.insert(ignoreList, otherPlayer.Character)
         end
     end
-
     local hit, position = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
     if hit and position then
         local distanceToTarget = (targetPos - sourcePos).Magnitude
         local distanceToHit = (position - sourcePos).Magnitude
         return distanceToHit >= (distanceToTarget - 2)
     end
-
     return true
 end
 
@@ -1950,7 +1191,6 @@ local function getAimbotTargetPart(target)
     local partName = config.aimbotTargetPart or "Head"
     local char = getTargetCharacter(target)
     if not char then return nil end
-    
     if partName == "Head" then
         return char:FindFirstChild("Head")
     elseif partName == "HumanoidRootPart" then
@@ -1966,6 +1206,7 @@ local function smoothAim(currentCFrame, targetCFrame, strength)
     strength = math.clamp(strength or 0.5, 0, 1)
     return currentCFrame:Lerp(targetCFrame, strength)
 end
+
 local function aimbotUpdate()
     if not config.aimbotEnabled then
         if config.aimbotCurrentTarget then
@@ -1974,19 +1215,14 @@ local function aimbotUpdate()
         end
         return
     end
-    
     if not camera then camera = workspace.CurrentCamera end
     if not camera then return end
-    
     local viewportSize = camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
     local radiusPx = config.aimbot360Enabled and math.huge or config.aimbotFOVSize
-
     local candidates = {}
-
     local cameraCFrame = camera.CFrame
     local cameraPos = cameraCFrame.Position
-
     for _, target in ipairs(getAllTargets()) do
         if shouldTargetAimbot(target) then
             local targetPart = getAimbotTargetPart(target)
@@ -2010,7 +1246,6 @@ local function aimbotUpdate()
             end
         end
     end
-
     local bestCandidate = nil
     local selectionMode = config.aimbotGetTarget or config.masterGetTarget or "Closest"
     if #candidates > 0 then
@@ -2036,44 +1271,36 @@ local function aimbotUpdate()
             end
         end
     end
-
     local bestTarget = bestCandidate and bestCandidate.target or nil
     local bestPart = bestCandidate and bestCandidate.part or nil
-
     if config.aimbotCurrentTarget ~= bestTarget then
         config.aimbotCurrentTarget = bestTarget
         updateESPColors()
     end
-    
     if bestTarget and bestPart and localPlayer.Character then
         local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid and humanoid.Health > 0 then
             local targetPosition = bestPart.Position
             local currentCFrame = camera.CFrame
             local targetCFrame = CFrame.lookAt(currentCFrame.Position, targetPosition)
-            
             local strength = math.clamp(config.aimbotStrength, 0, 1)
             if strength < 1 then
                 targetCFrame = smoothAim(currentCFrame, targetCFrame, strength)
             end
-            
             camera.CFrame = targetCFrame
         end
     end
 end
 
-
 local function aimbotfov()
     if config.aimbotFOVRing and config.aimbotFOVRing.Parent then
         config.aimbotFOVRing:Destroy()
     end
-    
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "AimbotFOVRing"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
-    
     local ringFrame = Instance.new("Frame")
     ringFrame.Name = "RingFrame"
     ringFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -2082,26 +1309,23 @@ local function aimbotfov()
     ringFrame.BackgroundTransparency = 1
     ringFrame.Visible = config.aimbotEnabled
     ringFrame.Parent = screenGui
-    
     local ringCorner = Instance.new("UICorner")
     ringCorner.CornerRadius = UDim.new(1, 0)
     ringCorner.Parent = ringFrame
-    
     local ringStroke = Instance.new("UIStroke")
     ringStroke.Thickness = 1
     ringStroke.LineJoinMode = Enum.LineJoinMode.Round
     ringStroke.Color = Color3.fromRGB(255, 0, 0)
     ringStroke.Transparency = 0.3
     ringStroke.Parent = ringFrame
-    
     config.aimbotFOVRing = {
         ScreenGui = screenGui,
         RingFrame = ringFrame,
         RingStroke = ringStroke
     }
-    
     return config.aimbotFOVRing
 end
+
 local function updateAimbotFOVRing()
     if config.aimbotFOVRing and config.aimbotFOVRing.RingFrame then
         if config.aimbot360Enabled then
@@ -2114,16 +1338,13 @@ local function updateAimbotFOVRing()
     end
 end
 
-
 local function toggle360Aimbot(state)
     config.aimbot360Enabled = state
-    
     if state then
         config.aimbot360OriginalFOV = config.aimbotFOVSize
         if not config.aimbotEnabled then
             config.aimbotEnabled = true
         end
-        
         safeNotify({
             Title = "360° Aimbot",
             Content = "Enabled - Targeting in all directions",
@@ -2136,7 +1357,6 @@ local function toggle360Aimbot(state)
         if config.aimbot360OriginalFOV then
             config.aimbotFOVSize = config.aimbot360OriginalFOV
         end
-        
         safeNotify({
             Title = "360° Aimbot",
             Content = "Disabled",
@@ -2146,65 +1366,71 @@ local function toggle360Aimbot(state)
             BarColor = Color3.fromRGB(255, 0, 0)
         })
     end
-    
     updateAimbotFOVRing()
 end
 
-local function toggleOmnidirectionalAimbot(state)
-    config.aimbot360Omnidirectional = state
-    
-    if state then
-        safeNotify({
-            Title = "Omnidirectional Aimbot",
-            Content = "Enabled - Evenly targets all directions",
-            Audio = "rbxassetid://17208361335",
-            Length = 2,
-            Image = "rbxassetid://4483362458",
-            BarColor = Color3.fromRGB(0, 200, 255)
-        })
-    else
-        safeNotify({
-            Title = "Omnidirectional Aimbot",
-            Content = "Disabled - Prefers front targets",
-            Audio = "rbxassetid://17208361335",
-            Length = 1,
-            Image = "rbxassetid://4483362458",
-            BarColor = Color3.fromRGB(200, 200, 200)
-        })
+RunService.RenderStepped:Connect(aimbotUpdate)
+
+-- ============================================
+-- SILENT AIM - FIXED: No hitbox modification
+-- ============================================
+local function RFD(targetPlayer)
+    local char = getTargetCharacter(targetPlayer)
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    if head then
+        for _, child in ipairs(head:GetChildren()) do
+            if child:IsA("Decal") then
+                local ok, t = pcall(function() return child.Texture end)
+                local nameLower = tostring(child.Name):lower()
+                local texLower = tostring(t or ""):lower()
+                if nameLower == "face" or string.find(nameLower, "face") or string.find(texLower, "face") then
+                    pcall(function() child:Destroy() end)
+                end
+            end
+        end
     end
 end
 
-RunService.Heartbeat:Connect(hb)
-RunService.RenderStepped:Connect(aimbotUpdate)
-RunService.Heartbeat:Connect(antiAimUpdate)
+local function removeAllFaceDecals()
+    for _, target in ipairs(getAllTargets()) do
+        RFD(target)
+    end
+end
 
--- ФИКС: Переписан onRenderStep - УБРАНО ИЗМЕНЕНИЕ БОКСОВ
+local function lrfd()
+    if config.looprfd then return end
+    config.looprfd = true
+    task.spawn(function()
+        while config.Enabled do
+            removeAllFaceDecals()
+            task.wait(0.5)
+        end
+        config.looprfd = false
+    end)
+end
+
+-- FIXED: Silent Aim onRenderStep - NO HITBOX MODIFICATION
 local function onRenderStep()
     if not camera or not camera.Parent then
         camera = workspace.CurrentCamera
         if not camera then return end
     end
-
     if not gui.RingHolder or not gui.RingStroke then return end
-
     if not config.Enabled then
         gui.RingHolder.Visible = false
         return
     else
         gui.RingHolder.Visible = true
     end
-
     local viewportSize = camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
     local radiusPx = config.fovsize
-
     if gui.RingHolder then
         local currentSize = gui.RingHolder.AbsoluteSize and gui.RingHolder.AbsoluteSize.X or (config.fovsize * 2)
         radiusPx = currentSize / 2
     end
-
     local candidates = {}
-
     for _, pl in ipairs(getAllTargets()) do
         local bodyPart, chosenName = chooseBodyPartInstance(pl)
         local humanoid = nil
@@ -2212,7 +1438,6 @@ local function onRenderStep()
         if char then
             humanoid = char:FindFirstChildOfClass("Humanoid")
         end
-
         if bodyPart and humanoid and humanoid.Health > 0 then
             local mode = config.targetMode or "Enemies"
             local skip = false
@@ -2227,7 +1452,6 @@ local function onRenderStep()
             elseif mode == "All" then
                 skip = false
             end
-
             if not skip then
                 local topPos = bodyPart.Position
                 local screenPos3, onScreen = camera:WorldToViewportPoint(topPos)
@@ -2255,7 +1479,6 @@ local function onRenderStep()
             end
         end
     end
-
     local best = nil
     local selectionMode = config.silentGetTarget or config.masterGetTarget or "Closest"
     if #candidates > 0 then
@@ -2278,186 +1501,212 @@ local function onRenderStep()
             end
         end
     end
-
     if best then
         gui.RingStroke.Color = config.fovct
     else
         gui.RingStroke.Color = config.fovc
     end
-
     if config.currentTarget ~= (best and best.player) then
         config.currentTarget = best and best.player
         updateESPColors()
     end
-
-    -- ФИКС: УБРАНО ВСЯКОЕ ИЗМЕНЕНИЕ БОКСОВ
-    -- Silent Aim теперь ТОЛЬКО показывает FOV кольцо и выбирает цель
-    -- Боксы НЕ изменяются!
-
+    -- FIXED: NO HITBOX MODIFICATION HERE
     if config.rfd and best then
         RFD(best.player)
     end
 end
 
-local function setupDeathListener(targetPlayer)
-    local char = getTargetCharacter(targetPlayer)
-    if not char then return end
+RunService:BindToRenderStep("FOVhbUpdater_Modern", Enum.RenderPriority.First.Value, onRenderStep)
 
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-
-    if config.characterConnections[targetPlayer] then
-        pcall(function() config.characterConnections[targetPlayer]:Disconnect() end)
-        config.characterConnections[targetPlayer] = nil
-    end
-
-    config.characterConnections[targetPlayer] = humanoid.HealthChanged:Connect(function(health)
-        if health <= 0 then
-            restorePartForPlayer(targetPlayer)
-            restoreTorso(targetPlayer)
-            if config.currentTarget == targetPlayer then
-                config.currentTarget = nil
-                updateESPColors()
-            end
-            if config.aimbotCurrentTarget == targetPlayer then
-                config.aimbotCurrentTarget = nil
-                updateESPColors()
-            end
-        end
-    end)
-end
-
-local function cleanplrdata(targetPlayer)
-    if not targetPlayer then return end
-
-    config.autoFarmOriginalPositions[targetPlayer] = nil
-    config.autoFarmCompleted[targetPlayer] = nil
-    
-    if config.currentAutoFarmTarget == targetPlayer then
-        config.currentAutoFarmTarget = nil
-    end
-
-    restorePartForPlayer(targetPlayer)
-    restoreTorso(targetPlayer)
-    removeESPLabel(targetPlayer)
-    removeHighlightESP(targetPlayer)
-
-    if config.playerConnections[targetPlayer] then
-        for _, conn in ipairs(config.playerConnections[targetPlayer]) do
-            pcall(function() conn:Disconnect() end)
-        end
-        config.playerConnections[targetPlayer] = nil
-    end
-
-    if config.characterConnections[targetPlayer] then
-        pcall(function() config.characterConnections[targetPlayer]:Disconnect() end)
-        config.characterConnections[targetPlayer] = nil
-    end
-
-    config.activeApplied[targetPlayer] = nil
-    config.originalSizes[targetPlayer] = nil
-    config.targethbSizes[targetPlayer] = nil
-    config.hitboxExpandedParts[targetPlayer] = nil
-    config.hitboxOriginalSizes[targetPlayer] = nil
-
-    if config.currentTarget == targetPlayer then
-        config.currentTarget = nil
-        updateESPColors()
-    end
-    if config.aimbotCurrentTarget == targetPlayer then
-        config.aimbotCurrentTarget = nil
-        updateESPColors()
-    end
-end
-local function setupPlayerListeners(pl)
-    if pl == localPlayer then return end
-    if config.playerConnections[pl] then
-        for _, conn in ipairs(config.playerConnections[pl]) do
-            pcall(function() conn:Disconnect() end)
-        end
-    end
-    
-    config.playerConnections[pl] = {}
-    
-    local function updateESPForPlayer()
-        if config.espMasterEnabled then
-            removeESPLabel(pl)
-            removeHighlightESP(pl)
-            
-            if config.prefTextESP or config.prefBoxESP or config.prefHealthESP or config.prefHeadDotESP then
-                if addesp(pl) then
-                    makeesp(pl)
+-- ============================================
+-- ANTI-AIM FUNCTIONS
+-- ============================================
+local function findClosestEnemy()
+    if not localPlayer.Character then return nil end
+    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not localRoot then return nil end
+    local best = nil
+    local bestMetric = nil
+    local mode = config.antiAimGetTarget or config.masterGetTarget or "Closest"
+    for _, t in ipairs(getAllTargets()) do
+        if t ~= localPlayer and plralive(t) then
+            local shouldTarget = false
+            if config.masterTarget == "NPCs" then
+                if typeof(t) == "Instance" and t:IsA("Model") then
+                    shouldTarget = true
+                end
+            elseif config.masterTarget == "Players" then
+                if typeof(t) == "Instance" and t:IsA("Player") then
+                    if config.targetMode == "Enemies" then
+                        shouldTarget = not isTeammate(t)
+                    elseif config.targetMode == "Teams" then
+                        shouldTarget = isTeammate(t)
+                    elseif config.targetMode == "All" then
+                        shouldTarget = true
+                    end
+                end
+            elseif config.masterTarget == "Both" then
+                if typeof(t) == "Instance" and t:IsA("Player") then
+                    if config.targetMode == "Enemies" then
+                        shouldTarget = not isTeammate(t)
+                    elseif config.targetMode == "Teams" then
+                        shouldTarget = isTeammate(t)
+                    elseif config.targetMode == "All" then
+                        shouldTarget = true
+                    end
+                else
+                    shouldTarget = true
                 end
             end
-            
-            if config.prefHighlightESP and pl.Character then
-                if addesp(pl) then
-                    high(pl)
+            if shouldTarget then
+                local tgtChar = getTargetCharacter(t)
+                local playerRoot = tgtChar and (tgtChar:FindFirstChild("HumanoidRootPart") or tgtChar:FindFirstChild("Head"))
+                local humanoid = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+                if playerRoot then
+                    local distance = (localRoot.Position - playerRoot.Position).Magnitude
+                    if mode == "Closest" then
+                        if best == nil or distance < bestMetric then
+                            bestMetric = distance
+                            best = t
+                        end
+                    else
+                        local healthVal = 1e6
+                        if humanoid then
+                            healthVal = humanoid.Health
+                        end
+                        if best == nil or healthVal < bestMetric then
+                            bestMetric = healthVal
+                            best = t
+                        end
+                    end
                 end
             end
         end
     end
-    updateESPForPlayer()
-    
-    local charAddedConn = pl.CharacterAdded:Connect(function(char)
-        task.wait(0.25)
-        setupDeathListener(pl)
-        removeESPLabel(pl)
-        removeHighlightESP(pl)
-        task.wait(0.1)
-        
-        if config.espMasterEnabled then
-            if config.prefTextESP or config.prefBoxESP or config.prefHealthESP or config.prefHeadDotESP then
-                if addesp(pl) then
-                    makeesp(pl)
-                end
-            end
-            
-            if config.prefHighlightESP then
-                if addesp(pl) and pl.Character then
-                    high(pl)
-                end
-            end
+    return best
+end
+
+local function returnToOriginalPosition()
+    if not config.originalPosition or not localPlayer.Character then return end
+    local humanoidRootPart = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    pcall(function()
+        humanoidRootPart.CFrame = CFrame.new(config.originalPosition)
+    end)
+    config.originalPosition = nil
+    config.isTeleported = false
+    config.currentAntiAimTarget = nil
+end
+
+local function teleportAboveTarget(target)
+    local targetChar = getTargetCharacter(target)
+    if not targetChar or not localPlayer.Character then return end
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot or not localRoot then return end
+    local targetPos = targetRoot.Position
+    local abovePos = targetPos + Vector3.new(0, config.antiAimAboveHeight, 0)
+    if not config.originalPosition then
+        config.originalPosition = localRoot.Position
+    end
+    pcall(function()
+        localRoot.CFrame = CFrame.new(abovePos)
+    end)
+    config.currentAntiAimTarget = target
+    config.isTeleported = true
+end
+
+local function teleportBehindTarget(target)
+    local targetChar = getTargetCharacter(target)
+    if not targetChar or not localPlayer.Character then return end
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot or not localRoot then return end
+    local targetCFrame = targetRoot.CFrame
+    local behindOffset = -targetCFrame.LookVector * config.antiAimBehindDistance
+    local behindPos = targetRoot.Position + behindOffset
+    if not config.originalPosition then
+        config.originalPosition = localRoot.Position
+    end
+    pcall(function()
+        localRoot.CFrame = CFrame.new(behindPos)
+    end)
+    config.currentAntiAimTarget = target
+    config.isTeleported = true
+end
+
+local function antiAimUpdate()
+    if not config.antiAimEnabled then
+        if config.isTeleported then
+            returnToOriginalPosition()
         end
-    end)
-    table.insert(config.playerConnections[pl], charAddedConn)
-    
-    local charRemovingConn = pl.CharacterRemoving:Connect(function(char)
-        if config.espData[pl] then
-            local data = config.espData[pl]
-            if data.label then data.label.Visible = false end
-            if data.box then data.box.Visible = false end
-            if data.healthBG then data.healthBG.Visible = false end
-            if data.headDot then data.headDot.Visible = false end
+        return
+    end
+    if config.antiAimOrbitEnabled then
+        local closestEnemy = findClosestEnemy()
+        if closestEnemy and getTargetCharacter(closestEnemy) then
+            local targetChar = getTargetCharacter(closestEnemy)
+            local targetPart = targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart")
+            if targetPart and localPlayer.Character then
+                config.currentAntiAimTarget = closestEnemy
+                if not config.originalPosition then
+                    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if localRoot then
+                        config.originalPosition = localRoot.Position
+                    end
+                end
+                local tpos = targetPart.Position
+                local angle = tick() * (config.antiAimOrbitSpeed or 8)
+                local radius = config.antiAimOrbitRadius or 5
+                local height = config.antiAimOrbitHeight or 0
+                local offset = Vector3.new(math.cos(angle) * radius, height, math.sin(angle) * radius)
+                local newPos = tpos + offset
+                pcall(function()
+                    local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if localRoot then
+                        localRoot.CFrame = CFrame.new(newPos, tpos)
+                    end
+                    if camera and targetPart then
+                        camera.CFrame = CFrame.lookAt(camera.CFrame.Position, targetPart.Position)
+                    end
+                end)
+                config.isTeleported = true
+            end
+        else
+            if config.isTeleported then
+                returnToOriginalPosition()
+            end
+            config.currentAntiAimTarget = nil
         end
-        removeHighlightESP(pl)
-    end)
-    table.insert(config.playerConnections[pl], charRemovingConn)
-    
-    local teamChangedConn = pl:GetPropertyChangedSignal("Team"):Connect(function()
-        task.wait(0.05)
-        updateESPForPlayer()
-    end)
-    table.insert(config.playerConnections[pl], teamChangedConn)
-    
-    if pl.Character then
-        setupDeathListener(pl)
+        return
+    end
+    if config.antiAimAbovePlayer then
+        local closestEnemy = findClosestEnemy()
+        if closestEnemy then
+            teleportAboveTarget(closestEnemy)
+        end
+        return
+    end
+    if config.antiAimBehindPlayer then
+        local closestEnemy = findClosestEnemy()
+        if closestEnemy then
+            teleportBehindTarget(closestEnemy)
+        end
+        return
+    end
+    if not config.antiAimEnabled then
+        if config.isTeleported then
+            returnToOriginalPosition()
+        end
+        return
     end
 end
 
-local function lrfd()
-    if config.looprfd then return end
-    config.looprfd = true
+RunService.Heartbeat:Connect(antiAimUpdate)
 
-    task.spawn(function()
-        while config.Enabled do
-            removeAllFaceDecals()
-            task.wait(0.5)
-        end
-        config.looprfd = false
-    end)
-end
-
+-- ============================================
+-- CLIENT FUNCTIONS
+-- ============================================
 local function safeGetCharacter()
     if not localPlayer then return nil end
     local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
@@ -2469,7 +1718,6 @@ end
 local function TpWalkStart()
     if config._tpwalking then return end
     config._tpwalking = true
-
     task.spawn(function()
         while config._tpwalking and localPlayer and localPlayer.Character and localPlayer.Character.Parent do
             local character, humanoid, rootPart = safeGetCharacter()
@@ -2577,7 +1825,6 @@ local function applyClientMaster(state)
         return
     end
     config.clientMasterEnabled = state
-
     if state then
         if config.clientNoclipEnabled then
             startNoclip()
@@ -2614,6 +1861,357 @@ local function applyClientMaster(state)
     end
 end
 
+-- ============================================
+-- AUTOFARM FUNCTIONS
+-- ============================================
+local function getValidAutoFarmTargets()
+    local validTargets = {}
+    local candidates = getAllTargets()
+    for _, t in ipairs(candidates) do
+        if t ~= localPlayer and plralive(t) then
+            local shouldTarget = false
+            if config.masterTarget == "NPCs" then
+                if typeof(t) == "Instance" and t:IsA("Model") then
+                    shouldTarget = true
+                end
+            elseif config.masterTarget == "Players" then
+                if typeof(t) == "Instance" and t:IsA("Player") then
+                    if not isTeammate(t) or config.masterTeamTarget == "All" then
+                        shouldTarget = true
+                    end
+                end
+            elseif config.masterTarget == "Both" then
+                shouldTarget = true
+            end
+            if shouldTarget then
+                local humanoid = nil
+                local char = getTargetCharacter(t)
+                if char then
+                    humanoid = char:FindFirstChildOfClass("Humanoid")
+                end
+                if humanoid and humanoid.Health > 0 then
+                    if not config.autoFarmCompleted[t] then
+                        table.insert(validTargets, t)
+                    end
+                end
+            end
+        end
+    end
+    table.sort(validTargets, function(a, b)
+        local charA = getTargetCharacter(a)
+        local charB = getTargetCharacter(b)
+        local rootA = charA and (charA:FindFirstChild("HumanoidRootPart") or charA:FindFirstChild("Head"))
+        local rootB = charB and (charB:FindFirstChild("HumanoidRootPart") or charB:FindFirstChild("Head"))
+        local localRoot = localPlayer.Character and (localPlayer.Character:FindFirstChild("HumanoidRootPart") or localPlayer.Character:FindFirstChild("Head"))
+        if not localRoot then return false end
+        if not rootA then return false end
+        if not rootB then return true end
+        local distA = (localRoot.Position - rootA.Position).Magnitude
+        local distB = (localRoot.Position - rootB.Position).Magnitude
+        return distA < distB
+    end)
+    return validTargets
+end
+
+local function tptocrossWithAlignment(target)
+    local targetChar = getTargetCharacter(target)
+    if not targetChar or not localPlayer.Character or not camera then 
+        return false 
+    end
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    local targetHead = targetChar:FindFirstChild("Head")
+    if not targetRoot then return false end
+    if not config.autoFarmOriginalPositions[target] then
+        config.autoFarmOriginalPositions[target] = {
+            position = targetRoot.Position,
+            cframe = targetRoot.CFrame,
+            timestamp = tick()
+        }
+    end
+    local cameraCFrame = camera.CFrame
+    local forward = cameraCFrame.LookVector
+    local cameraPos = cameraCFrame.Position
+    local targetPos = cameraPos + (forward * config.autoFarmDistance)
+    targetPos = targetPos + Vector3.new(0, config.autoFarmVerticalOffset, 0)
+    local alignPart = nil
+    if config.autoFarmTargetPart == "Head" and targetHead then
+        alignPart = targetHead
+    else
+        alignPart = targetRoot
+    end
+    if not alignPart then return false end
+    local offsetFromRoot = alignPart.Position - targetRoot.Position
+    local newRootPos = targetPos - offsetFromRoot
+    pcall(function()
+        local directionToCamera = (cameraPos - newRootPos).Unit
+        local lookAt = CFrame.new(newRootPos, newRootPos + directionToCamera)
+        targetRoot.CFrame = lookAt
+    end)
+    return true
+end
+
+local function teleportTargetToLocalPlayerFront(target)
+    local targetChar = getTargetCharacter(target)
+    if not targetChar or not localPlayer.Character then 
+        return false 
+    end
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    local localRoot = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot or not localRoot then return false end
+    local localCFrame = localRoot.CFrame
+    local frontOffset = localCFrame.LookVector * config.autoFarmDistance
+    local frontPos = localRoot.Position + frontOffset
+    frontPos = Vector3.new(frontPos.X, targetRoot.Position.Y, frontPos.Z)
+    pcall(function()
+        targetRoot.CFrame = CFrame.new(frontPos, localRoot.Position)
+    end)
+    return true
+end
+
+local function checkTargetHealth(target)
+    if not target then return false end
+    local char = getTargetCharacter(target)
+    if not char then return false end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false end
+    return humanoid.Health > 0
+end
+
+local function restoreTargetOriginalPosition(target)
+    local targetChar = getTargetCharacter(target)
+    if not targetChar then return end
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then return end
+    local savedData = config.autoFarmOriginalPositions[target]
+    if savedData then
+        pcall(function()
+            targetRoot.CFrame = savedData.cframe
+        end)
+        config.autoFarmOriginalPositions[target] = nil
+    end
+end
+
+local function autoFarmProcess()
+    if config.autoFarmLoop then
+        config.autoFarmLoop:Disconnect()
+        config.autoFarmLoop = nil
+    end
+    config.autoFarmLoop = RunService.Heartbeat:Connect(function()
+        if not config.autoFarmEnabled or not localPlayer.Character or not camera then
+            if config.autoFarmLoop then
+                config.autoFarmLoop:Disconnect()
+                config.autoFarmLoop = nil
+            end
+            return
+        end
+        local validTargets = getValidAutoFarmTargets()
+        if #validTargets == 0 then
+            config.currentAutoFarmTarget = nil
+            config.autoFarmIndex = 1
+            config.autoFarmCompleted = {}
+            return
+        end
+        if not config.currentAutoFarmTarget or config.autoFarmCompleted[config.currentAutoFarmTarget] then
+            for i = config.autoFarmIndex, #validTargets do
+                local target = validTargets[i]
+                if not config.autoFarmCompleted[target] then
+                    config.currentAutoFarmTarget = target
+                    config.autoFarmIndex = i
+                    break
+                end
+            end
+            if not config.currentAutoFarmTarget then
+                config.autoFarmIndex = 1
+                config.currentAutoFarmTarget = validTargets[1]
+            end
+        end
+        if config.currentAutoFarmTarget and getTargetCharacter(config.currentAutoFarmTarget) then
+            if not checkTargetHealth(config.currentAutoFarmTarget) then
+                restoreTargetOriginalPosition(config.currentAutoFarmTarget)
+                config.autoFarmCompleted[config.currentAutoFarmTarget] = true
+                config.currentAutoFarmTarget = nil
+                return
+            end
+            if not config.autoFarmOriginalPositions[config.currentAutoFarmTarget] then
+                config.autoFarmOriginalPositions[config.currentAutoFarmTarget] = {
+                    position = getTargetCharacter(config.currentAutoFarmTarget):FindFirstChild("HumanoidRootPart").Position,
+                    cframe = getTargetCharacter(config.currentAutoFarmTarget):FindFirstChild("HumanoidRootPart").CFrame,
+                    timestamp = tick()
+                }
+            end
+            local success = tptocrossWithAlignment(config.currentAutoFarmTarget)
+            if not success then
+                teleportTargetToLocalPlayerFront(config.currentAutoFarmTarget)
+            end
+        end
+    end)
+end
+
+local function stopAutoFarm()
+    if config.autoFarmLoop then
+        config.autoFarmLoop:Disconnect()
+        config.autoFarmLoop = nil
+    end
+    for target, _ in pairs(config.autoFarmOriginalPositions) do
+        if target and getTargetCharacter(target) then
+            restoreTargetOriginalPosition(target)
+        end
+    end
+    config.currentAutoFarmTarget = nil
+    config.autoFarmIndex = 1
+    config.autoFarmCompleted = {}
+    config.autoFarmOriginalPositions = {}
+    config.autoFarmEnabled = false
+end
+
+-- ============================================
+-- PLAYER LISTENERS
+-- ============================================
+local function setupDeathListener(targetPlayer)
+    local char = getTargetCharacter(targetPlayer)
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    if config.characterConnections[targetPlayer] then
+        pcall(function() config.characterConnections[targetPlayer]:Disconnect() end)
+        config.characterConnections[targetPlayer] = nil
+    end
+    config.characterConnections[targetPlayer] = humanoid.HealthChanged:Connect(function(health)
+        if health <= 0 then
+            restorePartForPlayer(targetPlayer)
+            restoreTorso(targetPlayer)
+            if config.currentTarget == targetPlayer then
+                config.currentTarget = nil
+                updateESPColors()
+            end
+            if config.aimbotCurrentTarget == targetPlayer then
+                config.aimbotCurrentTarget = nil
+                updateESPColors()
+            end
+        end
+    end)
+end
+
+local function cleanplrdata(targetPlayer)
+    if not targetPlayer then return end
+    config.autoFarmOriginalPositions[targetPlayer] = nil
+    config.autoFarmCompleted[targetPlayer] = nil
+    if config.currentAutoFarmTarget == targetPlayer then
+        config.currentAutoFarmTarget = nil
+    end
+    restorePartForPlayer(targetPlayer)
+    restoreTorso(targetPlayer)
+    removeESPLabel(targetPlayer)
+    removeHighlightESP(targetPlayer)
+    if config.playerConnections[targetPlayer] then
+        for _, conn in ipairs(config.playerConnections[targetPlayer]) do
+            pcall(function() conn:Disconnect() end)
+        end
+        config.playerConnections[targetPlayer] = nil
+    end
+    if config.characterConnections[targetPlayer] then
+        pcall(function() config.characterConnections[targetPlayer]:Disconnect() end)
+        config.characterConnections[targetPlayer] = nil
+    end
+    config.activeApplied[targetPlayer] = nil
+    config.originalSizes[targetPlayer] = nil
+    config.targethbSizes[targetPlayer] = nil
+    config.hitboxExpandedParts[targetPlayer] = nil
+    config.hitboxOriginalSizes[targetPlayer] = nil
+    if config.currentTarget == targetPlayer then
+        config.currentTarget = nil
+        updateESPColors()
+    end
+    if config.aimbotCurrentTarget == targetPlayer then
+        config.aimbotCurrentTarget = nil
+        updateESPColors()
+    end
+end
+
+local function setupPlayerListeners(pl)
+    if pl == localPlayer then return end
+    if config.playerConnections[pl] then
+        for _, conn in ipairs(config.playerConnections[pl]) do
+            pcall(function() conn:Disconnect() end)
+        end
+    end
+    config.playerConnections[pl] = {}
+    local function updateESPForPlayer()
+        if config.espMasterEnabled then
+            removeESPLabel(pl)
+            removeHighlightESP(pl)
+            if config.prefTextESP or config.prefBoxESP or config.prefHealthESP or config.prefHeadDotESP then
+                if addesp(pl) then
+                    makeesp(pl)
+                end
+            end
+            if config.prefHighlightESP and pl.Character then
+                if addesp(pl) then
+                    high(pl)
+                end
+            end
+        end
+    end
+    updateESPForPlayer()
+    local charAddedConn = pl.CharacterAdded:Connect(function(char)
+        task.wait(0.25)
+        setupDeathListener(pl)
+        removeESPLabel(pl)
+        removeHighlightESP(pl)
+        task.wait(0.1)
+        if config.espMasterEnabled then
+            if config.prefTextESP or config.prefBoxESP or config.prefHealthESP or config.prefHeadDotESP then
+                if addesp(pl) then
+                    makeesp(pl)
+                end
+            end
+            if config.prefHighlightESP then
+                if addesp(pl) and pl.Character then
+                    high(pl)
+                end
+            end
+        end
+    end)
+    table.insert(config.playerConnections[pl], charAddedConn)
+    local charRemovingConn = pl.CharacterRemoving:Connect(function(char)
+        if config.espData[pl] then
+            local data = config.espData[pl]
+            if data.label then data.label.Visible = false end
+            if data.box then data.box.Visible = false end
+            if data.healthBG then data.healthBG.Visible = false end
+            if data.headDot then data.headDot.Visible = false end
+        end
+        removeHighlightESP(pl)
+    end)
+    table.insert(config.playerConnections[pl], charRemovingConn)
+    local teamChangedConn = pl:GetPropertyChangedSignal("Team"):Connect(function()
+        task.wait(0.05)
+        updateESPForPlayer()
+    end)
+    table.insert(config.playerConnections[pl], teamChangedConn)
+    if pl.Character then
+        setupDeathListener(pl)
+    end
+end
+
+-- ============================================
+-- UI BUILD
+-- ============================================
+local function pc()
+    local plr = game.Players.LocalPlayer
+    task.spawn(function()
+        while true do
+            pcall(function()
+                plr.ReplicationFocus = workspace
+                plr.MaximumSimulationRadius = math.huge
+                plr.SimulationRadius = config.gp
+            end)
+            task.wait(0.1)
+        end
+    end)
+end
+pc()
+
 local function makeui()
     lib:SetTitle("Gravel.cc (Legacy)")
     lib:SetIcon("http://www.roblox.com/asset/?id=132214308111067")
@@ -2626,6 +2224,7 @@ local function makeui()
     local T5 = lib:CreateTab("Hitbox")
     local T6 = lib:CreateTab("AntiAim")
 
+    -- Visuals Tab
     lib:Tab("Visuals")
     lib:AddToggle("Enable ESP (Ctrl+'Z')", function(state)
         applyESPMaster(state)
@@ -2753,7 +2352,6 @@ local function makeui()
             end
             updateESPColors()
         end
-
         if state then
             safeNotify({
                 Title = "HeadDot ESP",
@@ -2797,8 +2395,9 @@ local function makeui()
             })
         end
     end, false)
+
+    -- AntiAim Tab
     lib:Tab("AntiAim")
-    
     lib:AddToggle("Toggle AntiAim (Ctrl+'L')", function(state)
         config.antiAimEnabled = state
         if not state then
@@ -2822,7 +2421,6 @@ local function makeui()
             })
         end
     end, false)
-    
     lib:AddToggle("Raycast AntiAim", function(state)
         config.raycastAntiAim = state
         if state then
@@ -2900,7 +2498,6 @@ local function makeui()
             })
         end
     end, false)
-
     lib:AddToggle("Orbit Players", function(state)
         config.antiAimOrbitEnabled = state
         if state then
@@ -2930,11 +2527,9 @@ local function makeui()
             })
         end
     end, false)
-
     lib:AddComboBox("GetTarget", {"Closest", "Lowest Health"}, function(selection)
         config.antiAimGetTarget = selection
     end)
-
     lib:AddInputBox("Teleport Distance (Raycast)", function(text)
         local n = tonumber(text)
         if n and n > 0 then
@@ -2957,7 +2552,6 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-    
     lib:AddInputBox("Behind Distance (Behind Player)", function(text)
         local n = tonumber(text)
         if n and n > 0 then
@@ -2969,7 +2563,6 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-
     lib:AddInputBox("Orbit Speed (Orbit)", function(text)
         local n = tonumber(text)
         if n and n > 0 then
@@ -2981,7 +2574,6 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-
     lib:AddInputBox("Orbit Radius (Orbit)", function(text)
         local n = tonumber(text)
         if n and n >= 0 then
@@ -2993,7 +2585,6 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-
     lib:AddInputBox("Orbit Height (Orbit)", function(text)
         local n = tonumber(text)
         if n then
@@ -3006,17 +2597,16 @@ local function makeui()
         isNumber = true
     })
 
+    -- Aimbot Tab
     lib:Tab("Aimbot")
-    lib:AddToggle("Toggle Aimbot (Crtl+'Q')", function(state)
+    lib:AddToggle("Toggle Aimbot (Ctrl+'Q')", function(state)
         config.aimbotEnabled = state
         if not state and config.aimbot360Enabled then
             toggle360Aimbot(false)
         end
-        
         if config.aimbotFOVRing and config.aimbotFOVRing.RingFrame then
             config.aimbotFOVRing.RingFrame.Visible = state
         end
-        
         if state then
             if not config.aimbotFOVRing then
                 aimbotfov()
@@ -3071,24 +2661,19 @@ local function makeui()
         if config.masterTeamTarget == "All" then
             return
         end
-        
         config.aimbotTeamTarget = selection
         config.aimbotCurrentTarget = nil
         updateESPColors()
         if config.aimbotTeamTarget == "All" then
             config.masterTeamTarget = "All"
-            updateTeamTargetModes()
         end
     end)
-    
     lib:AddComboBox("Target Part", {"Head", "HumanoidRootPart", "Torso"}, function(selection)
         config.aimbotTargetPart = selection
     end)
-    
     lib:AddComboBox("GetTarget", {"Closest", "Lowest Health"}, function(selection)
         config.aimbotGetTarget = selection
     end)
-    
     lib:AddInputBox("Aim Strength", function(text)
         local n = tonumber(text)
         if n and n >= 0 and n <= 1 then
@@ -3100,7 +2685,6 @@ local function makeui()
         max = 1,
         isNumber = true
     })
-    
     lib:AddInputBox("FOV Size", function(text)
         local n = tonumber(text)
         if n and n >= 1 then
@@ -3114,6 +2698,8 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
+
+    -- Hitbox Tab
     lib:Tab("Hitbox")
     lib:AddToggle("Toggle Hitbox (Ctrl+'G')", function(state)
         config.hitboxEnabled = state
@@ -3145,13 +2731,10 @@ local function makeui()
         if config.masterTeamTarget == "All" then
             return
         end
-        
         config.hitboxTeamTarget = selection
         applyhb()
-        
         if config.hitboxTeamTarget == "All" then
             config.masterTeamTarget = "All"
-            updateTeamTargetModes()
         end
     end)
     lib:AddInputBox("Hitbox Size", function(text)
@@ -3177,11 +2760,11 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-    
+
+    -- SilentAim Tab
     lib:Tab("SilentAim")
     lib:AddToggle("Toggle SilentAim (Ctrl+'E')", function(state)
         config.Enabled = state
-
         if not config.Enabled then
             if gui.RingHolder then
                 gui.RingHolder.Visible = false
@@ -3209,7 +2792,6 @@ local function makeui()
             lrfd()
         end
     end, false)
-    
     lib:AddToggle("WallCheck SA (B)", function(state)
         config.wallc = state
         if state then
@@ -3232,12 +2814,10 @@ local function makeui()
             })
         end
     end, false)
-
     lib:AddComboBox("Team Target", {"Enemies", "Teams", "All"}, function(selection)
         if config.masterTeamTarget == "All" then
             return
         end
-        
         if selection == "Enemies" then
             config.targetMode = "Enemies"
         elseif selection == "Teams" then
@@ -3247,13 +2827,10 @@ local function makeui()
         else
             config.targetMode = "Enemies"
         end
-        
         if config.targetMode == "All" then
             config.masterTeamTarget = "All"
-            updateTeamTargetModes()
         end
     end)
-
     lib:AddComboBox("Target Part", {"Head", "HumanoidRootPart", "Both"}, function(selection)
         if selection == "Head" then
             config.bodypart = "Head"
@@ -3265,11 +2842,9 @@ local function makeui()
             config.bodypart = "Head"
         end
     end)
-    
     lib:AddComboBox("GetTarget", {"Closest", "Lowest Health"}, function(selection)
         config.silentGetTarget = selection
     end)
-    
     lib:AddInputBox("HitChance", function(text)
         local n = tonumber(text)
         if n and n >= 0 and n <= 100 then
@@ -3281,7 +2856,6 @@ local function makeui()
         max = 100,
         isNumber = true
     })
-    
     lib:AddInputBox("FovSize", function(text)
         local n = tonumber(text)
         if n and n >= 1 then
@@ -3299,6 +2873,7 @@ local function makeui()
         isNumber = true
     })
 
+    -- Client Tab
     lib:Tab("Client")
     lib:AddToggle("Enable Client Configuration (Ctrl+'V')", function(state)
         applyClientMaster(state)
@@ -3318,7 +2893,6 @@ local function makeui()
             config.clientNoclip = false
         end
     end, false)
-
     lib:AddToggle("Enable WalkSpeed", function(state)
         config.clientWalkEnabled = state
         if config.clientMasterEnabled then
@@ -3333,7 +2907,6 @@ local function makeui()
             end
         end
     end, false)
-
     lib:AddToggle("Enable JumpPower", function(state)
         config.clientJumpEnabled = state
         if config.clientMasterEnabled then
@@ -3354,7 +2927,6 @@ local function makeui()
             end
         end
     end, false)
-
     lib:AddToggle("CFrame Walk", function(state)
         config.clientCFrameWalkToggle = state
         if config.clientMasterEnabled then
@@ -3384,7 +2956,6 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-
     lib:AddInputBox("JumpPower Value", function(text)
         local n = tonumber(text)
         if n and n >= 0 then
@@ -3399,7 +2970,6 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-
     lib:AddInputBox("CFrame Walk Speed", function(text)
         local n = tonumber(text)
         if n and n > 0 then
@@ -3412,11 +2982,10 @@ local function makeui()
         isNumber = true
     })
 
+    -- Main Tab
     lib:Tab("Main")
-
     lib:AddToggle("Toggle AutoFarm (Ctrl+'F')", function(state)
         config.autoFarmEnabled = state
-        
         if state then
             autoFarmProcess()
             safeNotify({
@@ -3439,13 +3008,11 @@ local function makeui()
             })
         end
     end, false)
-
     lib:AddToggle("FirstPerson Toggle", function(enabled)
         if enabled then
             local camera = workspace.CurrentCamera
             camera.CameraType = Enum.CameraType.Custom
             localPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
-            
             if getgenv().cameraLockConnection then
                 getgenv().cameraLockConnection:Disconnect()
                 getgenv().cameraLockConnection = nil
@@ -3470,7 +3037,6 @@ local function makeui()
             })
         end
     end, false)
-
     lib:AddComboBox("Master Team Target", {"Enemies", "Teams", "All"}, function(selection)
         if selection == "Enemies" then
             config.masterTeamTarget = "Enemies"
@@ -3485,10 +3051,7 @@ local function makeui()
             config.masterTeamTarget = "Enemies"
             config.targetMode = "Enemies"
         end
-        
-        updateTeamTargetModes()
     end)
-
     lib:AddComboBox("Target", {"Players", "NPCs", "Both"}, function(selection)
         if selection == "Players" then
             config.masterTarget = "Players"
@@ -3499,7 +3062,6 @@ local function makeui()
         else
             config.masterTarget = "Players"
         end
-
         config.currentTarget = nil
         config.aimbotCurrentTarget = nil
         if config.hitboxEnabled then
@@ -3511,7 +3073,6 @@ local function makeui()
         end
         updateESPColors()
     end)
-
     lib:AddButton("Partclaim (use if NPC mode isn't working well)", function()
         pc()
         safeNotify({
@@ -3523,18 +3084,15 @@ local function makeui()
             BarColor = Color3.fromRGB(0, 255, 0)
         })
     end)
-
     lib:AddComboBox("Master GetTarget", {"Closest", "Lowest Health"}, function(selection)
         config.masterGetTarget = selection
         config.aimbotGetTarget = selection
         config.silentGetTarget = selection
         config.antiAimGetTarget = selection
     end)
-    
     lib:AddComboBox("Align Part (Autofarm)", {"Head", "HumanoidRootPart"}, function(selection)
         config.autoFarmTargetPart = selection
     end)
-
     lib:AddInputBox("GetPart (Partclaim)", function(text)
         local n = tonumber(text)
         if n then
@@ -3546,7 +3104,6 @@ local function makeui()
         max = 9999,
         isNumber = true
     })
-
     lib:AddInputBox("TP Distance (Autofarm)", function(text)
         local n = tonumber(text)
         if n and n >= 1 and n <= 100 then
@@ -3558,7 +3115,6 @@ local function makeui()
         max = math.huge,
         isNumber = true
     })
-    
     lib:AddInputBox("Vertical Offset (Autofarm)", function(text)
         local n = tonumber(text)
         if n then
@@ -3571,6 +3127,7 @@ local function makeui()
         isNumber = true
     })
 
+    -- FOV Ring for Silent Aim
     local fovScreenGui = Instance.new("ScreenGui")
     fovScreenGui.Name = "FOVToggleGui_Modern"
     fovScreenGui.ResetOnSpawn = false
@@ -3612,19 +3169,9 @@ local function makeui()
     return lib
 end
 
-local notif1 = (function()
-    pcall(function()
-        safeNotify({
-            Title = "Script loaded!",
-            Content = "Script made by @hmmm5651\nYT: @gpsickle",
-            Audio = "rbxassetid://17208361335",
-            Length = 10,
-            Image = "rbxassetid://4483362458",
-            BarColor = Color3.fromRGB(0, 170, 255)
-        })
-    end)
-end)()
-
+-- ============================================
+-- HOTKEYS
+-- ============================================
 local function isCtrlDown()
     return UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
 end
@@ -3646,6 +3193,7 @@ local function init()
     Players.PlayerRemoving:Connect(function(pl)
         cleanplrdata(pl)
     end)
+
     for _, pl in ipairs(Players:GetPlayers()) do
         if pl ~= localPlayer then
             setupPlayerListeners(pl)
@@ -3663,11 +3211,11 @@ local function init()
             end
         end
     end
+
     Players.PlayerAdded:Connect(function(pl)
         if pl ~= localPlayer then
             setupPlayerListeners(pl)
             task.wait(0.5)
-            
             if config.espMasterEnabled then
                 if config.prefTextESP or config.prefBoxESP or config.prefHealthESP then
                     if addesp(pl) then
@@ -3682,7 +3230,6 @@ local function init()
             end
         end
     end)
-    RunService:BindToRenderStep("FOVhbUpdater_Modern", Enum.RenderPriority.First.Value, onRenderStep)
 
     if config.hotkeyConnection and config.hotkeyConnection.Connected then
         pcall(function() config.hotkeyConnection:Disconnect() end)
@@ -3741,7 +3288,6 @@ local function init()
                 end
             elseif kc == Enum.KeyCode.F and isCtrlDown() then
                 config.autoFarmEnabled = not config.autoFarmEnabled
-                
                 if config.autoFarmEnabled then
                     autoFarmProcess()
                     safeNotify({
@@ -3797,7 +3343,6 @@ local function init()
                 if config.aimbotFOVRing and config.aimbotFOVRing.RingFrame then
                     config.aimbotFOVRing.RingFrame.Visible = config.aimbotEnabled
                 end
-                
                 if config.aimbotEnabled then
                     if not config.aimbotFOVRing then
                         aimbotfov()
@@ -3894,6 +3439,10 @@ local function init()
         end
     end)
 end
+
+-- ============================================
+-- CLEANUP
+-- ============================================
 local function cleanup()
     pcall(function()
         RunService:UnbindFromRenderStep("FOVhbUpdater_Modern")
@@ -3956,6 +3505,18 @@ local function cleanup()
     config.hitboxOriginalSizes = {}
     restoreClientValues()
 end
+
+-- ============================================
+-- START
+-- ============================================
+safeNotify({
+    Title = "Script loaded!",
+    Content = "Fixed: Silent Aim no longer modifies hitboxes\nProper teammate check added",
+    Audio = "rbxassetid://17208361335",
+    Length = 5,
+    Image = "rbxassetid://4483362458",
+    BarColor = Color3.fromRGB(0, 255, 100)
+})
 
 init()
 
