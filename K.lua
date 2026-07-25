@@ -1,103 +1,121 @@
--- // Сервисы
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+local Camera = workspace.CurrentCamera
 
--- // Настройки
-local SilentAim = {
-    Enabled = true,
-    TeamCheck = true,
-    FOV = 150,
-    ScanRate = 0.05 -- Как часто искать цель (0.05 сек = 20 раз в секунду вместо 60+ кадров)
+local Settings = {
+    AimEnabled = true,
+    TargetPart = "Head",
+    FovRadius = 150,
+    FovColor = Color3.fromRGB(255, 255, 255),
+    EspVisible = Color3.fromRGB(0, 255, 0),
+    EspHidden = Color3.fromRGB(255, 0, 0)
 }
 
--- // Глобальная переменная для хранения текущей цели
-local CurrentTargetPart = nil
+-- Безопасное создание FOV круга
+local FovCircle = Drawing.new("Circle")
+FovCircle.Thickness = 1
+FovCircle.NumSides = 32
+FovCircle.Filled = false
+FovCircle.Transparency = 0.7
+FovCircle.Color = Settings.FovColor
+FovCircle.Radius = Settings.FovRadius
+FovCircle.Visible = true
 
--- // Оптимизированная функция проверки видимости
-local function IsVisible(character, part)
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    -- Игнорируем только себя и цель, чтобы не тратить память на сборку огромных таблиц
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-    
-    local origin = Camera.CFrame.Position
-    local direction = (part.Position - origin)
-    local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
-    
-    return raycastResult == nil
+-- Функция очистки при выгрузке скрипта
+local function Cleanup()
+    if FovCircle then
+        FovCircle:Remove()
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("EspHighlight") then
+            p.Character.EspHighlight:Destroy()
+        end
+    end
 end
 
--- // Вынос поиска цели в отдельный, контролируемый цикл (Убирает лаги)
-task.spawn(function()
-    while task.wait(SilentAim.ScanRate) do
-        if not SilentAim.Enabled then 
-            CurrentTargetPart = nil 
-            continue 
-        end
+-- Обновление позиции FOV
+local function UpdateFovPosition()
+    local screenSize = Camera.ViewportSize
+    FovCircle.Position = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
+end
 
-        local bestTarget = nil
-        local shortestDistance = SilentAim.FOV
-        local mouseLocation = UserInputService:GetMouseLocation()
-        local myTeam = LocalPlayer.Team
+-- Проверка видимости с защитой от nil
+local function IsVisible(targetPart, character)
+    local localChar = LocalPlayer.Character
+    if not localChar or not localChar:FindFirstChild("HumanoidRootPart") then return false end
+    
+    local origin = Camera.CFrame.Position
+    local direction = targetPart.Position - origin
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {localChar, character}
+    raycastParams.IgnoreWater = true
+    
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    return result == nil
+end
 
-        -- Быстрый проход по игрокам
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player == LocalPlayer then continue end
-            if SilentAim.TeamCheck and player.Team == myTeam then continue end
+-- Поиск цели (с проверкой видимости)
+local function GetClosestPlayerInFov()
+    local target, minDistance = nil, Settings.FovRadius
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(Settings.TargetPart) then
+            local part = p.Character[Settings.TargetPart]
+            local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
             
-            local character = player.Character
-            if not character then continue end
-            
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if not humanoid or humanoid.Health <= 0 then continue end
-            
-            local part = character:FindFirstChild("Head")
-            if not part then continue end
-            
-            local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
-            if not onScreen then continue end
-            
-            local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mouseLocation).Magnitude
-            if distance < shortestDistance then
-                -- Проверяем стену ТОЛЬКО если игрок подошел по дистанции FOV (Экономит 90% ресурсов)
-                if IsVisible(character, part) then
-                    shortestDistance = distance
-                    bestTarget = part
+            if onScreen and IsVisible(part, p.Character) then
+                local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                if dist < minDistance then 
+                    minDistance = dist
+                    target = part 
                 end
             end
         end
-        
-        CurrentTargetPart = bestTarget
     end
-end)
+    return target
+end
 
--- // Перехват выстрелов — теперь работает моментально, так как цель уже найдена
-local oldNameCall
-oldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
+-- Оптимизированный ESP (обновление реже, чем каждый кадр)
+local lastUpdate = 0
+local function ManageEsp()
+    if tick() - lastUpdate < 0.1 then return end -- Обновляем раз в 100 мс вместо 60 раз в секунду
+    lastUpdate = tick()
 
-    -- Если цель кэширована, просто подменяем вектор без вычислений
-    if CurrentTargetPart and self == Workspace then
-        if method == "Raycast" and args[1] and args[2] then
-            local origin = args[1]
-            local originalDirection = args[2]
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local char = p.Character
+            local head = char:FindFirstChild("Head")
             
-            args[2] = (CurrentTargetPart.Position - origin).Unit * originalDirection.Magnitude
-            return oldNameCall(self, unpack(args))
+            local highlight = char:FindFirstChild("EspHighlight")
+            if not highlight then
+                highlight = Instance.new("Highlight")
+                highlight.Name = "EspHighlight"
+                highlight.FillTransparency = 0.5
+                highlight.OutlineTransparency = 0.2
+                highlight.Parent = char
+            end
             
-        elseif (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList") and args[1] then
-            local origin = args[1].Origin
-            local originalDirection = args[1].Direction
-            
-            args[1] = Ray.new(origin, (CurrentTargetPart.Position - origin).Unit * originalDirection.Magnitude)
-            return oldNameCall(self, unpack(args))
+            if head and IsVisible(head, char) then
+                highlight.FillColor = Settings.EspVisible
+                highlight.OutlineColor = Settings.EspVisible
+            else
+                highlight.FillColor = Settings.EspHidden
+                highlight.OutlineColor = Settings.EspHidden
+            end
         end
     end
+end
 
-    return oldNameCall(self, ...)
-end))
+-- Основной цикл
+RunService.Heartbeat:Connect(function()
+    UpdateFovPosition()
+    ManageEsp()
+    
+    if Settings.AimEnabled then
+        getgenv().SilentTarget = GetClosestPlayerInFov()
+    end
+end)
