@@ -1,4 +1,6 @@
 -- Block Strike iPad | Delta iOS
+-- Trigger Aim / Aim While Firing / Hold-to-Aim / On Fire Aim / Conditional Aim
+-- Тип: Триггер Аим — активируется ТОЛЬКО при зажатии кнопки огня
 -- Голый аим. Без функций. Без настроек. Без ВХ. Без меню.
 -- Просто ебашит в голову при зажатии огня.
 
@@ -36,7 +38,7 @@ for _, object in pairs(getgc()) do
     end
 end
 
--- Ввод
+-- Ввод: Trigger Aim — активируется только при зажатии огня
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if gameProcessedEvent then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -51,7 +53,7 @@ UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
     end
 end)
 
--- Аим цикл
+-- Trigger Aim цикл: ищет цель и мгновенно наводится только пока зажат огонь
 RunService.RenderStepped:Connect(function()
     if not IsHoldingFire then
         CurrentTarget = nil
@@ -145,4 +147,4 @@ end)
 
 setreadonly(rawMetatable, true)
 
-print("4080 | Аим загружен | Зажми огонь — ебашит в голову")
+print("4080 | Trigger Aim / Aim While Firing загружен | Зажми огонь — ебашит в голову")
