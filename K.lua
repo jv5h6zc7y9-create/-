@@ -1,13 +1,13 @@
--- Block Strike iPad | Delta iOS
--- Center-screen silent aim + CS2-style ESP (box behind walls, skeleton, health)
--- Auto-runs on load
+-- Block Strike iPad | Delta iOS | Performance Build
+-- Object pooling, throttled raycasts, simplified skeleton, distance culling
+-- Target: 60 FPS on iPad Air / Pro
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
 -- CONFIG
 local CFG = {
@@ -21,58 +21,102 @@ local CFG = {
     ESP = {
         Enabled = true,
         Boxes = true,
-        CornerBoxes = true, -- CS2 style corners
-        Skeleton = true,
         HealthBar = true,
         Name = true,
         Distance = true,
-        Tracers = false,
-        
+        Skeleton = true,
+        MaxDistance = 500,
         BoxColor = Color3.fromRGB(255, 50, 50),
         BoxVisibleColor = Color3.fromRGB(50, 255, 50),
-        SkeletonColor = Color3.fromRGB(200, 200, 200),
+        SkeletonColor = Color3.fromRGB(180, 180, 180),
         SkeletonVisibleColor = Color3.fromRGB(255, 255, 255),
-        BehindWallColor = Color3.fromRGB(255, 50, 50),
-        
-        MaxDistance = 1000,
-        TextSize = 13,
-        BoxThickness = 1,
-        SkeletonThickness = 1.5
+        TextSize = 12,
+        UpdateRate = 2, -- update ESP every N frames (2 = 30Hz)
+        RaycastRate = 6  -- wallcheck every N frames (6 = 10Hz)
     }
 }
 
--- DRAWING POOL
-local Drawings = {}
-local function NewDrawing(type, props)
+-- OBJECT POOL
+local DrawingPool = {}
+local function GetDrawing(type)
+    for i, d in ipairs(DrawingPool) do
+        if not d._inUse and d._type == type then
+            d._inUse = true
+            d.Visible = false
+            return d
+        end
+    end
     local d = Drawing.new(type)
-    for k, v in pairs(props or {}) do d[k] = v end
-    table.insert(Drawings, d)
+    d._type = type
+    d._inUse = true
+    table.insert(DrawingPool, d)
     return d
 end
 
-local function ClearDrawings()
-    for _, d in ipairs(Drawings) do d.Visible = false end
+local function ReleaseDrawing(d)
+    if d then
+        d.Visible = false
+        d._inUse = false
+    end
 end
 
--- LIMB MAP FOR SKELETON
-local SkeletonMap = {
+-- SIMPLIFIED SKELETON (7 lines vs 13)
+local SkeletonBones = {
     {"Head", "UpperTorso"},
+    {"UpperTorso", "LowerTorso"},
     {"UpperTorso", "RightUpperArm"},
     {"RightUpperArm", "RightLowerArm"},
-    {"RightLowerArm", "RightHand"},
     {"UpperTorso", "LeftUpperArm"},
     {"LeftUpperArm", "LeftLowerArm"},
-    {"LeftLowerArm", "LeftHand"},
-    {"UpperTorso", "LowerTorso"},
-    {"LowerTorso", "RightUpperLeg"},
-    {"RightUpperLeg", "RightLowerLeg"},
-    {"RightLowerLeg", "RightFoot"},
-    {"LowerTorso", "LeftUpperLeg"},
-    {"LeftUpperLeg", "LeftLowerLeg"},
-    {"LeftLowerLeg", "LeftFoot"}
+    {"LowerTorso", "HumanoidRootPart"}
 }
 
--- UTILS
+-- PER-PLAYER OBJECT CACHE
+local PlayerCache = {}
+
+local function GetCache(plr)
+    if not PlayerCache[plr] then
+        PlayerCache[plr] = {
+            Box = GetDrawing("Square"),
+            BoxOutline = GetDrawing("Square"),
+            HealthBar = GetDrawing("Square"),
+            HealthOutline = GetDrawing("Square"),
+            Name = GetDrawing("Text"),
+            Dist = GetDrawing("Text"),
+            Bones = {},
+            LastRaycast = 0,
+            IsVisible = true,
+            Char = nil,
+            Hum = nil,
+            HRP = nil,
+            Head = nil
+        }
+        for _ = 1, #SkeletonBones do
+            table.insert(PlayerCache[plr].Bones, GetDrawing("Line"))
+        end
+    end
+    return PlayerCache[plr]
+end
+
+local function ClearCache(plr)
+    local c = PlayerCache[plr]
+    if not c then return end
+    ReleaseDrawing(c.Box)
+    ReleaseDrawing(c.BoxOutline)
+    ReleaseDrawing(c.HealthBar)
+    ReleaseDrawing(c.HealthOutline)
+    ReleaseDrawing(c.Name)
+    ReleaseDrawing(c.Dist)
+    for _, b in ipairs(c.Bones) do ReleaseDrawing(b) end
+    PlayerCache[plr] = nil
+end
+
+-- FAST UTILS
+local function W2S(pos)
+    local s = Camera:WorldToViewportPoint(pos)
+    return Vector2.new(s.X, s.Y), s.Z
+end
+
 local function IsAlive(char)
     if not char then return false end
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -80,137 +124,64 @@ local function IsAlive(char)
 end
 
 local function IsTeammate(p)
-    if not CFG.TeamCheck then return false end
-    return p.Team == LocalPlayer.Team
+    return CFG.TeamCheck and p.Team == LocalPlayer.Team
 end
 
-local function WorldToScreen(pos)
-    local s, vis = Camera:WorldToViewportPoint(pos)
-    return Vector2.new(s.X, s.Y), vis, s.Z
-end
+local FrameCount = 0
+local CenterScreen = Vector2.zero
 
-local function RaycastVisible(origin, target)
-    local dir = (target - origin)
-    local dist = dir.Magnitude
-    dir = dir.Unit * dist
-    local rp = RaycastParams.new()
-    rp.FilterDescendantsInstances = {LocalPlayer.Character}
-    rp.FilterType = Enum.RaycastFilterType.Blacklist
-    local res = Workspace:Raycast(origin, dir, rp)
-    if not res then return true end
-    return false
-end
-
-local function GetCenterScreen()
-    local vp = Camera.ViewportSize
-    return Vector2.new(vp.X / 2, vp.Y / 2)
-end
-
--- TARGET SELECTION (center screen, not mouse)
+-- SILENT AIM
 local CurrentTarget = nil
 
-local function GetBestTarget()
-    local center = GetCenterScreen()
-    local closest, bestDist = nil, CFG.FOV
+local function FindTarget()
+    local best, bestDist = nil, CFG.FOV
+    local camPos = Camera.CFrame.Position
     
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
         if IsTeammate(plr) then continue end
         
         local char = plr.Character
-        if not IsAlive(char) then continue end
+        if not char then continue end
+        local head = char:FindFirstChild(CFG.HitPart)
+        if not head then continue end
         
-        local part = char:FindFirstChild(CFG.HitPart)
-        if not part then continue end
+        local spos, depth = W2S(head.Position)
+        if depth <= 0 then continue end
         
-        local spos, onScreen, depth = WorldToScreen(part.Position)
-        if not onScreen or depth < 0 then continue end
+        local dist = (spos - CenterScreen).Magnitude
+        if dist >= bestDist then continue end
         
-        local dist = (spos - center).Magnitude
-        if dist < bestDist then
-            if not CFG.WallCheck or RaycastVisible(Camera.CFrame.Position, part.Position) then
-                bestDist = dist
-                closest = part
+        if CFG.WallCheck then
+            local rp = RaycastParams.new()
+            rp.FilterDescendantsInstances = {LocalPlayer.Character, char}
+            rp.FilterType = Enum.RaycastFilterType.Blacklist
+            if Workspace:Raycast(camPos, (head.Position - camPos).Unit * 1000, rp) then
+                continue
             end
         end
+        
+        bestDist = dist
+        best = head
     end
     
-    return closest
-end
-
--- FOV CIRCLE (center screen)
-local FovCircle = NewDrawing("Circle", {
-    Visible = true,
-    Thickness = 1,
-    Color = Color3.fromRGB(255, 255, 255),
-    Transparency = 0.5,
-    NumSides = 64,
-    Filled = false,
-    Position = GetCenterScreen(),
-    Radius = CFG.FOV
-})
-
--- ESP PER-PLAYER STORAGE
-local EspStorage = {}
-
-local function GetEsp(player)
-    if not EspStorage[player] then
-        EspStorage[player] = {
-            Box = NewDrawing("Square", {Thickness = CFG.ESP.BoxThickness, Transparency = 1, Filled = false}),
-            BoxOutline = NewDrawing("Square", {Thickness = CFG.ESP.BoxThickness + 2, Transparency = 1, Filled = false, Color = Color3.new(0,0,0)}),
-            CornerTL = NewDrawing("Line", {Thickness = CFG.ESP.BoxThickness}),
-            CornerTR = NewDrawing("Line", {Thickness = CFG.ESP.BoxThickness}),
-            CornerBL = NewDrawing("Line", {Thickness = CFG.ESP.BoxThickness}),
-            CornerBR = NewDrawing("Line", {Thickness = CFG.ESP.BoxThickness}),
-            HealthBar = NewDrawing("Square", {Filled = true, Thickness = 1}),
-            HealthBarOutline = NewDrawing("Square", {Filled = false, Thickness = 1, Color = Color3.new(0,0,0)}),
-            Name = NewDrawing("Text", {Size = CFG.ESP.TextSize, Center = true, Outline = true, OutlineColor = Color3.new(0,0,0)}),
-            Distance = NewDrawing("Text", {Size = CFG.ESP.TextSize, Center = true, Outline = true, OutlineColor = Color3.new(0,0,0)}),
-            SkeletonLines = {}
-        }
-        for _ = 1, #SkeletonMap do
-            table.insert(EspStorage[player].SkeletonLines, NewDrawing("Line", {Thickness = CFG.ESP.SkeletonThickness}))
-        end
-    end
-    return EspStorage[player]
-end
-
-local function ClearPlayerEsp(player)
-    local esp = EspStorage[player]
-    if not esp then return end
-    esp.Box.Visible = false
-    esp.BoxOutline.Visible = false
-    esp.CornerTL.Visible = false
-    esp.CornerTR.Visible = false
-    esp.CornerBL.Visible = false
-    esp.CornerBR.Visible = false
-    esp.HealthBar.Visible = false
-    esp.HealthBarOutline.Visible = false
-    esp.Name.Visible = false
-    esp.Distance.Visible = false
-    for _, line in ipairs(esp.SkeletonLines) do line.Visible = false end
+    return best
 end
 
 -- MAIN LOOP
 RunService.RenderStepped:Connect(function()
-    ClearDrawings()
+    FrameCount += 1
+    local vp = Camera.ViewportSize
+    CenterScreen = Vector2.new(vp.X / 2, vp.Y / 2)
     
-    -- Update FOV circle to center screen (iPad dynamic)
-    local center = GetCenterScreen()
-    FovCircle.Position = center
-    FovCircle.Radius = CFG.FOV
-    FovCircle.Visible = CFG.SilentAim
+    -- Silent aim every frame (lightweight)
+    CurrentTarget = CFG.SilentAim and FindTarget() or nil
     
-    -- Silent Aim Target
-    CurrentTarget = GetBestTarget()
-    if CurrentTarget then
-        FovCircle.Color = Color3.fromRGB(0, 255, 100)
-    else
-        FovCircle.Color = Color3.fromRGB(255, 255, 255)
-    end
+    -- ESP throttled
+    if FrameCount % CFG.ESP.UpdateRate ~= 0 then return end
     
-    -- ESP
-    if not CFG.ESP.Enabled then return end
+    local camPos = Camera.CFrame.Position
+    local shouldRaycast = FrameCount % CFG.ESP.RaycastRate == 0
     
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
@@ -218,147 +189,175 @@ RunService.RenderStepped:Connect(function()
         
         local char = plr.Character
         if not IsAlive(char) then
-            ClearPlayerEsp(plr)
+            ClearCache(plr)
             continue
         end
         
-        local hum = char:FindFirstChildOfClass("Humanoid")
         local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hum or not hrp then
-            ClearPlayerEsp(plr)
+        local head = char:FindFirstChild("Head")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not head or not hum then
+            ClearCache(plr)
             continue
         end
         
-        -- Build bbox from all limb screen positions
-        local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
-        local anyVisible = false
+        -- Distance cull
+        local dist3d = (hrp.Position - camPos).Magnitude
+        if dist3d > CFG.ESP.MaxDistance then
+            ClearCache(plr)
+            continue
+        end
         
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                local spos, onScreen, depth = WorldToScreen(part.Position)
-                if onScreen and depth > 0 then
-                    anyVisible = true
-                    minX = math.min(minX, spos.X)
-                    minY = math.min(minY, spos.Y)
-                    maxX = math.max(maxX, spos.X)
-                    maxY = math.max(maxY, spos.Y)
-                end
+        -- Fast bbox from 6 points (head, hrp, 4 limbs)
+        local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
+        local anyOnScreen = false
+        
+        local function AddPoint(part)
+            if not part then return end
+            local spos, depth = W2S(part.Position)
+            if depth > 0 then
+                anyOnScreen = true
+                minX = math.min(minX, spos.X)
+                minY = math.min(minY, spos.Y)
+                maxX = math.max(maxX, spos.X)
+                maxY = math.max(maxY, spos.Y)
             end
         end
         
-        if not anyVisible then
-            ClearPlayerEsp(plr)
+        AddPoint(head)
+        AddPoint(hrp)
+        AddPoint(char:FindFirstChild("RightUpperArm"))
+        AddPoint(char:FindFirstChild("LeftUpperArm"))
+        AddPoint(char:FindFirstChild("RightUpperLeg"))
+        AddPoint(char:FindFirstChild("LeftUpperLeg"))
+        
+        if not anyOnScreen then
+            ClearCache(plr)
             continue
         end
         
         local boxW = maxX - minX
         local boxH = maxY - minY
-        local boxPos = Vector2.new(minX, minY)
+        if boxW < 5 or boxH < 5 then
+            ClearCache(plr)
+            continue
+        end
         
-        -- Wall check for color
-        local isVisible = RaycastVisible(Camera.CFrame.Position, hrp.Position)
-        local boxColor = isVisible and CFG.ESP.BoxVisibleColor or CFG.ESP.BehindWallColor
-        local skelColor = isVisible and CFG.ESP.SkeletonVisibleColor or CFG.ESP.SkeletonColor
+        -- Throttled wall check
+        local c = GetCache(plr)
+        if shouldRaycast then
+            local rp = RaycastParams.new()
+            rp.FilterDescendantsInstances = {LocalPlayer.Character, char}
+            rp.FilterType = Enum.RaycastFilterType.Blacklist
+            local res = Workspace:Raycast(camPos, (head.Position - camPos).Unit * 1000, rp)
+            c.IsVisible = res == nil
+        end
         
-        local esp = GetEsp(plr)
+        local boxColor = c.IsVisible and CFG.ESP.BoxVisibleColor or CFG.ESP.BoxColor
+        local skelColor = c.IsVisible and CFG.ESP.SkeletonVisibleColor or CFG.ESP.SkeletonColor
         
-        -- Full Box
+        -- Box
         if CFG.ESP.Boxes then
-            esp.BoxOutline.Visible = true
-            esp.BoxOutline.Position = boxPos
-            esp.BoxOutline.Size = Vector2.new(boxW, boxH)
+            c.BoxOutline.Visible = true
+            c.BoxOutline.Position = Vector2.new(minX, minY)
+            c.BoxOutline.Size = Vector2.new(boxW, boxH)
+            c.BoxOutline.Color = Color3.new(0, 0, 0)
+            c.BoxOutline.Thickness = 2
+            c.BoxOutline.Filled = false
             
-            esp.Box.Visible = true
-            esp.Box.Position = boxPos
-            esp.Box.Size = Vector2.new(boxW, boxH)
-            esp.Box.Color = boxColor
+            c.Box.Visible = true
+            c.Box.Position = Vector2.new(minX, minY)
+            c.Box.Size = Vector2.new(boxW, boxH)
+            c.Box.Color = boxColor
+            c.Box.Thickness = 1
+            c.Box.Filled = false
+        else
+            c.Box.Visible = false
+            c.BoxOutline.Visible = false
         end
         
-        -- Corner Boxes (CS2 style)
-        if CFG.ESP.CornerBoxes then
-            local cornerLen = math.min(boxW, boxH) * 0.25
-            
-            esp.CornerTL.Visible = true
-            esp.CornerTL.From = boxPos
-            esp.CornerTL.To = boxPos + Vector2.new(cornerLen, 0)
-            esp.CornerTL.Color = boxColor
-            
-            esp.CornerTR.Visible = true
-            esp.CornerTR.From = boxPos + Vector2.new(boxW, 0)
-            esp.CornerTR.To = boxPos + Vector2.new(boxW - cornerLen, 0)
-            esp.CornerTR.Color = boxColor
-            
-            esp.CornerBL.Visible = true
-            esp.CornerBL.From = boxPos + Vector2.new(0, boxH)
-            esp.CornerBL.To = boxPos + Vector2.new(cornerLen, boxH)
-            esp.CornerBL.Color = boxColor
-            
-            esp.CornerBR.Visible = true
-            esp.CornerBR.From = boxPos + Vector2.new(boxW, boxH)
-            esp.CornerBR.To = boxPos + Vector2.new(boxW - cornerLen, boxH)
-            esp.CornerBR.Color = boxColor
-        end
-        
-        -- Health Bar
+        -- Health bar
         if CFG.ESP.HealthBar then
-            local hpPercent = hum.Health / hum.MaxHealth
-            local barH = boxH * hpPercent
-            local barW = 3
-            local barX = minX - 6
-            local barY = minY + (boxH - barH)
+            local hp = hum.Health / hum.MaxHealth
+            local barH = boxH * hp
+            local barX = minX - 5
+            local barY = minY + boxH - barH
             
-            esp.HealthBarOutline.Visible = true
-            esp.HealthBarOutline.Position = Vector2.new(barX - 1, minY - 1)
-            esp.HealthBarOutline.Size = Vector2.new(barW + 2, boxH + 2)
+            c.HealthOutline.Visible = true
+            c.HealthOutline.Position = Vector2.new(barX - 1, minY - 1)
+            c.HealthOutline.Size = Vector2.new(4, boxH + 2)
+            c.HealthOutline.Color = Color3.new(0, 0, 0)
+            c.HealthOutline.Filled = true
             
-            esp.HealthBar.Visible = true
-            esp.HealthBar.Position = Vector2.new(barX, barY)
-            esp.HealthBar.Size = Vector2.new(barW, barH)
-            esp.HealthBar.Color = Color3.fromRGB(255 * (1 - hpPercent), 255 * hpPercent, 0)
+            c.HealthBar.Visible = true
+            c.HealthBar.Position = Vector2.new(barX, barY)
+            c.HealthBar.Size = Vector2.new(2, barH)
+            c.HealthBar.Color = Color3.fromRGB(255 * (1 - hp), 255 * hp, 0)
+            c.HealthBar.Filled = true
+        else
+            c.HealthBar.Visible = false
+            c.HealthOutline.Visible = false
         end
         
         -- Name
         if CFG.ESP.Name then
-            esp.Name.Visible = true
-            esp.Name.Position = Vector2.new(minX + boxW / 2, minY - 16)
-            esp.Name.Text = plr.Name
-            esp.Name.Color = boxColor
+            c.Name.Visible = true
+            c.Name.Position = Vector2.new(minX + boxW / 2, minY - 14)
+            c.Name.Text = plr.Name
+            c.Name.Size = CFG.ESP.TextSize
+            c.Name.Center = true
+            c.Name.Outline = true
+            c.Name.Color = boxColor
+        else
+            c.Name.Visible = false
         end
         
         -- Distance
         if CFG.ESP.Distance then
-            local dist = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude)
-            esp.Distance.Visible = true
-            esp.Distance.Position = Vector2.new(minX + boxW / 2, maxY + 4)
-            esp.Distance.Text = tostring(dist) .. "m"
-            esp.Distance.Color = Color3.fromRGB(200, 200, 200)
+            c.Dist.Visible = true
+            c.Dist.Position = Vector2.new(minX + boxW / 2, maxY + 2)
+            c.Dist.Text = math.floor(dist3d) .. "m"
+            c.Dist.Size = CFG.ESP.TextSize
+            c.Dist.Center = true
+            c.Dist.Outline = true
+            c.Dist.Color = Color3.fromRGB(200, 200, 200)
+        else
+            c.Dist.Visible = false
         end
         
-        -- Skeleton
+        -- Skeleton (simplified, 7 bones)
         if CFG.ESP.Skeleton then
-            for i, conn in ipairs(SkeletonMap) do
-                local p1 = char:FindFirstChild(conn[1])
-                local p2 = char:FindFirstChild(conn[2])
-                local line = esp.SkeletonLines[i]
+            for i, bone in ipairs(SkeletonBones) do
+                local p1 = char:FindFirstChild(bone[1])
+                local p2 = char:FindFirstChild(bone[2])
+                local line = c.Bones[i]
                 
-                if p1 and p2 and line then
-                    local s1, v1, d1 = WorldToScreen(p1.Position)
-                    local s2, v2, d2 = WorldToScreen(p2.Position)
+                if p1 and p2 then
+                    local s1, d1 = W2S(p1.Position)
+                    local s2, d2 = W2S(p2.Position)
                     
-                    if v1 and v2 and d1 > 0 and d2 > 0 then
+                    if d1 > 0 and d2 > 0 then
                         line.Visible = true
                         line.From = s1
                         line.To = s2
                         line.Color = skelColor
+                        line.Thickness = 1
                     else
                         line.Visible = false
                     end
-                elseif line then
+                else
                     line.Visible = false
                 end
             end
+        else
+            for _, line in ipairs(c.Bones) do line.Visible = false end
         end
     end
+end)
+
+-- CLEANUP DISCONNECTED PLAYERS
+Players.PlayerRemoving:Connect(function(plr)
+    ClearCache(plr)
 end)
 
 -- SILENT AIM HOOK
@@ -371,8 +370,8 @@ mt.__namecall = newcclosure(function(self, ...)
     local args = {...}
     
     if CFG.SilentAim and CurrentTarget and method == "FireServer" then
-        local name = tostring(self)
-        if name:lower():find("shoot") or name:lower():find("fire") or name:lower():find("bullet") or name:lower():find("hit") or name:lower():find("damage") then
+        local name = tostring(self):lower()
+        if name:find("shoot") or name:find("fire") or name:find("bullet") or name:find("hit") or name:find("damage") or name:find("gun") then
             for i, arg in ipairs(args) do
                 if typeof(arg) == "Vector3" then
                     local vel = CurrentTarget.Parent:FindFirstChild("HumanoidRootPart") and CurrentTarget.Parent.HumanoidRootPart.Velocity or Vector3.zero
@@ -392,78 +391,63 @@ end)
 
 setreadonly(mt, true)
 
--- TOGGLE UI (tap screen top-right for menu)
+-- MINIMAL TOGGLE UI
 local Gui = Instance.new("ScreenGui")
-Gui.Parent = game:GetService("CoreGui")
+Gui.Parent = CoreGui
 Gui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 280)
-Frame.Position = UDim2.new(1, -210, 0, 10)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.Size = UDim2.new(0, 180, 0, 220)
+Frame.Position = UDim2.new(1, -190, 0, 10)
+Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Frame.BorderSizePixel = 0
 Frame.Parent = Gui
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 8)
-Corner.Parent = Frame
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "4080 | Block Strike"
+Title.Size = UDim2.new(1, 0, 0, 26)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.Text = "4080 | iPad"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+Title.TextSize = 13
 Title.Parent = Frame
 
-local function ToggleBtn(text, y, callback)
+local function MakeBtn(text, y, flag)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 28)
+    btn.Size = UDim2.new(0.9, 0, 0, 26)
     btn.Position = UDim2.new(0.05, 0, 0, y)
-    btn.Text = text
+    btn.Text = text .. ": " .. (CFG[flag] and "ON" or "OFF")
     btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     btn.Font = Enum.Font.Gotham
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.Parent = Frame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    btn.MouseButton1Click:Connect(callback)
-    return btn
+    btn.MouseButton1Click:Connect(function()
+        CFG[flag] = not CFG[flag]
+        btn.Text = text .. ": " .. (CFG[flag] and "ON" or "OFF")
+    end)
 end
 
-ToggleBtn("Silent Aim: ON", 40, function(b)
-    CFG.SilentAim = not CFG.SilentAim
-    b.Text = "Silent Aim: " .. (CFG.SilentAim and "ON" or "OFF")
-end)
+MakeBtn("Silent Aim", 32, "SilentAim")
+MakeBtn("ESP", 64, "Enabled")
+MakeBtn("ESP", 64, "Enabled")
+MakeBtn("Boxes", 96, "Boxes")
+MakeBtn("Skeleton", 128, "Skeleton")
+MakeBtn("Wall Check", 160, "WallCheck")
 
-ToggleBtn("ESP: ON", 75, function(b)
-    CFG.ESP.Enabled = not CFG.ESP.Enabled
-    b.Text = "ESP: " .. (CFG.ESP.Enabled and "ON" or "OFF")
-end)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0.9, 0, 0, 26)
+CloseBtn.Position = UDim2.new(0.05, 0, 0, 192)
+CloseBtn.Text = "Close UI"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+CloseBtn.Font = Enum.Font.Gotham
+CloseBtn.TextSize = 11
+CloseBtn.Parent = Frame
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
+CloseBtn.MouseButton1Click:Connect(function() Gui:Destroy() end)
 
-ToggleBtn("Boxes: ON", 110, function(b)
-    CFG.ESP.Boxes = not CFG.ESP.Boxes
-    b.Text = "Boxes: " .. (CFG.ESP.Boxes and "ON" or "OFF")
-end)
-
-ToggleBtn("Skeleton: ON", 145, function(b)
-    CFG.ESP.Skeleton = not CFG.ESP.Skeleton
-    b.Text = "Skeleton: " .. (CFG.ESP.Skeleton and "ON" or "OFF")
-end)
-
-ToggleBtn("Wall Check: ON", 180, function(b)
-    CFG.WallCheck = not CFG.WallCheck
-    b.Text = "Wall Check: " .. (CFG.WallCheck and "ON" or "OFF")
-end)
-
-ToggleBtn("Team Check: ON", 215, function(b)
-    CFG.TeamCheck = not CFG.TeamCheck
-    b.Text = "Team Check: " .. (CFG.TeamCheck and "ON" or "OFF")
-end)
-
-ToggleBtn("Destroy UI", 250, function()
-    Gui:Destroy()
-end)
-
-print("4080 Block Strike iPad loaded | Center-screen aim | CS2 ESP | Tap top-right for menu")
+print("4080 Block Strike iPad | Optimized | Pool: " .. #DrawingPool .. " objects | Rate: " .. CFG.ESP.UpdateRate .. "f")
