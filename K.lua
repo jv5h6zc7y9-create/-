@@ -1,8 +1,8 @@
 -- Block Strike iPad | Delta iOS
--- Триггер аим: при нажатии на стрельбу запоминает координаты прицела,
--- резко целится в голову противника, стреляет, убирает отдачу и разброс,
--- после убийства возвращает прицел на исходную позицию.
--- ВХ: боксы за стенами, скелет, здоровье, имя, дистанция.
+-- Аим на голову при зажатии огня с настройкой скорости
+-- ВХ: боксы, скелет, здоровье, имя, дистанция
+-- Без отдачи и разброса
+-- Меню на русском языке
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -10,48 +10,49 @@ local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
 -- ============================================
--- НАСТРОЙКИ
+-- НАСТРОЙКИ АИМА
 -- ============================================
 
-local Config = {
-    TriggerAimEnabled = true,
-    TriggerAimFieldOfView = 140,
-    TriggerAimTeamCheck = true,
-    TriggerAimHitPart = "Head",
-    TriggerAimPrediction = 0.08,
-    TriggerAimRestoreDelay = 0.35,
-    TriggerAimRestoreSpeed = 0.15,
-    TriggerAimMaxDistance = 400,
-    TriggerAimWallCheck = false,
-
-    WallhackEnabled = true,
-    WallhackBoxes = true,
-    WallhackSkeleton = true,
-    WallhackHealthBar = true,
-    WallhackName = true,
-    WallhackDistance = true,
-    WallhackMaxDistance = 500,
-    WallhackBoxColor = Color3.fromRGB(255, 50, 50),
-    WallhackBoxVisibleColor = Color3.fromRGB(50, 255, 50),
-    WallhackSkeletonColor = Color3.fromRGB(180, 180, 180),
-    WallhackSkeletonVisibleColor = Color3.fromRGB(255, 255, 255),
-    WallhackTextSize = 12,
-    WallhackUpdateRate = 2,
-    WallhackRaycastRate = 6
+local AimConfig = {
+    Enabled = true,
+    Speed = 0.15,
+    FieldOfView = 200,
+    TeamCheck = true,
+    HitPart = "Head",
+    Prediction = 0.12,
+    MaxDistance = 500
 }
 
 -- ============================================
--- СОСТОЯНИЕ ТРИГГЕР АИМА
+-- НАСТРОЙКИ ВХ
 -- ============================================
 
-local OriginalCameraCFrame = nil
-local IsCurrentlyAiming = false
-local LastTargetHead = nil
-local LastFireTime = 0
+local WallhackConfig = {
+    Enabled = true,
+    Boxes = true,
+    Skeleton = true,
+    HealthBar = true,
+    Name = true,
+    Distance = true,
+    MaxDistance = 500,
+    BoxColor = Color3.fromRGB(255, 50, 50),
+    BoxVisibleColor = Color3.fromRGB(50, 255, 50),
+    SkeletonColor = Color3.fromRGB(180, 180, 180),
+    SkeletonVisibleColor = Color3.fromRGB(255, 255, 255),
+    TextSize = 12,
+    UpdateRate = 2,
+    RaycastRate = 6
+}
+
+-- ============================================
+-- СОСТОЯНИЕ АИМА
+-- ============================================
+
+local IsHoldingFire = false
+local CurrentTarget = nil
 
 -- ============================================
 -- УТИЛИТЫ
@@ -79,7 +80,7 @@ local function IsCharacterAlive(character)
 end
 
 local function IsPlayerTeammate(player)
-    if not Config.TriggerAimTeamCheck then
+    if not AimConfig.TeamCheck then
         return false
     end
     if player.Team == LocalPlayer.Team then
@@ -89,14 +90,14 @@ local function IsPlayerTeammate(player)
 end
 
 -- ============================================
--- ПОИСК ЦЕЛИ ДЛЯ ТРИГГЕР АИМА
+-- ПОИСК ЦЕЛИ ДЛЯ АИМА
 -- ============================================
 
-local function GetNearestTargetHead()
+local function FindNearestEnemyHead()
     local centerOfScreen = GetCenterOfScreen()
     local cameraPosition = Camera.CFrame.Position
     local bestTarget = nil
-    local bestDistance = Config.TriggerAimFieldOfView
+    local bestDistance = AimConfig.FieldOfView
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then
@@ -111,7 +112,7 @@ local function GetNearestTargetHead()
             continue
         end
 
-        local head = character:FindFirstChild(Config.TriggerAimHitPart)
+        local head = character:FindFirstChild(AimConfig.HitPart)
         if not head then
             continue
         end
@@ -126,18 +127,8 @@ local function GetNearestTargetHead()
             continue
         end
 
-        if Config.TriggerAimWallCheck then
-            local raycastParams = RaycastParams.new()
-            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-            local raycastResult = Workspace:Raycast(cameraPosition, (head.Position - cameraPosition).Unit * 1000, raycastParams)
-            if raycastResult then
-                continue
-            end
-        end
-
         local distance3D = (head.Position - cameraPosition).Magnitude
-        if distance3D > Config.TriggerAimMaxDistance then
+        if distance3D > AimConfig.MaxDistance then
             continue
         end
 
@@ -149,102 +140,34 @@ local function GetNearestTargetHead()
 end
 
 -- ============================================
--- ВОЗВРАТ ПРИЦЕЛА
+-- СГЛАЖЕННАЯ НАВОДКА
 -- ============================================
 
-local function RestoreCameraToOriginal()
-    if not OriginalCameraCFrame then
-        return
-    end
-    IsCurrentlyAiming = false
-
-    local tweenInfo = TweenInfo.new(Config.TriggerAimRestoreSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(Camera, tweenInfo, {
-        CFrame = OriginalCameraCFrame
-    })
-    tween:Play()
-
-    OriginalCameraCFrame = nil
-    LastTargetHead = nil
-end
-
-local function ForceRestoreCamera()
-    if not IsCurrentlyAiming then
-        return
-    end
-    RestoreCameraToOriginal()
-end
-
--- ============================================
--- ОТСЛЕЖИВАНИЕ УБИЙСТВА
--- ============================================
-
-local function WatchTargetForDeath(targetHead)
+local function SmoothAimAtTarget(targetHead, deltaTime)
     if not targetHead or not targetHead.Parent then
-        task.delay(Config.TriggerAimRestoreDelay, ForceRestoreCamera)
+        CurrentTarget = nil
         return
     end
-
-    local humanoid = targetHead.Parent:FindFirstChildOfClass("Humanoid")
-    if not humanoid then
-        task.delay(Config.TriggerAimRestoreDelay, ForceRestoreCamera)
-        return
-    end
-
-    local healthConnection = nil
-    healthConnection = humanoid.HealthChanged:Connect(function(health)
-        if health <= 0 then
-            if healthConnection then
-                healthConnection:Disconnect()
-            end
-            RestoreCameraToOriginal()
-        end
-    end)
-
-    task.delay(Config.TriggerAimRestoreDelay + 0.2, function()
-        if healthConnection and healthConnection.Connected then
-            healthConnection:Disconnect()
-            ForceRestoreCamera()
-        end
-    end)
-end
-
--- ============================================
--- ОБРАБОТКА ВЫСТРЕЛА
--- ============================================
-
-local function OnPlayerFire()
-    if not Config.TriggerAimEnabled then
-        return
-    end
-    if IsCurrentlyAiming then
-        return
-    end
-
-    local targetHead = GetNearestTargetHead()
-    if not targetHead then
-        return
-    end
-
-    IsCurrentlyAiming = true
-    OriginalCameraCFrame = Camera.CFrame
-    LastTargetHead = targetHead
-    LastFireTime = tick()
 
     local humanoidRootPart = targetHead.Parent:FindFirstChild("HumanoidRootPart")
     local velocity = Vector3.zero
     if humanoidRootPart then
         velocity = humanoidRootPart.Velocity
     end
-    local aimPosition = targetHead.Position + (velocity * Config.TriggerAimPrediction)
 
-    Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPosition)
+    local predictedPosition = targetHead.Position + (velocity * AimConfig.Prediction)
+    local targetCFrame = CFrame.new(Camera.CFrame.Position, predictedPosition)
 
-    WatchTargetForDeath(targetHead)
+    local speed = AimConfig.Speed
+    if deltaTime then
+        speed = speed * (deltaTime * 60)
+    end
+
+    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.min(speed, 1))
 end
 
 -- ============================================
--- ХУК ВВОДА (тач + мышь)
+-- ОБРАБОТКА ВВОДА
 -- ============================================
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
@@ -252,12 +175,39 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         return
     end
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        OnPlayerFire()
+        if not AimConfig.Enabled then
+            return
+        end
+        IsHoldingFire = true
+        CurrentTarget = FindNearestEnemyHead()
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        IsHoldingFire = false
+        CurrentTarget = nil
     end
 end)
 
 -- ============================================
--- ХУК УДАЛЁННЫХ ВЫЗОВОВ (перехват пуль)
+-- ГЛАВНЫЙ ЦИКЛ АИМА
+-- ============================================
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    if not IsHoldingFire then
+        return
+    end
+    if not CurrentTarget then
+        CurrentTarget = FindNearestEnemyHead()
+    end
+    if CurrentTarget then
+        SmoothAimAtTarget(CurrentTarget, deltaTime)
+    end
+end)
+
+-- ============================================
+-- ХУК УДАЛЁННЫХ ВЫЗОВОВ
 -- ============================================
 
 local rawMetatable = getrawmetatable(game)
@@ -273,13 +223,13 @@ rawMetatable.__namecall = newcclosure(function(self, ...)
 
         if remoteName:find("shoot") or remoteName:find("fire") or remoteName:find("bullet") or remoteName:find("hit") or remoteName:find("damage") or remoteName:find("gun") or remoteName:find("weapon") then
 
-            if IsCurrentlyAiming and LastTargetHead and LastTargetHead.Parent then
-                local humanoidRootPart = LastTargetHead.Parent:FindFirstChild("HumanoidRootPart")
+            if IsHoldingFire and CurrentTarget and CurrentTarget.Parent then
+                local humanoidRootPart = CurrentTarget.Parent:FindFirstChild("HumanoidRootPart")
                 local velocity = Vector3.zero
                 if humanoidRootPart then
                     velocity = humanoidRootPart.Velocity
                 end
-                local aimPosition = LastTargetHead.Position + (velocity * Config.TriggerAimPrediction)
+                local aimPosition = CurrentTarget.Position + (velocity * AimConfig.Prediction)
 
                 for index, argument in ipairs(arguments) do
                     if typeof(argument) == "Vector3" then
@@ -335,7 +285,7 @@ task.spawn(function()
 end)
 
 RunService.Heartbeat:Connect(function()
-    if not Config.TriggerAimEnabled then
+    if not AimConfig.Enabled then
         return
     end
 
@@ -355,31 +305,8 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ============================================
--- ВХ (WALLHACK) — БОКСЫ, СКЕЛЕТ, ЗДОРОВЬЕ
+-- ВХ — КЭШ РИСОВАНИЯ (лёгкий, без пула)
 -- ============================================
-
-local DrawingPool = {}
-local function GetDrawingFromPool(drawingType)
-    for index, drawingObject in ipairs(DrawingPool) do
-        if not drawingObject.InUse and drawingObject.DrawingType == drawingType then
-            drawingObject.InUse = true
-            drawingObject.Visible = false
-            return drawingObject
-        end
-    end
-    local newDrawing = Drawing.new(drawingType)
-    newDrawing.DrawingType = drawingType
-    newDrawing.InUse = true
-    table.insert(DrawingPool, newDrawing)
-    return newDrawing
-end
-
-local function ReleaseDrawingToPool(drawingObject)
-    if drawingObject then
-        drawingObject.Visible = false
-        drawingObject.InUse = false
-    end
-end
 
 local SkeletonBones = {
     {"Head", "UpperTorso"},
@@ -391,75 +318,120 @@ local SkeletonBones = {
     {"LowerTorso", "HumanoidRootPart"}
 }
 
-local PlayerWallhackCache = {}
+local PlayerDrawingCache = {}
 
-local function GetPlayerWallhackCache(player)
-    if not PlayerWallhackCache[player] then
-        PlayerWallhackCache[player] = {
-            Box = GetDrawingFromPool("Square"),
-            BoxOutline = GetDrawingFromPool("Square"),
-            HealthBar = GetDrawingFromPool("Square"),
-            HealthOutline = GetDrawingFromPool("Square"),
-            NameText = GetDrawingFromPool("Text"),
-            DistanceText = GetDrawingFromPool("Text"),
-            SkeletonLines = {},
-            LastRaycast = 0,
-            IsTargetVisible = true,
-            CachedCharacter = nil,
-            CachedHumanoid = nil,
-            CachedHumanoidRootPart = nil,
-            CachedHead = nil
-        }
-        for boneIndex = 1, #SkeletonBones do
-            table.insert(PlayerWallhackCache[player].SkeletonLines, GetDrawingFromPool("Line"))
-        end
+local function CreatePlayerDrawings(player)
+    local drawings = {
+        Box = Drawing.new("Square"),
+        BoxOutline = Drawing.new("Square"),
+        HealthBar = Drawing.new("Square"),
+        HealthOutline = Drawing.new("Square"),
+        NameText = Drawing.new("Text"),
+        DistanceText = Drawing.new("Text"),
+        SkeletonLines = {},
+        IsVisible = true,
+        LastRaycast = 0
+    }
+
+    drawings.Box.Thickness = 1
+    drawings.Box.Filled = false
+    drawings.BoxOutline.Thickness = 2
+    drawings.BoxOutline.Filled = false
+    drawings.BoxOutline.Color = Color3.new(0, 0, 0)
+    drawings.HealthBar.Filled = true
+    drawings.HealthOutline.Filled = true
+    drawings.HealthOutline.Color = Color3.new(0, 0, 0)
+    drawings.NameText.Size = WallhackConfig.TextSize
+    drawings.NameText.Center = true
+    drawings.NameText.Outline = true
+    drawings.DistanceText.Size = WallhackConfig.TextSize
+    drawings.DistanceText.Center = true
+    drawings.DistanceText.Outline = true
+
+    for boneIndex = 1, #SkeletonBones do
+        local line = Drawing.new("Line")
+        line.Thickness = 1
+        table.insert(drawings.SkeletonLines, line)
     end
-    return PlayerWallhackCache[player]
+
+    return drawings
 end
 
-local function ClearPlayerWallhackCache(player)
-    local cache = PlayerWallhackCache[player]
-    if not cache then
+local function GetPlayerDrawings(player)
+    if not PlayerDrawingCache[player] then
+        PlayerDrawingCache[player] = CreatePlayerDrawings(player)
+    end
+    return PlayerDrawingCache[player]
+end
+
+local function HidePlayerDrawings(player)
+    local drawings = PlayerDrawingCache[player]
+    if not drawings then
         return
     end
-    ReleaseDrawingToPool(cache.Box)
-    ReleaseDrawingToPool(cache.BoxOutline)
-    ReleaseDrawingToPool(cache.HealthBar)
-    ReleaseDrawingToPool(cache.HealthOutline)
-    ReleaseDrawingToPool(cache.NameText)
-    ReleaseDrawingToPool(cache.DistanceText)
-    for _, line in ipairs(cache.SkeletonLines) do
-        ReleaseDrawingToPool(line)
+    drawings.Box.Visible = false
+    drawings.BoxOutline.Visible = false
+    drawings.HealthBar.Visible = false
+    drawings.HealthOutline.Visible = false
+    drawings.NameText.Visible = false
+    drawings.DistanceText.Visible = false
+    for _, line in ipairs(drawings.SkeletonLines) do
+        line.Visible = false
     end
-    PlayerWallhackCache[player] = nil
 end
 
-local FrameCounter = 0
+local function RemovePlayerDrawings(player)
+    local drawings = PlayerDrawingCache[player]
+    if not drawings then
+        return
+    end
+    drawings.Box:Remove()
+    drawings.BoxOutline:Remove()
+    drawings.HealthBar:Remove()
+    drawings.HealthOutline:Remove()
+    drawings.NameText:Remove()
+    drawings.DistanceText:Remove()
+    for _, line in ipairs(drawings.SkeletonLines) do
+        line:Remove()
+    end
+    PlayerDrawingCache[player] = nil
+end
+
+-- ============================================
+-- ВХ — ГЛАВНЫЙ ЦИКЛ
+-- ============================================
+
+local WallhackFrameCounter = 0
 
 RunService.RenderStepped:Connect(function()
-    FrameCounter = FrameCounter + 1
+    WallhackFrameCounter = WallhackFrameCounter + 1
 
-    if not Config.WallhackEnabled then
+    if not WallhackConfig.Enabled then
+        for player, _ in pairs(PlayerDrawingCache) do
+            HidePlayerDrawings(player)
+        end
         return
     end
-    if FrameCounter % Config.WallhackUpdateRate ~= 0 then
+
+    if WallhackFrameCounter % WallhackConfig.UpdateRate ~= 0 then
         return
     end
 
     local cameraPosition = Camera.CFrame.Position
-    local shouldPerformRaycast = FrameCounter % Config.WallhackRaycastRate == 0
+    local shouldPerformRaycast = WallhackFrameCounter % WallhackConfig.RaycastRate == 0
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then
             continue
         end
-        if Config.TriggerAimTeamCheck and player.Team == LocalPlayer.Team then
+        if AimConfig.TeamCheck and player.Team == LocalPlayer.Team then
+            HidePlayerDrawings(player)
             continue
         end
 
         local character = player.Character
         if not IsCharacterAlive(character) then
-            ClearPlayerWallhackCache(player)
+            HidePlayerDrawings(player)
             continue
         end
 
@@ -467,13 +439,13 @@ RunService.RenderStepped:Connect(function()
         local head = character:FindFirstChild("Head")
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if not humanoidRootPart or not head or not humanoid then
-            ClearPlayerWallhackCache(player)
+            HidePlayerDrawings(player)
             continue
         end
 
         local distance3D = (humanoidRootPart.Position - cameraPosition).Magnitude
-        if distance3D > Config.WallhackMaxDistance then
-            ClearPlayerWallhackCache(player)
+        if distance3D > WallhackConfig.MaxDistance then
+            HidePlayerDrawings(player)
             continue
         end
 
@@ -503,100 +475,86 @@ RunService.RenderStepped:Connect(function()
         AddBoundingBoxPoint(character:FindFirstChild("LeftUpperLeg"))
 
         if not anyPartOnScreen then
-            ClearPlayerWallhackCache(player)
+            HidePlayerDrawings(player)
             continue
         end
 
         local boxWidth = maximumX - minimumX
         local boxHeight = maximumY - minimumY
         if boxWidth < 5 or boxHeight < 5 then
-            ClearPlayerWallhackCache(player)
+            HidePlayerDrawings(player)
             continue
         end
 
-        local cache = GetPlayerWallhackCache(player)
+        local drawings = GetPlayerDrawings(player)
 
         if shouldPerformRaycast then
             local raycastParams = RaycastParams.new()
             raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
             raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
             local raycastResult = Workspace:Raycast(cameraPosition, (head.Position - cameraPosition).Unit * 1000, raycastParams)
-            cache.IsTargetVisible = raycastResult == nil
+            drawings.IsVisible = raycastResult == nil
         end
 
-        local boxColor = cache.IsTargetVisible and Config.WallhackBoxVisibleColor or Config.WallhackBoxColor
-        local skeletonColor = cache.IsTargetVisible and Config.WallhackSkeletonVisibleColor or Config.WallhackSkeletonColor
+        local boxColor = drawings.IsVisible and WallhackConfig.BoxVisibleColor or WallhackConfig.BoxColor
+        local skeletonColor = drawings.IsVisible and WallhackConfig.SkeletonVisibleColor or WallhackConfig.SkeletonColor
 
-        if Config.WallhackBoxes then
-            cache.BoxOutline.Visible = true
-            cache.BoxOutline.Position = Vector2.new(minimumX, minimumY)
-            cache.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
-            cache.BoxOutline.Color = Color3.new(0, 0, 0)
-            cache.BoxOutline.Thickness = 2
-            cache.BoxOutline.Filled = false
+        if WallhackConfig.Boxes then
+            drawings.BoxOutline.Visible = true
+            drawings.BoxOutline.Position = Vector2.new(minimumX, minimumY)
+            drawings.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
 
-            cache.Box.Visible = true
-            cache.Box.Position = Vector2.new(minimumX, minimumY)
-            cache.Box.Size = Vector2.new(boxWidth, boxHeight)
-            cache.Box.Color = boxColor
-            cache.Box.Thickness = 1
-            cache.Box.Filled = false
+            drawings.Box.Visible = true
+            drawings.Box.Position = Vector2.new(minimumX, minimumY)
+            drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
+            drawings.Box.Color = boxColor
         else
-            cache.Box.Visible = false
-            cache.BoxOutline.Visible = false
+            drawings.Box.Visible = false
+            drawings.BoxOutline.Visible = false
         end
 
-        if Config.WallhackHealthBar then
+        if WallhackConfig.HealthBar then
             local healthPercent = humanoid.Health / humanoid.MaxHealth
             local barHeight = boxHeight * healthPercent
             local barX = minimumX - 5
             local barY = minimumY + boxHeight - barHeight
 
-            cache.HealthOutline.Visible = true
-            cache.HealthOutline.Position = Vector2.new(barX - 1, minimumY - 1)
-            cache.HealthOutline.Size = Vector2.new(4, boxHeight + 2)
-            cache.HealthOutline.Color = Color3.new(0, 0, 0)
-            cache.HealthOutline.Filled = true
+            drawings.HealthOutline.Visible = true
+            drawings.HealthOutline.Position = Vector2.new(barX - 1, minimumY - 1)
+            drawings.HealthOutline.Size = Vector2.new(4, boxHeight + 2)
 
-            cache.HealthBar.Visible = true
-            cache.HealthBar.Position = Vector2.new(barX, barY)
-            cache.HealthBar.Size = Vector2.new(2, barHeight)
-            cache.HealthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
-            cache.HealthBar.Filled = true
+            drawings.HealthBar.Visible = true
+            drawings.HealthBar.Position = Vector2.new(barX, barY)
+            drawings.HealthBar.Size = Vector2.new(2, barHeight)
+            drawings.HealthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
         else
-            cache.HealthBar.Visible = false
-            cache.HealthOutline.Visible = false
+            drawings.HealthBar.Visible = false
+            drawings.HealthOutline.Visible = false
         end
 
-        if Config.WallhackName then
-            cache.NameText.Visible = true
-            cache.NameText.Position = Vector2.new(minimumX + boxWidth / 2, minimumY - 14)
-            cache.NameText.Text = player.Name
-            cache.NameText.Size = Config.WallhackTextSize
-            cache.NameText.Center = true
-            cache.NameText.Outline = true
-            cache.NameText.Color = boxColor
+        if WallhackConfig.Name then
+            drawings.NameText.Visible = true
+            drawings.NameText.Position = Vector2.new(minimumX + boxWidth / 2, minimumY - 14)
+            drawings.NameText.Text = player.Name
+            drawings.NameText.Color = boxColor
         else
-            cache.NameText.Visible = false
+            drawings.NameText.Visible = false
         end
 
-        if Config.WallhackDistance then
-            cache.DistanceText.Visible = true
-            cache.DistanceText.Position = Vector2.new(minimumX + boxWidth / 2, maximumY + 2)
-            cache.DistanceText.Text = math.floor(distance3D) .. "m"
-            cache.DistanceText.Size = Config.WallhackTextSize
-            cache.DistanceText.Center = true
-            cache.DistanceText.Outline = true
-            cache.DistanceText.Color = Color3.fromRGB(200, 200, 200)
+        if WallhackConfig.Distance then
+            drawings.DistanceText.Visible = true
+            drawings.DistanceText.Position = Vector2.new(minimumX + boxWidth / 2, maximumY + 2)
+            drawings.DistanceText.Text = math.floor(distance3D) .. "м"
+            drawings.DistanceText.Color = Color3.fromRGB(200, 200, 200)
         else
-            cache.DistanceText.Visible = false
+            drawings.DistanceText.Visible = false
         end
 
-        if Config.WallhackSkeleton then
+        if WallhackConfig.Skeleton then
             for boneIndex, boneConnection in ipairs(SkeletonBones) do
                 local firstPart = character:FindFirstChild(boneConnection[1])
                 local secondPart = character:FindFirstChild(boneConnection[2])
-                local line = cache.SkeletonLines[boneIndex]
+                local line = drawings.SkeletonLines[boneIndex]
 
                 if firstPart and secondPart and line then
                     local firstScreen, firstDepth = WorldToScreen(firstPart.Position)
@@ -607,7 +565,6 @@ RunService.RenderStepped:Connect(function()
                         line.From = firstScreen
                         line.To = secondScreen
                         line.Color = skeletonColor
-                        line.Thickness = 1
                     else
                         line.Visible = false
                     end
@@ -616,7 +573,7 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         else
-            for _, line in ipairs(cache.SkeletonLines) do
+            for _, line in ipairs(drawings.SkeletonLines) do
                 line.Visible = false
             end
         end
@@ -624,11 +581,11 @@ RunService.RenderStepped:Connect(function()
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-    ClearPlayerWallhackCache(player)
+    RemovePlayerDrawings(player)
 end)
 
 -- ============================================
--- КРУГ ПОЛЯ ЗРЕНИЯ (FOV)
+-- КРУГ ПОЛЯ ЗРЕНИЯ
 -- ============================================
 
 local FieldOfViewCircle = Drawing.new("Circle")
@@ -642,8 +599,8 @@ FieldOfViewCircle.Filled = false
 RunService.RenderStepped:Connect(function()
     local viewportSize = Camera.ViewportSize
     FieldOfViewCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-    FieldOfViewCircle.Radius = Config.TriggerAimFieldOfView
-    if IsCurrentlyAiming then
+    FieldOfViewCircle.Radius = AimConfig.FieldOfView
+    if IsHoldingFire and CurrentTarget then
         FieldOfViewCircle.Color = Color3.fromRGB(0, 255, 100)
     else
         FieldOfViewCircle.Color = Color3.fromRGB(255, 255, 255)
@@ -651,68 +608,69 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- МЕНЮ НАСТРОЕК
+-- МЕНЮ НАСТРОЕК (НА РУССКОМ)
 -- ============================================
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
-local SettingsFrame = Instance.new("Frame")
-SettingsFrame.Size = UDim2.new(0, 200, 0, 320)
-SettingsFrame.Position = UDim2.new(1, -210, 0, 10)
-SettingsFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-SettingsFrame.BorderSizePixel = 0
-SettingsFrame.Parent = ScreenGui
-Instance.new("UICorner", SettingsFrame).CornerRadius = UDim.new(0, 6)
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 220, 0, 380)
+MainFrame.Position = UDim2.new(1, -230, 0, 10)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
-local SettingsTitle = Instance.new("TextLabel")
-SettingsTitle.Size = UDim2.new(1, 0, 0, 26)
-SettingsTitle.Text = "4080 | Block Strike"
-SettingsTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-SettingsTitle.BackgroundTransparency = 1
-SettingsTitle.Font = Enum.Font.GothamBold
-SettingsTitle.TextSize = 12
-SettingsTitle.Parent = SettingsFrame
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+TitleLabel.Text = "4080 | БЛОК СТРАЙК"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 14
+TitleLabel.Parent = MainFrame
 
-local function CreateToggleButton(buttonText, positionY, configKey)
+local function CreateToggleButton(buttonText, positionY, configTable, configKey)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0.9, 0, 0, 26)
+    button.Size = UDim2.new(0.9, 0, 0, 28)
     button.Position = UDim2.new(0.05, 0, 0, positionY)
-    button.Text = buttonText .. ": " .. (Config[configKey] and "ON" or "OFF")
-    button.TextColor3 = Color3.fromRGB(200, 200, 200)
-    button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    button.Text = buttonText .. ": " .. (configTable[configKey] and "ВКЛ" or "ВЫКЛ")
+    button.TextColor3 = Color3.fromRGB(220, 220, 220)
+    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     button.Font = Enum.Font.Gotham
-    button.TextSize = 11
-    button.Parent = SettingsFrame
+    button.TextSize = 12
+    button.Parent = MainFrame
     Instance.new("UICorner", button).CornerRadius = UDim.new(0, 4)
     button.MouseButton1Click:Connect(function()
-        Config[configKey] = not Config[configKey]
-        button.Text = buttonText .. ": " .. (Config[configKey] and "ON" or "OFF")
+        configTable[configKey] = not configTable[configKey]
+        button.Text = buttonText .. ": " .. (configTable[configKey] and "ВКЛ" or "ВЫКЛ")
     end)
     return button
 end
 
-CreateToggleButton("Trigger Aim", 32, "TriggerAimEnabled")
-CreateToggleButton("Wallhack", 64, "WallhackEnabled")
-CreateToggleButton("Boxes", 96, "WallhackBoxes")
-CreateToggleButton("Skeleton", 128, "WallhackSkeleton")
-CreateToggleButton("Health Bar", 160, "WallhackHealthBar")
-CreateToggleButton("Team Check", 192, "TriggerAimTeamCheck")
-CreateToggleButton("Wall Check", 224, "TriggerAimWallCheck")
+CreateToggleButton("Аим", 38, AimConfig, "Enabled")
+CreateToggleButton("Проверка Команды", 72, AimConfig, "TeamCheck")
+CreateToggleButton("ВХ", 106, WallhackConfig, "Enabled")
+CreateToggleButton("Боксы", 140, WallhackConfig, "Boxes")
+CreateToggleButton("Скелет", 174, WallhackConfig, "Skeleton")
+CreateToggleButton("Полоска Здоровья", 208, WallhackConfig, "HealthBar")
+CreateToggleButton("Имя", 242, WallhackConfig, "Name")
+CreateToggleButton("Дистанция", 276, WallhackConfig, "Distance")
 
 local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0.9, 0, 0, 26)
-CloseButton.Position = UDim2.new(0.05, 0, 0, 256)
-CloseButton.Text = "Close Menu"
+CloseButton.Size = UDim2.new(0.9, 0, 0, 28)
+CloseButton.Position = UDim2.new(0.05, 0, 0, 314)
+CloseButton.Text = "Закрыть Меню"
 CloseButton.TextColor3 = Color3.fromRGB(255, 80, 80)
-CloseButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+CloseButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 CloseButton.Font = Enum.Font.Gotham
-CloseButton.TextSize = 11
-CloseButton.Parent = SettingsFrame
+CloseButton.TextSize = 12
+CloseButton.Parent = MainFrame
 Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(0, 4)
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-print("4080 Block Strike iPad loaded | Trigger Aim + Wallhack + No Recoil | Full Build")
+print("4080 Блок Страйк iPad загружен | Аим + ВХ + Анти-Отдача | Меню на русском")
