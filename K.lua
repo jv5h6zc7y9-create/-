@@ -1,7 +1,7 @@
 -- Block Strike iPad | Delta iOS
--- Аим на голову при зажатии огня с настройкой скорости
--- ВХ: боксы, скелет, здоровье, имя, дистанция
--- Без отдачи и разброса
+-- Полностью оптимизированный скрипт
+-- Убран getgc() из Heartbeat — главный убийца FPS
+-- Кэш частей персонажа, переиспользуемый RaycastParams, троттлинг ESP
 -- Меню на русском языке
 
 local Players = game:GetService("Players")
@@ -18,12 +18,13 @@ local CoreGui = game:GetService("CoreGui")
 
 local AimConfig = {
     Enabled = true,
-    Speed = 0.15,
+    Speed = 0.18,
     FieldOfView = 200,
     TeamCheck = true,
     HitPart = "Head",
     Prediction = 0.12,
-    MaxDistance = 500
+    MaxDistance = 500,
+    TargetSearchInterval = 0.15
 }
 
 -- ============================================
@@ -33,18 +34,17 @@ local AimConfig = {
 local WallhackConfig = {
     Enabled = true,
     Boxes = true,
-    Skeleton = true,
+    Skeleton = false,
     HealthBar = true,
     Name = true,
     Distance = true,
-    MaxDistance = 500,
+    MaxDistance = 400,
     BoxColor = Color3.fromRGB(255, 50, 50),
     BoxVisibleColor = Color3.fromRGB(50, 255, 50),
     SkeletonColor = Color3.fromRGB(180, 180, 180),
     SkeletonVisibleColor = Color3.fromRGB(255, 255, 255),
     TextSize = 12,
-    UpdateRate = 2,
-    RaycastRate = 6
+    UpdateInterval = 0.08
 }
 
 -- ============================================
@@ -53,6 +53,7 @@ local WallhackConfig = {
 
 local IsHoldingFire = false
 local CurrentTarget = nil
+local LastTargetSearchTime = 0
 
 -- ============================================
 -- УТИЛИТЫ
@@ -90,7 +91,51 @@ local function IsPlayerTeammate(player)
 end
 
 -- ============================================
--- ПОИСК ЦЕЛИ ДЛЯ АИМА
+-- КЭШ ЧАСТЕЙ ПЕРСОНАЖА (один раз при появлении)
+-- ============================================
+
+local CharacterPartCache = {}
+
+local function CacheCharacterParts(character)
+    if not character then
+        return nil
+    end
+    local cache = {
+        Head = character:WaitForChild("Head", 1),
+        HumanoidRootPart = character:WaitForChild("HumanoidRootPart", 1),
+        UpperTorso = character:FindFirstChild("UpperTorso"),
+        LowerTorso = character:FindFirstChild("LowerTorso"),
+        RightUpperArm = character:FindFirstChild("RightUpperArm"),
+        RightLowerArm = character:FindFirstChild("RightLowerArm"),
+        LeftUpperArm = character:FindFirstChild("LeftUpperArm"),
+        LeftLowerArm = character:FindFirstChild("LeftLowerArm"),
+        RightUpperLeg = character:FindFirstChild("RightUpperLeg"),
+        LeftUpperLeg = character:FindFirstChild("LeftUpperLeg"),
+        Humanoid = character:FindFirstChildOfClass("Humanoid")
+    }
+    return cache
+end
+
+local function GetCachedCharacterParts(character)
+    if not CharacterPartCache[character] then
+        CharacterPartCache[character] = CacheCharacterParts(character)
+    end
+    return CharacterPartCache[character]
+end
+
+local function ClearCharacterPartCache(character)
+    CharacterPartCache[character] = nil
+end
+
+-- ============================================
+-- ПЕРЕИСПОЛЬЗУЕМЫЙ RAYCASTPARAMS
+-- ============================================
+
+local SharedRaycastParams = RaycastParams.new()
+SharedRaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+-- ============================================
+-- ПОИСК ЦЕЛИ ДЛЯ АИМА (с интервалом)
 -- ============================================
 
 local function FindNearestEnemyHead()
@@ -112,12 +157,12 @@ local function FindNearestEnemyHead()
             continue
         end
 
-        local head = character:FindFirstChild(AimConfig.HitPart)
-        if not head then
+        local parts = GetCachedCharacterParts(character)
+        if not parts or not parts.Head then
             continue
         end
 
-        local screenPosition, depth = WorldToScreen(head.Position)
+        local screenPosition, depth = WorldToScreen(parts.Head.Position)
         if depth <= 0 then
             continue
         end
@@ -127,13 +172,13 @@ local function FindNearestEnemyHead()
             continue
         end
 
-        local distance3D = (head.Position - cameraPosition).Magnitude
+        local distance3D = (parts.Head.Position - cameraPosition).Magnitude
         if distance3D > AimConfig.MaxDistance then
             continue
         end
 
         bestDistance = distanceFromCenter
-        bestTarget = head
+        bestTarget = parts.Head
     end
 
     return bestTarget
@@ -149,10 +194,10 @@ local function SmoothAimAtTarget(targetHead, deltaTime)
         return
     end
 
-    local humanoidRootPart = targetHead.Parent:FindFirstChild("HumanoidRootPart")
+    local parts = GetCachedCharacterParts(targetHead.Parent)
     local velocity = Vector3.zero
-    if humanoidRootPart then
-        velocity = humanoidRootPart.Velocity
+    if parts and parts.HumanoidRootPart then
+        velocity = parts.HumanoidRootPart.Velocity
     end
 
     local predictedPosition = targetHead.Position + (velocity * AimConfig.Prediction)
@@ -180,6 +225,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         end
         IsHoldingFire = true
         CurrentTarget = FindNearestEnemyHead()
+        LastTargetSearchTime = tick()
     end
 end)
 
@@ -191,16 +237,20 @@ UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
 end)
 
 -- ============================================
--- ГЛАВНЫЙ ЦИКЛ АИМА
+-- ГЛАВНЫЙ ЦИКЛ АИМА (с интервалом поиска цели)
 -- ============================================
 
 RunService.RenderStepped:Connect(function(deltaTime)
     if not IsHoldingFire then
         return
     end
-    if not CurrentTarget then
+
+    local currentTime = tick()
+    if not CurrentTarget or (currentTime - LastTargetSearchTime) > AimConfig.TargetSearchInterval then
         CurrentTarget = FindNearestEnemyHead()
+        LastTargetSearchTime = currentTime
     end
+
     if CurrentTarget then
         SmoothAimAtTarget(CurrentTarget, deltaTime)
     end
@@ -224,10 +274,10 @@ rawMetatable.__namecall = newcclosure(function(self, ...)
         if remoteName:find("shoot") or remoteName:find("fire") or remoteName:find("bullet") or remoteName:find("hit") or remoteName:find("damage") or remoteName:find("gun") or remoteName:find("weapon") then
 
             if IsHoldingFire and CurrentTarget and CurrentTarget.Parent then
-                local humanoidRootPart = CurrentTarget.Parent:FindFirstChild("HumanoidRootPart")
+                local parts = GetCachedCharacterParts(CurrentTarget.Parent)
                 local velocity = Vector3.zero
-                if humanoidRootPart then
-                    velocity = humanoidRootPart.Velocity
+                if parts and parts.HumanoidRootPart then
+                    velocity = parts.HumanoidRootPart.Velocity
                 end
                 local aimPosition = CurrentTarget.Position + (velocity * AimConfig.Prediction)
 
@@ -253,11 +303,11 @@ end)
 setreadonly(rawMetatable, true)
 
 -- ============================================
--- УБИРАНИЕ ОТДАЧИ И РАЗБРОСА
+-- АНТИ-ОТДАЧА (один раз при загрузке, НЕ в Heartbeat)
 -- ============================================
 
 task.spawn(function()
-    task.wait(2)
+    task.wait(3)
 
     for _, garbageCollectedObject in pairs(getgc()) do
         if typeof(garbageCollectedObject) == "table" then
@@ -280,32 +330,36 @@ task.spawn(function()
             if garbageCollectedObject.Spread and typeof(garbageCollectedObject.Spread) == "Vector3" then
                 garbageCollectedObject.Spread = Vector3.zero
             end
-        end
-    end
-end)
-
-RunService.Heartbeat:Connect(function()
-    if not AimConfig.Enabled then
-        return
-    end
-
-    for _, garbageCollectedObject in pairs(getgc()) do
-        if typeof(garbageCollectedObject) == "table" then
             if garbageCollectedObject.CurrentRecoil and typeof(garbageCollectedObject.CurrentRecoil) == "Vector3" then
                 garbageCollectedObject.CurrentRecoil = Vector3.zero
             end
             if garbageCollectedObject.CurrentSpread and typeof(garbageCollectedObject.CurrentSpread) == "number" then
                 garbageCollectedObject.CurrentSpread = 0
             end
-            if garbageCollectedObject.RecoilTimer and typeof(garbageCollectedObject.RecoilTimer) == "number" then
-                garbageCollectedObject.RecoilTimer = 0
+        end
+    end
+
+    -- Периодическая проверка раз в 5 секунд (не каждый кадр)
+    while true do
+        task.wait(5)
+        for _, garbageCollectedObject in pairs(getgc()) do
+            if typeof(garbageCollectedObject) == "table" then
+                if garbageCollectedObject.CurrentRecoil and typeof(garbageCollectedObject.CurrentRecoil) == "Vector3" then
+                    garbageCollectedObject.CurrentRecoil = Vector3.zero
+                end
+                if garbageCollectedObject.CurrentSpread and typeof(garbageCollectedObject.CurrentSpread) == "number" then
+                    garbageCollectedObject.CurrentSpread = 0
+                end
+                if garbageCollectedObject.RecoilTimer and typeof(garbageCollectedObject.RecoilTimer) == "number" then
+                    garbageCollectedObject.RecoilTimer = 0
+                end
             end
         end
     end
 end)
 
 -- ============================================
--- ВХ — КЭШ РИСОВАНИЯ (лёгкий, без пула)
+-- ВХ — КЭШ РИСОВАНИЯ (лёгкий)
 -- ============================================
 
 local SkeletonBones = {
@@ -398,13 +452,17 @@ local function RemovePlayerDrawings(player)
 end
 
 -- ============================================
--- ВХ — ГЛАВНЫЙ ЦИКЛ
+-- ВХ — ГЛАВНЫЙ ЦИКЛ (с троттлингом, не каждый кадр)
 -- ============================================
 
-local WallhackFrameCounter = 0
+local LastWallhackUpdate = 0
 
-RunService.RenderStepped:Connect(function()
-    WallhackFrameCounter = WallhackFrameCounter + 1
+RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+    if currentTime - LastWallhackUpdate < WallhackConfig.UpdateInterval then
+        return
+    end
+    LastWallhackUpdate = currentTime
 
     if not WallhackConfig.Enabled then
         for player, _ in pairs(PlayerDrawingCache) do
@@ -413,12 +471,8 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    if WallhackFrameCounter % WallhackConfig.UpdateRate ~= 0 then
-        return
-    end
-
     local cameraPosition = Camera.CFrame.Position
-    local shouldPerformRaycast = WallhackFrameCounter % WallhackConfig.RaycastRate == 0
+    local shouldPerformRaycast = math.floor(currentTime * 10) % 3 == 0
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then
@@ -435,15 +489,13 @@ RunService.RenderStepped:Connect(function()
             continue
         end
 
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        local head = character:FindFirstChild("Head")
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if not humanoidRootPart or not head or not humanoid then
+        local parts = GetCachedCharacterParts(character)
+        if not parts or not parts.HumanoidRootPart or not parts.Head or not parts.Humanoid then
             HidePlayerDrawings(player)
             continue
         end
 
-        local distance3D = (humanoidRootPart.Position - cameraPosition).Magnitude
+        local distance3D = (parts.HumanoidRootPart.Position - cameraPosition).Magnitude
         if distance3D > WallhackConfig.MaxDistance then
             HidePlayerDrawings(player)
             continue
@@ -467,12 +519,12 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        AddBoundingBoxPoint(head)
-        AddBoundingBoxPoint(humanoidRootPart)
-        AddBoundingBoxPoint(character:FindFirstChild("RightUpperArm"))
-        AddBoundingBoxPoint(character:FindFirstChild("LeftUpperArm"))
-        AddBoundingBoxPoint(character:FindFirstChild("RightUpperLeg"))
-        AddBoundingBoxPoint(character:FindFirstChild("LeftUpperLeg"))
+        AddBoundingBoxPoint(parts.Head)
+        AddBoundingBoxPoint(parts.HumanoidRootPart)
+        AddBoundingBoxPoint(parts.RightUpperArm)
+        AddBoundingBoxPoint(parts.LeftUpperArm)
+        AddBoundingBoxPoint(parts.RightUpperLeg)
+        AddBoundingBoxPoint(parts.LeftUpperLeg)
 
         if not anyPartOnScreen then
             HidePlayerDrawings(player)
@@ -489,10 +541,8 @@ RunService.RenderStepped:Connect(function()
         local drawings = GetPlayerDrawings(player)
 
         if shouldPerformRaycast then
-            local raycastParams = RaycastParams.new()
-            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-            local raycastResult = Workspace:Raycast(cameraPosition, (head.Position - cameraPosition).Unit * 1000, raycastParams)
+            SharedRaycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
+            local raycastResult = Workspace:Raycast(cameraPosition, (parts.Head.Position - cameraPosition).Unit * 1000, SharedRaycastParams)
             drawings.IsVisible = raycastResult == nil
         end
 
@@ -514,7 +564,7 @@ RunService.RenderStepped:Connect(function()
         end
 
         if WallhackConfig.HealthBar then
-            local healthPercent = humanoid.Health / humanoid.MaxHealth
+            local healthPercent = parts.Humanoid.Health / parts.Humanoid.MaxHealth
             local barHeight = boxHeight * healthPercent
             local barX = minimumX - 5
             local barY = minimumY + boxHeight - barHeight
@@ -552,8 +602,10 @@ RunService.RenderStepped:Connect(function()
 
         if WallhackConfig.Skeleton then
             for boneIndex, boneConnection in ipairs(SkeletonBones) do
-                local firstPart = character:FindFirstChild(boneConnection[1])
-                local secondPart = character:FindFirstChild(boneConnection[2])
+                local firstPartName = boneConnection[1]
+                local secondPartName = boneConnection[2]
+                local firstPart = character:FindFirstChild(firstPartName)
+                local secondPart = character:FindFirstChild(secondPartName)
                 local line = drawings.SkeletonLines[boneIndex]
 
                 if firstPart and secondPart and line then
@@ -580,9 +632,35 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- ============================================
+-- ОЧИСТКА ПРИ ВЫХОДЕ ИГРОКА
+-- ============================================
+
 Players.PlayerRemoving:Connect(function(player)
     RemovePlayerDrawings(player)
+    if player.Character then
+        ClearCharacterPartCache(player.Character)
+    end
 end)
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        CharacterPartCache[character] = CacheCharacterParts(character)
+    end)
+    if player.Character then
+        CharacterPartCache[player.Character] = CacheCharacterParts(player.Character)
+    end
+end)
+
+-- Кэширование существующих персонажей
+for _, player in ipairs(Players:GetPlayers()) do
+    if player.Character then
+        CharacterPartCache[player.Character] = CacheCharacterParts(player.Character)
+    end
+    player.CharacterAdded:Connect(function(character)
+        CharacterPartCache[character] = CacheCharacterParts(character)
+    end)
+end
 
 -- ============================================
 -- КРУГ ПОЛЯ ЗРЕНИЯ
@@ -616,15 +694,15 @@ ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 380)
-MainFrame.Position = UDim2.new(1, -230, 0, 10)
+MainFrame.Size = UDim2.new(0, 230, 0, 400)
+MainFrame.Position = UDim2.new(1, -240, 0, 10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+TitleLabel.Size = UDim2.new(1, 0, 0, 32)
 TitleLabel.Text = "4080 | БЛОК СТРАЙК"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.BackgroundTransparency = 1
@@ -650,18 +728,18 @@ local function CreateToggleButton(buttonText, positionY, configTable, configKey)
     return button
 end
 
-CreateToggleButton("Аим", 38, AimConfig, "Enabled")
-CreateToggleButton("Проверка Команды", 72, AimConfig, "TeamCheck")
-CreateToggleButton("ВХ", 106, WallhackConfig, "Enabled")
-CreateToggleButton("Боксы", 140, WallhackConfig, "Boxes")
-CreateToggleButton("Скелет", 174, WallhackConfig, "Skeleton")
-CreateToggleButton("Полоска Здоровья", 208, WallhackConfig, "HealthBar")
-CreateToggleButton("Имя", 242, WallhackConfig, "Name")
-CreateToggleButton("Дистанция", 276, WallhackConfig, "Distance")
+CreateToggleButton("Аим", 40, AimConfig, "Enabled")
+CreateToggleButton("Проверка Команды", 74, AimConfig, "TeamCheck")
+CreateToggleButton("ВХ", 108, WallhackConfig, "Enabled")
+CreateToggleButton("Боксы", 142, WallhackConfig, "Boxes")
+CreateToggleButton("Скелет", 176, WallhackConfig, "Skeleton")
+CreateToggleButton("Полоска Здоровья", 210, WallhackConfig, "HealthBar")
+CreateToggleButton("Имя", 244, WallhackConfig, "Name")
+CreateToggleButton("Дистанция", 278, WallhackConfig, "Distance")
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Size = UDim2.new(0.9, 0, 0, 28)
-CloseButton.Position = UDim2.new(0.05, 0, 0, 314)
+CloseButton.Position = UDim2.new(0.05, 0, 0, 316)
 CloseButton.Text = "Закрыть Меню"
 CloseButton.TextColor3 = Color3.fromRGB(255, 80, 80)
 CloseButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
@@ -673,4 +751,4 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-print("4080 Блок Страйк iPad загружен | Аим + ВХ + Анти-Отдача | Меню на русском")
+print("4080 Блок Страйк iPad | Оптимизирован | getgc() убран из Heartbeat | FPS должен быть стабильным")
