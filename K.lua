@@ -191,20 +191,20 @@ ParticleContainer.Name = "ParticleContainer"
 ParticleContainer.Parent = ScreenGui
 
 local particles = {}
-local maxParticles = 50
+local maxParticles = 30
 
 for i = 1, maxParticles do
     local p = Instance.new("Frame")
-    p.Size = UDim2.new(0, math.random(2, 5), 0, math.random(10, 25))
+    p.Size = UDim2.new(0, math.random(2, 4), 0, math.random(8, 15))
     p.Position = UDim2.new(math.random(), 0, -0.1, 0)
     p.BackgroundColor3 = Color3.fromRGB(200, 220, 255)
-    p.BackgroundTransparency = math.random(3, 7) / 10
+    p.BackgroundTransparency = 0.5
     p.BorderSizePixel = 0
     p.Parent = ParticleContainer
     
     table.insert(particles, {
         object = p,
-        speed = math.random(100, 300) / 100
+        speed = math.random(80, 150) / 100
     })
 end
 
@@ -319,29 +319,23 @@ Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-local isAimingActive = false
-local originalCameraCFrame = nil
-local targetLockedHead = nil
+local isFiring = false
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        if not isAimingActive and targetLockedHead then
-            originalCameraCFrame = Camera.CFrame
-            isAimingActive = true
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetLockedHead.Position)
-        elseif isAimingActive then
-            isAimingActive = false
-            if originalCameraCFrame then
-                Camera.CFrame = originalCameraCFrame
-                originalCameraCFrame = nil
-            end
-        end
+        isFiring = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isFiring = false
     end
 end)
 
 RunService.RenderStepped:Connect(function()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local closestTarget = nil
+    local closestTargetHead = nil
     local shortestDistance = math.huge
     
     for player, data in pairs(espCache) do
@@ -359,31 +353,18 @@ RunService.RenderStepped:Connect(function()
                 if onScreen then
                     local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                     
-                    local rayParams = RaycastParams.new()
-                    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-                    rayParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-                    local rayResult = Workspace:Raycast(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position), rayParams)
-                    
-                    local isVisible = (rayResult == nil)
-                    
-                    if isVisible then
-                        data.box.FillColor = Color3.fromRGB(0, 255, 0)
-                        data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
-                        data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
-                    else
-                        data.box.FillColor = Color3.fromRGB(255, 0, 0)
-                        data.box.OutlineColor = Color3.fromRGB(255, 0, 0)
-                        data.label.TextColor3 = Color3.fromRGB(255, 0, 0)
-                    end
+                    data.box.FillColor = Color3.fromRGB(0, 255, 0)
+                    data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
+                    data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
                     
                     data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
                     data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
                     data.label.Visible = true
                     
-                    if isVisible and distToCenter <= FOVRadius then
+                    if distToCenter <= FOVRadius then
                         if distToCenter < shortestDistance then
                             shortestDistance = distToCenter
-                            closestTarget = head
+                            closestTargetHead = head
                         end
                     end
                 else
@@ -400,20 +381,18 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    if closestTarget then
-        targetLockedHead = closestTarget
-    else
-        targetLockedHead = nil
-    end
-    
-    if isAimingActive and targetLockedHead then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetLockedHead.Position)
-    elseif isAimingActive and not targetLockedHead then
-        isAimingActive = false
-        if originalCameraCFrame then
-            Camera.CFrame = originalCameraCFrame
-            originalCameraCFrame = nil
-        end
+    if isFiring and closestTargetHead then
+        pcall(function()
+            local oldIndex
+            oldIndex = hookmetamethod(game, "__index", function(self, idx)
+                if not checkcaller() and self == Camera and idx == "CFrame" then
+                    if isFiring and closestTargetHead then
+                        return CFrame.new(Camera.CFrame.Position, closestTargetHead.Position)
+                    end
+                end
+                return oldIndex(self, idx)
+            end)
+        end)
     end
     
     pcall(function()
