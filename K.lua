@@ -1,409 +1,322 @@
---[[
-    TRIPLEWARE - FULL MONOLITHIC MONSTER SCRIPT (NO CUTS, 100% MOBILE/IPAD READY)
-    Game: Blox Strike (Roblox Delta Compatible)
-    Features: Draggable Menu, Center FOV Circle, Physics Snow, Advanced ESP, Aimbot, Skeleton, Health Bars
-]]
+--[[\
+    Blox Strike Mobile Script - Delta (iPad Compatible)
+    Monolithic and fully functional Lua script.
+]]--
 
-local genv = getgenv()
-print("[Tripleware Loader] Initializing Full Monolithic Environment for iPad...")
-
-loadstring([=[
-local allowedPlaces = {114234929420007, 108194354348181, 135434213652028}
-if not table.find(allowedPlaces, game.PlaceId) then 
-    pcall(function()
-        game:GetService("Players").LocalPlayer:Kick("Tripleware Error: Execute this script inside Blox Strike!")
-    end)
-    return 
-end
-
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "Tripleware Hub",
-    Text = "Full Version Loaded Successfully (Delta Mode)",
-    Duration = 6
-})
-
-local UIS = game:GetService("UserInputService")
-local RS = game:GetService("RunService")
 local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
-if getgenv().TriplewareCleanup then 
-    getgenv().TriplewareCleanup() 
+-- Clean up previous instances if any
+if CoreGui:FindFirstChild("BloxStrikeHub") then
+    CoreGui.BloxStrikeHub:Destroy()
 end
 
-local Conn, Drws = {}, {}
-
-local function AD(d) 
-    if d and type(d) ~= "number" then 
-        table.insert(Drws, d) 
-    end 
-end
-
-getgenv().TriplewareCleanup = function()
-    for _, c in pairs(Conn) do 
-        pcall(function() c:Disconnect() end) 
-    end
-    for _, d in pairs(Drws) do 
-        pcall(function() if type(d) ~= "number" then d:Remove() end end) 
-    end
-    table.clear(Conn)
-    table.clear(Drws)
-    pcall(function() 
-        if game:GetService("CoreGui"):FindFirstChild("TriplewareUI") then 
-            game:GetService("CoreGui").TriplewareUI:Destroy() 
-        end 
-    end)
-    pcall(function() 
-        if game:GetService("CoreGui"):FindFirstChild("TriplewareNativeESP") then 
-            game:GetService("CoreGui").TriplewareNativeESP:Destroy() 
-        end 
-    end)
-end
-
--- Конфигурация всех модулей
-local Config = {
-    Aimbot = {
-        Enabled = true,
-        FOV = 120,
-        TeamCheck = true,
-        DrawFOV = true,
-        Smoothness = 4,
-        WallCheck = true,
-        TargetPart = "Head"
-    },
-    VisualFX = {
-        SnowEnabled = true,
-        SnowColor = Color3.fromRGB(255, 255, 255),
-        SnowIntensity = 50
-    },
-    ESP = {
-        Enabled = true,
-        Box = true,
-        Name = true,
-        Health = true,
-        Skeleton = true,
-        Distance = true,
-        TeamCheck = true,
-        VisibleColor = Color3.fromRGB(0, 255, 0),
-        HiddenColor = Color3.fromRGB(255, 0, 0)
-    },
-    Menu = {
-        Theme = Color3.fromRGB(0, 200, 255)
-    }
-}
-
--- Главный контейнер интерфейса
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "TriplewareUI"
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "BloxStrikeHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- 1. Плавающая кнопка (перемещается пальцем в любое место экрана)
-local FloatBtn = Instance.new("TextButton")
-FloatBtn.Name = "FloatingMenuToggle"
-FloatBtn.Size = UDim2.new(0, 55, 0, 55)
-FloatBtn.Position = UDim2.new(0, 30, 0, 120)
-FloatBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-FloatBtn.BorderColor3 = Config.Menu.Theme
-FloatBtn.TextColor3 = Config.Menu.Theme
-FloatBtn.TextSize = 16
-FloatBtn.Font = Enum.Font.GothamBold
-FloatBtn.Text = "TW"
-FloatBtn.Parent = ScreenGui
-
-local FloatCorner = Instance.new("UICorner")
-FloatCorner.CornerRadius = UDim.new(1, 0)
-FloatCorner.Parent = FloatBtn
-
-local FloatStroke = Instance.new("UIStroke")
-FloatStroke.Thickness = 2
-FloatStroke.Color = Config.Menu.Theme
-FloatStroke.Parent = FloatBtn
-
-local draggingFloat, dragInputFloat, dragStartFloat, startPosFloat
-FloatBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingFloat = true
-        dragStartFloat = input.Position
-        startPosFloat = FloatBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingFloat = false
-            end
-        end)
-    end
+local success, err = pcall(function()
+    ScreenGui.Parent = CoreGui
 end)
+if not success then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
-FloatBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInputFloat = input
-    end
-end)
+-- ==========================================
+-- 1. FLOATING TOGGLE BUTTON ("TW")
+-- ==========================================
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleTW"
+ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Position = UDim2.new(0, 20, 0.5, -25)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleButton.BorderColor3 = Color3.fromRGB(80, 80, 80)
+ToggleButton.BorderSizePixel = 2
+ToggleButton.Text = "TW"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 18
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+ToggleButton.Parent = ScreenGui
 
-UIS.InputChanged:Connect(function(input)
-    if input == dragInputFloat and draggingFloat then
-        local delta = input.Position - dragStartFloat
-        FloatBtn.Position = UDim2.new(startPosFloat.X.Scale, startPosFloat.X.Offset + delta.X, startPosFloat.Y.Scale, startPosFloat.Y.Offset + delta.Y)
-    end
-end)
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 12)
+ToggleCorner.Parent = ToggleButton
 
--- 2. Главное меню (появляется по центру экрана, полностью перетаскиваемое)
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 480, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -190)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
-MainFrame.BorderColor3 = Config.Menu.Theme
-MainFrame.Visible = true
-MainFrame.Parent = ScreenGui
+-- ==========================================
+-- 2. INTERACTIVE MAIN MENU (Draggable Center)
+-- ==========================================
+local MainMenu = Instance.new("Frame")
+MainMenu.Name = "MainMenu"
+MainMenu.Size = UDim2.new(0, 340, 0, 260)
+MainMenu.Position = UDim2.new(0.5, -170, 0.5, -130)
+MainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainMenu.BorderColor3 = Color3.fromRGB(60, 60, 60)
+MainMenu.BorderSizePixel = 2
+MainMenu.Visible = false
+MainMenu.Active = true
+MainMenu.Draggable = true
+MainMenu.Parent = ScreenGui
 
-local MFCorner = Instance.new("UICorner")
-MFCorner.CornerRadius = UDim.new(0, 10)
-MFCorner.Parent = MainFrame
-
-local MFStroke = Instance.new("UIStroke")
-MFStroke.Thickness = 2
-MFStroke.Color = Config.Menu.Theme
-MFStroke.Parent = MainFrame
-
-local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 45)
-TopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
-
-local TB海道 = Instance.new("UICorner")
-TB海道.CornerRadius = UDim.new(0, 10)
-TB海道.Parent = TopBar
+local MenuCorner = Instance.new("UICorner")
+MenuCorner.CornerRadius = UDim.new(0, 8)
+MenuCorner.Parent = MainMenu
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -20, 1, 0)
-TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Size = UDim2.new(1, 0, 0, 40)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "TRIPLEWARE v3.5 | BLOX STRIKE MOBILE"
-TitleLabel.TextColor3 = Config.Menu.Theme
+TitleLabel.Text = "BLOX STRIKE - MOBILE HUB"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 14
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = TopBar
+TitleLabel.Parent = MainMenu
 
-local draggingMain, dragInputMain, dragStartMain, startPosMain
-TopBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingMain = true
-        dragStartMain = input.Position
-        startPosMain = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingMain = false
-            end
-        end)
-    end
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, -20, 0, 30)
+StatusLabel.Position = UDim2.new(0, 10, 0, 50)
+StatusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+StatusLabel.TextSize = 14
+StatusLabel.Font = Enum.Font.GothamMedium
+StatusLabel.Text = "Status: All Systems Active"
+StatusLabel.Parent = MainMenu
+
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 6)
+StatusCorner.Parent = StatusLabel
+
+local InfoDesc = Instance.new("TextLabel")
+InfoDesc.Size = UDim2.new(1, -20, 0, 140)
+InfoDesc.Position = UDim2.new(0, 10, 0, 95)
+InfoDesc.BackgroundTransparency = 1
+InfoDesc.Text = "Features Running:\n• FOV Circle (Center Fixed)\n• Advanced ESP (Boxes, Names, HP, Dynamic Vis)\n• Falling Snow Physics Engine\n\nUse 'TW' button to hide/show this menu."
+InfoDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+InfoDesc.TextSize = 13
+InfoDesc.Font = Enum.Font.Gotham
+InfoDesc.TextWrapped = true
+InfoDesc.TextXAlignment = Enum.TextXAlignment.Left
+InfoDesc.TextYAlignment = Enum.TextYAlignment.Top
+InfoDesc.Parent = MainMenu
+
+ToggleButton.MouseButton1Click:Connect(function()
+    MainMenu.Visible = not MainMenu.Visible
 end)
 
-TopBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInputMain = input
-    end
-end)
+-- ==========================================
+-- 3. FOV CIRCLE (Strictly Center Fixed)
+-- ==========================================
+local FOVRadius = 120
 
-UIS.InputChanged:Connect(function(input)
-    if input == dragInputMain and draggingMain then
-        local delta = input.Position - dragStartMain
-        MainFrame.Position = UDim2.new(startPosMain.X.Scale, startPosMain.X.Offset + delta.X, startPosMain.Y.Scale, startPosMain.Y.Offset + delta.Y)
-    end
-end)
-
-FloatBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
-
-local ContentContainer = Instance.new("ScrollingFrame")
-ContentContainer.Size = UDim2.new(1, -20, 1, -60)
-ContentContainer.Position = UDim2.new(0, 10, 0, 50)
-ContentContainer.BackgroundTransparency = 1
-ContentContainer.BorderSizePixel = 0
-ContentContainer.CanvasSize = UDim2.new(0, 0, 2, 0)
-ContentContainer.ScrollBarThickness = 4
-ContentContainer.Parent = MainFrame
-
-local yOffset = 10
-local function CreateToggle(name, default, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 35)
-    btn.Position = UDim2.new(0, 0, 0, yOffset)
-    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-    btn.BorderSizePixel = 0
-    btn.Text = "  " .. name .. ": " .. (default and "ON" or "OFF")
-    btn.TextColor3 = default and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
-    btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 13
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    btn.Parent = ContentContainer
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
-    
-    local state = default
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        btn.Text = "  " .. name .. ": " .. (state and "ON" or "OFF")
-        btn.TextColor3 = state and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
-        pcall(function() callback(state) end)
-    end)
-    
-    yOffset = yOffset + 42
-end
-
-CreateToggle("Aimbot Enabled", Config.Aimbot.Enabled, function(v) Config.Aimbot.Enabled = v end)
-CreateToggle("Draw FOV Circle", Config.Aimbot.DrawFOV, function(v) Config.Aimbot.DrawFOV = v end)
-CreateToggle("ESP (Visuals)", Config.ESP.Enabled, function(v) Config.ESP.Enabled = v end)
-CreateToggle("ESP Boxes", Config.ESP.Box, function(v) Config.ESP.Box = v end)
-CreateToggle("ESP Names", Config.ESP.Name, function(v) Config.ESP.Name = v end)
-CreateToggle("ESP Health Bar", Config.ESP.Health, function(v) Config.ESP.Health = v end)
-CreateToggle("Physics Snow FX", Config.VisualFX.SnowEnabled, function(v) Config.VisualFX.SnowEnabled = v end)
-
--- 3. Круг Аима (FOV Circle) строго по центру экрана
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Visible = Config.Aimbot.DrawFOV
-FOVCircle.Radius = Config.Aimbot.FOV
-FOVCircle.Color = Color3.fromRGB(0, 200, 255)
+FOVCircle.Visible = true
+FOVCircle.Radius = FOVRadius
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Thickness = 1.5
 FOVCircle.Filled = false
-AD(FOVCircle)
+FOVCircle.Transparency = 0.7
 
-RS.RenderStepped:Connect(function()
-    local vp = Camera.ViewportSize
-    FOVCircle.Position = Vector2.new(vp.X / 2, vp.Y / 2)
-    FOVCircle.Visible = Config.Aimbot.DrawFOV
-    FOVCircle.Radius = Config.Aimbot.FOV
-end)
-
--- 4. Система падающего снега с физикой
-local SnowParticles = {}
-RS.RenderStepped:Connect(function()
-    if Config.VisualFX.SnowEnabled then
-        if #SnowParticles < Config.VisualFX.SnowIntensity then
-            local snow = Drawing.new("Circle")
-            snow.Radius = math.random(2, 5)
-            snow.Filled = true
-            snow.Color = Config.VisualFX.SnowColor
-            snow.Transparency = math.random(4, 9) / 10
-            snow.Visible = true
-            local pos = Vector2.new(math.random(0, Camera.ViewportSize.X), -15)
-            table.insert(SnowParticles, {Obj = snow, Pos = pos, Speed = math.random(45, 130)})
-        end
-        
-        for i = #SnowParticles, 1, -1 do
-            local s = SnowParticles[i]
-            s.Pos = s.Pos + Vector2.new(math.sin(tick() + i) * 0.9, s.Speed * 0.016)
-            s.Obj.Position = s.Pos
-            if s.Pos.Y > Camera.ViewportSize.Y + 15 then
-                s.Obj:Remove()
-                table.remove(SnowParticles, i)
-            end
-        end
-    else
-        for _, s in ipairs(SnowParticles) do
-            pcall(function() s.Obj:Remove() end)
-        end
-        table.clear(SnowParticles)
-    end
-end)
-
-local function is_enemy(plr)
-    if plr == LP then return false end
-    if plr.Team and LP.Team then return plr.Team ~= LP.Team end
-    return true
+local function UpdateFOVCircle()
+    local viewportSize = Camera.ViewportSize
+    FOVCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
 end
 
--- 5. Профессиональный ESP (ВХ) с палитрой видимости
-local ESPPool = {}
-RS.RenderStepped:Connect(function()
-    if not Config.ESP.Enabled then
-        for _, cache in pairs(ESPPool) do
-            if cache.Box then cache.Box.Visible = false end
-            if cache.Name then cache.Name.Visible = false end
-            if cache.Health then cache.Health.Visible = false end
-        end
-        return
-    end
+-- ==========================================
+-- 4. ADVANCED ESP (Boxes, Names, HP, Vis Check)
+-- ==========================================
+local ESPStorage = {}
 
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LP and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Humanoid") then
-            if not Config.ESP.TeamCheck or is_enemy(plr) then
-                local char = plr.Character
-                local hrp = char.HumanoidRootPart
-                local hum = char.Humanoid
-                
-                if hum.Health > 0 then
-                    local hrpPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                    if onScreen then
-                        if not ESPPool[plr] then
-                            local box = Drawing.new("Square")
-                            box.Visible = false
-                            box.Thickness = 1
-                            box.Filled = false
-                            AD(box)
-                            
-                            local name = Drawing.new("Text")
-                            name.Visible = false
-                            name.Size = 12
-                            name.Center = true
-                            name.Outline = true
-                            AD(name)
-                            
-                            local health = Drawing.new("Line")
-                            health.Visible = false
-                            health.Thickness = 2
-                            AD(health)
-                            
-                            ESPPool[plr] = {Box = box, Name = name, Health = health}
-                        end
-                        
-                        local cache = ESPPool[plr]
-                        local head = char:FindFirstChild("Head")
-                        
-                        if head then
-                            local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                            local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
-                            local height = math.abs(headPos.Y - legPos.Y)
-                            local width = height / 2
-                            
-                            local parts = Camera:GetPartsObscuringTarget({head.Position}, {Camera.CFrame.Position, head.Position})
-                            local isVisible = (#parts == 0)
-                            local paletteColor = isVisible and Config.ESP.VisibleColor or Config.ESP.HiddenColor
-                            
-                            cache.Box.Size = Vector2.new(width, height)
-                            cache.Box.Position = Vector2.new(headPos.X - width / 2, headPos.Y)
-                            cache.Box.Color = paletteColor
-                            cache.Box.Visible = Config.ESP.Box
-                            
-                            cache.Name.Text = plr.Name .. " [" .. math.floor(hum.Health) .. "]"
-                            cache.Name.Position = Vector2.new(headPos.X, headPos.Y - 18)
-                            cache.Name.Color = paletteColor
-                            cache.Name.Visible = Config.ESP.Name
-                            
-                            local hpPct = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
-                            cache.Health.From = Vector2.new(headPos.X - width / 2 - 6, headPos.Y + height)
-                            cache.Health.To = Vector2.new(headPos.X - width / 2 - 6, headPos.Y + (height * (1 - hpPct)))
-                            cache.Health.Color = Color3.fromRGB(0, 255, 0)
-                            cache.Health.Visible = Config.ESP.Health
-                        end
-                    else
-                        if ESPPool[plr] then
-                            ESPPool[plr].Box.Visible = false
-                            ESPPool[plr].Name.Visible = false
-                            ESPPool[plr].Health.Visible = false
-                        end
-                    end
-                end
-            end
+local function CreateESP(player)
+    if ESPStorage[player] then return end
+    
+    local espData = {}
+    
+    espData.Box = Drawing.new("Square")
+    espData.Box.Visible = false
+    espData.Box.Thickness = 1.5
+    espData.Box.Filled = false
+    
+    espData.Name = Drawing.new("Text")
+    espData.Name.Visible = false
+    espData.Name.Size = 14
+    espData.Name.Center = true
+    espData.Name.Outline = true
+    espData.Name.Color = Color3.fromRGB(255, 255, 255)
+    
+    espData.HealthBar = Drawing.new("Line")
+    espData.HealthBar.Visible = false
+    espData.HealthBar.Thickness = 2.5
+    
+    ESPStorage[player] = espData
+end
+
+local function RemoveESP(player)
+    if ESPStorage[player] then
+        for _, obj in pairs(ESPStorage[player]) do
+            pcall(function() obj:Remove() end)
         end
+        ESPStorage[player] = nil
+    end
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        CreateESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        CreateESP(player)
     end
 end)
 
-print("[Tripleware] Full Monolithic Code Execution Complete.")
-]=])
+Players.PlayerRemoving:Connect(function(player)
+    RemoveESP(player)
+end)
+
+local function IsVisible(targetPart)
+    if not targetPart or not Camera then return false end
+    local origin = Camera.CFrame.Position
+    local direction = targetPart.Position - origin
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = RaycastType.Blacklist
+    
+    local ignoreList = {LocalPlayer.Character, Camera}
+    if LocalPlayer.Character then
+        table.insert(ignoreList, LocalPlayer.Character)
+    end
+    raycastParams.FilterDescendantsInstances = ignoreList
+    
+    local result = Workspace:Raycast(origin, direction, raycastParams)
+    if not result then
+        return true
+    end
+    if result.Instance:IsDescendantOf(targetPart.Parent) then
+        return true
+    end
+    return false
+end
+
+local function UpdateESP()
+    for player, esp in pairs(ESPStorage) do
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        local head = character and character:FindFirstChild("Head")
+        
+        if character and humanoid and rootPart and head and humanoid.Health > 0 then
+            local vector, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+            
+            if onScreen then
+                local headVector = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                local legVector = Camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
+                
+                local height = math.abs(headVector.Y - legVector.Y)
+                local width = height / 2
+                
+                local boxPos = Vector2.new(vector.X - width / 2, headVector.Y)
+                local boxSize = Vector2.new(width, height)
+                
+                -- Visibility color check
+                local visible = IsVisible(head)
+                local dynamicColor = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                
+                -- Update Box
+                esp.Box.Size = boxSize
+                esp.Box.Position = boxPos
+                esp.Box.Color = dynamicColor
+                esp.Box.Visible = true
+                
+                -- Update Name & Health
+                esp.Name.Text = player.Name
+                esp.Name.Position = Vector2.new(vector.X, headVector.Y - 18)
+                esp.Name.Visible = true
+                
+                -- Health Bar
+                local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                local barHeight = height * healthPercent
+                esp.HealthBar.From = Vector2.new(boxPos.X - 6, boxPos.Y + height)
+                esp.HealthBar.To = Vector2.new(boxPos.X - 6, (boxPos.Y + height) - barHeight)
+                esp.HealthBar.Color = Color3.fromRGB(0, 255, 0):Lerp(Color3.fromRGB(255, 0, 0), 1 - healthPercent)
+                esp.HealthBar.Visible = true
+            else
+                esp.Box.Visible = false
+                esp.Name.Visible = false
+                esp.HealthBar.Visible = false
+            end
+        else
+            esp.Box.Visible = false
+            esp.Name.Visible = false
+            esp.HealthBar.Visible = false
+        end
+    end
+end
+
+-- ==========================================
+-- 5. FALLING SNOW PHYSICS ENGINE
+-- ==========================================
+local SnowHolder = Instance.new("Folder")
+SnowHolder.Name = "SnowParticlesFolder"
+SnowHolder.Parent = ScreenGui
+
+local SnowFlakes = {}
+local MaxSnow = 45
+
+for i = 1, MaxSnow do
+    local flake = Instance.new("Frame")
+    flake.Name = "Snow"
+    local size = math.random(3, 6)
+    flake.Size = UDim2.new(0, size, 0, size)
+    flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    flake.BackgroundTransparency = math.random(20, 60) / 100
+    flake.BorderSizePixel = 0
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = flake
+    
+    flake.Parent = SnowHolder
+    
+    table.insert(SnowFlakes, {
+        Object = flake,
+        X = math.random(0, 1000) / 1000,
+        Y = math.random(0, 1000) / 1000,
+        Speed = math.random(10, 30) / 10000,
+        Size = size,
+        Offset = math.random(0, 100)
+    })
+end
+
+local function UpdateSnow(dt)
+    local viewportSize = Camera.ViewportSize
+    if viewportSize.X == 0 or viewportSize.Y == 0 then return end
+    
+    for _, flake in ipairs(SnowFlakes) do
+        flake.Y = flake.Y + flake.Speed
+        if flake.Y > 1.05 then
+            flake.Y = -0.05
+            flake.X = math.random(0, 1000) / 1000
+        end
+        
+        local xPos = flake.X * viewportSize.X + math.sin(tick() * 2 + flake.Offset) * 15
+        local yPos = flake.Y * viewportSize.Y
+        
+        flake.Object.Position = UDim2.new(0, xPos, 0, yPos)
+    end
+end
+
+-- ==========================================
+-- 6. INITIALIZATION & MAIN LOOP
+-- ==========================================
+RunService.RenderStepped:Connect(function(dt)
+    UpdateFOVCircle()
+    UpdateESP()
+    UpdateSnow(dt)
+end)
