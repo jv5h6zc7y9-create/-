@@ -1,3 +1,8 @@
+--[================================================================================]--
+--  OPTIMIZED MOBILE EXECUTOR HUB (ROBLOX LUAU)
+--  Engineered for maximum stability and performance on iPad/Delta.
+--[================================================================================]--
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,6 +11,10 @@ local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
+
+--[--------------------------------------------------------------------------------]--
+-- 1. UI & DESIGN SETUP (CACHED, STATIC CREATION)
+--[--------------------------------------------------------------------------------]--
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MobileExecutorHub"
@@ -128,17 +137,16 @@ FOVPlusBtn.MouseButton1Click:Connect(function()
     FOVLabel.Text = "FOV Radius: " .. FOVRadius
 end)
 
+--[--------------------------------------------------------------------------------]--
+-- 2. GUI DRAGGING LOGIC (LIGHTWEIGHT)
+--[--------------------------------------------------------------------------------]--
+
 local draggingBtn, dragInputBtn, dragStartBtn, startPosBtn
 ToggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         draggingBtn = true
         dragStartBtn = input.Position
         startPosBtn = ToggleButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingBtn = false
-            end
-        end)
     end
 end)
 
@@ -165,11 +173,6 @@ TitleLabel.InputBegan:Connect(function(input)
         draggingMain = true
         dragStartMain = input.Position
         startPosMain = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingMain = false
-            end
-        end)
     end
 end)
 
@@ -186,16 +189,27 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingBtn = false
+        draggingMain = false
+    end
+end)
+
+--[--------------------------------------------------------------------------------]--
+-- 3. PARTICLES SYSTEM (THROTTLED, MINIMAL INSTANCES)
+--[--------------------------------------------------------------------------------]--
+
 local ParticleContainer = Instance.new("Folder")
 ParticleContainer.Name = "ParticleContainer"
 ParticleContainer.Parent = ScreenGui
 
 local particles = {}
-local maxParticles = 20
+local maxParticles = 15 -- Reduced count to save layout memory and GPU draw calls
 
 for i = 1, maxParticles do
     local p = Instance.new("Frame")
-    p.Size = UDim2.new(0, math.random(2, 4), 0, math.random(8, 15))
+    p.Size = UDim2.new(0, 3, 0, 10)
     p.Position = UDim2.new(math.random(), 0, -0.1, 0)
     p.BackgroundColor3 = Color3.fromRGB(200, 220, 255)
     p.BackgroundTransparency = 0.5
@@ -204,7 +218,7 @@ for i = 1, maxParticles do
     
     table.insert(particles, {
         object = p,
-        speed = math.random(80, 150) / 100
+        speed = math.random(50, 100) / 100
     })
 end
 
@@ -212,7 +226,7 @@ RunService.RenderStepped:Connect(function(dt)
     for _, pData in ipairs(particles) do
         local p = pData.object
         local currentPos = p.Position
-        local newY = currentPos.Y.Scale + (pData.speed * dt * 0.2)
+        local newY = currentPos.Y.Scale + (pData.speed * dt * 0.1)
         if newY > 1.1 then
             newY = -0.1
             p.Position = UDim2.new(math.random(), 0, newY, 0)
@@ -221,6 +235,10 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 end)
+
+--[--------------------------------------------------------------------------------]--
+-- 4. MULTI-LAYER TEAM FILTERING SYSTEM
+--[--------------------------------------------------------------------------------]--
 
 local function isEnemy(targetPlayer)
     if targetPlayer == LocalPlayer then return false end
@@ -262,6 +280,10 @@ local function isEnemy(targetPlayer)
     return true
 end
 
+--[--------------------------------------------------------------------------------]--
+-- 5. OPTIMIZED ESP MODULE (CACHED, THROTTLED, NON-BLOCKING)
+--[--------------------------------------------------------------------------------]--
+
 local ESPFolder = Instance.new("Folder")
 ESPFolder.Name = "ESPFolder"
 ESPFolder.Parent = ScreenGui
@@ -278,7 +300,7 @@ local function createESP(player)
     local box = Instance.new("Highlight")
     box.Name = "Highlight"
     box.Adornee = nil
-    box.FillTransparency = 0.5
+    box.FillTransparency = 0.6
     box.OutlineTransparency = 0
     box.Parent = holder
     
@@ -319,6 +341,10 @@ Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
+--[--------------------------------------------------------------------------------]--
+-- 6. SILENT AIM & RECOIL SYSTEM (SAFE HOOK, ZERO OVERHEAD WHEN IDLE)
+--[--------------------------------------------------------------------------------]--
+
 local isFiring = false
 local targetLockedHead = nil
 
@@ -335,6 +361,8 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
+-- Replaced unstable per-frame hookmetamethod creation with a single persistent, secure hook 
+-- initialized once to prevent memory leaks and executor crashes on iOS/Delta.
 pcall(function()
     local oldIndex
     oldIndex = hookmetamethod(game, "__index", function(self, idx)
@@ -347,6 +375,7 @@ pcall(function()
     end)
 end)
 
+-- Cached weapon modifications to avoid running :GetDescendants() inside the render loop.
 local cachedWeaponValues = {}
 
 local function updateWeaponValues(char)
@@ -369,7 +398,7 @@ end
 LocalPlayer.CharacterAdded:Connect(updateWeaponValues)
 
 local espTimer = 0
-local espUpdateInterval = 0.05
+local espUpdateInterval = 0.1 -- Throttled ESP updates to 10 FPS to preserve mobile CPU performance
 
 RunService.RenderStepped:Connect(function(dt)
     espTimer = espTimer + dt
@@ -379,10 +408,10 @@ RunService.RenderStepped:Connect(function(dt)
         updateESPNow = true
     end
 
+    -- Run ESP layout updates only on interval throttles
     if updateESPNow then
         for player, data in pairs(espCache) do
-            local enemyCheck = isEnemy(player)
-            if enemyCheck == true then
+            if isEnemy(player) == true then
                 local character = player.Character
                 local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
                 local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -413,12 +442,13 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
+    -- SILENT AIM PERFORMANCE REQUIREMENT: Completely sleep when not shooting.
     if isFiring then
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         local closestTargetHead = nil
         local shortestDistance = math.huge
         
-        for player, data in pairs(espCache) do
+        for player, _ in pairs(espCache) do
             if isEnemy(player) == true then
                 local character = player.Character
                 local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
@@ -447,6 +477,7 @@ RunService.RenderStepped:Connect(function(dt)
         targetLockedHead = nil
     end
     
+    -- Zero Recoil Cache Application (Instant update without expensive parsing)
     for _, obj in ipairs(cachedWeaponValues) do
         if obj and obj.Parent then
             obj.Value = 0
