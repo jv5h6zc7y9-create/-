@@ -191,7 +191,7 @@ ParticleContainer.Name = "ParticleContainer"
 ParticleContainer.Parent = ScreenGui
 
 local particles = {}
-local maxParticles = 30
+local maxParticles = 20
 
 for i = 1, maxParticles do
     local p = Instance.new("Frame")
@@ -320,8 +320,9 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 local isFiring = false
+local targetLockedHead = nil
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
+UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isFiring = true
     end
@@ -333,7 +334,50 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
-RunService.RenderStepped:Connect(function()
+pcall(function()
+    local oldIndex
+    oldIndex = hookmetamethod(game, "__index", function(self, idx)
+        if not checkcaller() and self == Camera and idx == "CFrame" then
+            if isFiring and targetLockedHead then
+                return CFrame.new(Camera.CFrame.Position, targetLockedHead.Position)
+            end
+        end
+        return oldIndex(self, idx)
+    end)
+end)
+
+local cachedWeaponValues = {}
+
+local function updateWeaponValues(char)
+    cachedWeaponValues = {}
+    if char then
+        for _, obj in ipairs(char:GetDescendants()) do
+            if obj:IsA("NumberValue") or obj:IsA("Vector3Value") then
+                local name = obj.Name:lower()
+                if name:find("recoil") or name:find("spread") or name:find("kick") then
+                    table.insert(cachedWeaponValues, obj)
+                end
+            end
+        end
+    end
+end
+
+if LocalPlayer.Character then
+    updateWeaponValues(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(updateWeaponValues)
+
+local espTimer = 0
+local espUpdateInterval = 0.05
+
+RunService.RenderStepped:Connect(function(dt)
+    espTimer = espTimer + dt
+    local updateESPNow = false
+    if espTimer >= espUpdateInterval then
+        espTimer = 0
+        updateESPNow = true
+    end
+
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closestTargetHead = nil
     local shortestDistance = math.huge
@@ -347,29 +391,43 @@ RunService.RenderStepped:Connect(function()
             local head = character and character:FindFirstChild("Head")
             
             if character and humanoidRootPart and humanoid and humanoid.Health > 0 and head then
-                data.box.Adornee = character
-                
-                local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
-                if onScreen then
-                    local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                    
-                    data.box.FillColor = Color3.fromRGB(0, 255, 0)
-                    data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
-                    data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
-                    
-                    data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
-                    data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
-                    data.label.Visible = true
-                    
-                    if distToCenter <= FOVRadius then
-                        if distToCenter < shortestDistance then
-                            shortestDistance = distToCenter
-                            closestTargetHead = head
+                if updateESPNow then
+                    data.box.Adornee = character
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                    if onScreen then
+                        local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        
+                        data.box.FillColor = Color3.fromRGB(0, 255, 0)
+                        data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
+                        data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
+                        
+                        data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
+                        data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
+                        data.label.Visible = true
+                        
+                        if isFiring and distToCenter <= FOVRadius then
+                            if distToCenter < shortestDistance then
+                                shortestDistance = distToCenter
+                                closestTargetHead = head
+                            end
                         end
+                    else
+                        data.label.Visible = false
+                        data.box.Adornee = nil
                     end
                 else
-                    data.label.Visible = false
-                    data.box.Adornee = nil
+                    if isFiring then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                        if onScreen then
+                            local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            if distToCenter <= FOVRadius then
+                                if distToCenter < shortestDistance then
+                                    shortestDistance = distToCenter
+                                    closestTargetHead = head
+                                end
+                            end
+                        end
+                    end
                 end
             else
                 data.box.Adornee = nil
@@ -382,29 +440,14 @@ RunService.RenderStepped:Connect(function()
     end
     
     if isFiring and closestTargetHead then
-        pcall(function()
-            local oldIndex
-            oldIndex = hookmetamethod(game, "__index", function(self, idx)
-                if not checkcaller() and self == Camera and idx == "CFrame" then
-                    if isFiring and closestTargetHead then
-                        return CFrame.new(Camera.CFrame.Position, closestTargetHead.Position)
-                    end
-                end
-                return oldIndex(self, idx)
-            end)
-        end)
+        targetLockedHead = closestTargetHead
+    else
+        targetLockedHead = nil
     end
     
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char then
-            for _, obj in ipairs(char:GetDescendants()) do
-                if obj:IsA("NumberValue") or obj:IsA("Vector3Value") then
-                    if obj.Name:lower():find("recoil") or obj.Name:lower():find("spread") or obj.Name:lower():find("kick") then
-                        obj.Value = 0
-                    end
-                end
-            end
+    for _, obj in ipairs(cachedWeaponValues) do
+        if obj and obj.Parent then
+            obj.Value = 0
         end
-    end)
+    end
 end)
