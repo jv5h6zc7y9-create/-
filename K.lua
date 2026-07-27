@@ -331,6 +331,7 @@ end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isFiring = false
+        targetLockedHead = nil
     end
 end)
 
@@ -378,25 +379,18 @@ RunService.RenderStepped:Connect(function(dt)
         updateESPNow = true
     end
 
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local closestTargetHead = nil
-    local shortestDistance = math.huge
-    
-    for player, data in pairs(espCache) do
-        local enemyCheck = isEnemy(player)
-        if enemyCheck == true then
-            local character = player.Character
-            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            local head = character and character:FindFirstChild("Head")
-            
-            if character and humanoidRootPart and humanoid and humanoid.Health > 0 and head then
-                if updateESPNow then
+    if updateESPNow then
+        for player, data in pairs(espCache) do
+            local enemyCheck = isEnemy(player)
+            if enemyCheck == true then
+                local character = player.Character
+                local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                
+                if character and humanoidRootPart and humanoid and humanoid.Health > 0 then
                     data.box.Adornee = character
                     local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
                     if onScreen then
-                        local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        
                         data.box.FillColor = Color3.fromRGB(0, 255, 0)
                         data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
                         data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
@@ -404,43 +398,51 @@ RunService.RenderStepped:Connect(function(dt)
                         data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
                         data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
                         data.label.Visible = true
-                        
-                        if isFiring and distToCenter <= FOVRadius then
-                            if distToCenter < shortestDistance then
-                                shortestDistance = distToCenter
-                                closestTargetHead = head
-                            end
-                        end
                     else
                         data.label.Visible = false
                         data.box.Adornee = nil
                     end
                 else
-                    if isFiring then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
-                        if onScreen then
-                            local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                            if distToCenter <= FOVRadius then
-                                if distToCenter < shortestDistance then
-                                    shortestDistance = distToCenter
-                                    closestTargetHead = head
-                                end
-                            end
-                        end
-                    end
+                    data.box.Adornee = nil
+                    data.label.Visible = false
                 end
             else
                 data.box.Adornee = nil
                 data.label.Visible = false
             end
-        else
-            data.box.Adornee = nil
-            data.label.Visible = false
         end
     end
-    
-    if isFiring and closestTargetHead then
-        targetLockedHead = closestTargetHead
+
+    if isFiring then
+        local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        local closestTargetHead = nil
+        local shortestDistance = math.huge
+        
+        for player, data in pairs(espCache) do
+            if isEnemy(player) == true then
+                local character = player.Character
+                local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                local head = character and character:FindFirstChild("Head")
+                
+                if character and humanoidRootPart and humanoid and humanoid.Health > 0 and head then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                    if onScreen then
+                        local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if distToCenter <= FOVRadius then
+                            if distToCenter < shortestDistance then
+                                shortestDistance = distToCenter
+                                closestTargetHead = head
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        if closestTargetHead then
+            targetLockedHead = closestTargetHead
+        end
     else
         targetLockedHead = nil
     end
