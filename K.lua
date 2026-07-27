@@ -10,10 +10,10 @@ local Camera = Workspace.CurrentCamera
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MobileExecutorHub"
 ScreenGui.ResetOnSpawn = false
-local success, err = pcall(function()
+pcall(function()
     ScreenGui.Parent = CoreGui
 end)
-if not success then
+if not ScreenGui.Parent then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
@@ -34,8 +34,8 @@ UICornerBtn.Parent = ToggleButton
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 350, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
+MainFrame.Size = UDim2.new(0, 350, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -225)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = false
@@ -60,6 +60,44 @@ UICornerTitle.Parent = TitleLabel
 
 local FOVRadius = 150
 
+local FOVLabel = Instance.new("TextLabel")
+FOVLabel.Size = UDim2.new(1, -20, 0, 30)
+FOVLabel.Position = UDim2.new(0, 10, 0, 60)
+FOVLabel.BackgroundTransparency = 1
+FOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+FOVLabel.TextSize = 14
+FOVLabel.Font = Enum.Font.SourceSansBold
+FOVLabel.Text = "FOV Radius: " .. FOVRadius
+FOVLabel.Parent = MainFrame
+
+local FOVMinusBtn = Instance.new("TextButton")
+FOVMinusBtn.Size = UDim2.new(0, 40, 0, 30)
+FOVMinusBtn.Position = UDim2.new(0, 10, 0, 100)
+FOVMinusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+FOVMinusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FOVMinusBtn.Text = "-"
+FOVMinusBtn.TextSize = 16
+FOVMinusBtn.Font = Enum.Font.SourceSansBold
+FOVMinusBtn.Parent = MainFrame
+
+local UICornerM = Instance.new("UICorner")
+UICornerM.CornerRadius = UDim.new(0, 6)
+UICornerM.Parent = FOVMinusBtn
+
+local FOVPlusBtn = Instance.new("TextButton")
+FOVPlusBtn.Size = UDim2.new(0, 40, 0, 30)
+FOVPlusBtn.Position = UDim2.new(0, 60, 0, 100)
+FOVPlusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+FOVPlusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FOVPlusBtn.Text = "+"
+FOVPlusBtn.TextSize = 16
+FOVPlusBtn.Font = Enum.Font.SourceSansBold
+FOVPlusBtn.Parent = MainFrame
+
+local UICornerP = Instance.new("UICorner")
+UICornerP.CornerRadius = UDim.new(0, 6)
+UICornerP.Parent = FOVPlusBtn
+
 local FOVCircle = Instance.new("Frame")
 FOVCircle.Name = "FOVCircle"
 FOVCircle.Size = UDim2.new(0, FOVRadius * 2, 0, FOVRadius * 2)
@@ -77,6 +115,18 @@ local UIStrokeFOV = Instance.new("UIStroke")
 UIStrokeFOV.Color = Color3.fromRGB(0, 255, 128)
 UIStrokeFOV.Thickness = 2
 UIStrokeFOV.Parent = FOVCircle
+
+FOVMinusBtn.MouseButton1Click:Connect(function()
+    FOVRadius = math.clamp(FOVRadius - 10, 30, 400)
+    FOVCircle.Size = UDim2.new(0, FOVRadius * 2, 0, FOVRadius * 2)
+    FOVLabel.Text = "FOV Radius: " .. FOVRadius
+end)
+
+FOVPlusBtn.MouseButton1Click:Connect(function()
+    FOVRadius = math.clamp(FOVRadius + 10, 30, 400)
+    FOVCircle.Size = UDim2.new(0, FOVRadius * 2, 0, FOVRadius * 2)
+    FOVLabel.Text = "FOV Radius: " .. FOVRadius
+end)
 
 local draggingBtn, dragInputBtn, dragStartBtn, startPosBtn
 ToggleButton.InputBegan:Connect(function(input)
@@ -154,8 +204,7 @@ for i = 1, maxParticles do
     
     table.insert(particles, {
         object = p,
-        speed = math.random(100, 300) / 100,
-        xOffset = math.random()
+        speed = math.random(100, 300) / 100
     })
 end
 
@@ -172,6 +221,46 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 end)
+
+local function isEnemy(targetPlayer)
+    if targetPlayer == LocalPlayer then return false end
+    
+    if targetPlayer.Team and LocalPlayer.Team then
+        if targetPlayer.Team ~= LocalPlayer.Team then
+            return true
+        else
+            return false
+        end
+    end
+
+    local localTeamAttr = LocalPlayer:GetAttribute("Team")
+    local targetTeamAttr = targetPlayer:GetAttribute("Team")
+    if localTeamAttr and targetTeamAttr then
+        if localTeamAttr ~= targetTeamAttr then return true else return false end
+    end
+    
+    local localSideAttr = LocalPlayer:GetAttribute("Side")
+    local targetSideAttr = targetPlayer:GetAttribute("Side")
+    if localSideAttr and targetSideAttr then
+        if localSideAttr ~= targetSideAttr then return true else return false end
+    end
+
+    local teamValueObj = targetPlayer:FindFirstChild("Team")
+    local localTeamValueObj = LocalPlayer:FindFirstChild("Team")
+    if teamValueObj and localTeamValueObj then
+        if teamValueObj.Value ~= localTeamValueObj.Value then
+            return true
+        else
+            return false
+        end
+    end
+
+    if targetPlayer.TeamColor ~= LocalPlayer.TeamColor and targetPlayer.TeamColor ~= Color3.fromRGB(255, 255, 255) then
+        return true
+    end
+
+    return true
+end
 
 local ESPFolder = Instance.new("Folder")
 ESPFolder.Name = "ESPFolder"
@@ -230,54 +319,80 @@ Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
+local isAimingActive = false
+local originalCameraCFrame = nil
+local targetLockedHead = nil
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if not isAimingActive and targetLockedHead then
+            originalCameraCFrame = Camera.CFrame
+            isAimingActive = true
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetLockedHead.Position)
+        elseif isAimingActive then
+            isAimingActive = false
+            if originalCameraCFrame then
+                Camera.CFrame = originalCameraCFrame
+                originalCameraCFrame = nil
+            end
+        end
+    end
+end)
+
 RunService.RenderStepped:Connect(function()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closestTarget = nil
     local shortestDistance = math.huge
     
     for player, data in pairs(espCache) do
-        local character = player.Character
-        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        local head = character and character:FindFirstChild("Head")
-        
-        if character and humanoidRootPart and humanoid and humanoid.Health > 0 and head then
-            data.box.Adornee = character
+        local enemyCheck = isEnemy(player)
+        if enemyCheck == true then
+            local character = player.Character
+            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local head = character and character:FindFirstChild("Head")
             
-            local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
-            if onScreen then
-                local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+            if character and humanoidRootPart and humanoid and humanoid.Health > 0 and head then
+                data.box.Adornee = character
                 
-                local rayParams = RaycastParams.new()
-                rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-                rayParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-                local rayResult = Workspace:Raycast(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position), rayParams)
-                
-                local isVisible = (rayResult == nil)
-                
-                if isVisible then
-                    data.box.FillColor = Color3.fromRGB(0, 255, 0)
-                    data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
-                    data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
-                else
-                    data.box.FillColor = Color3.fromRGB(255, 0, 0)
-                    data.box.OutlineColor = Color3.fromRGB(255, 0, 0)
-                    data.label.TextColor3 = Color3.fromRGB(255, 0, 0)
-                end
-                
-                data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
-                data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
-                data.label.Visible = true
-                
-                if distToCenter <= FOVRadius then
-                    if distToCenter < shortestDistance then
-                        shortestDistance = distToCenter
-                        closestTarget = head
+                local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                if onScreen then
+                    local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    
+                    local rayParams = RaycastParams.new()
+                    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    rayParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
+                    local rayResult = Workspace:Raycast(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position), rayParams)
+                    
+                    local isVisible = (rayResult == nil)
+                    
+                    if isVisible then
+                        data.box.FillColor = Color3.fromRGB(0, 255, 0)
+                        data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
+                        data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
+                    else
+                        data.box.FillColor = Color3.fromRGB(255, 0, 0)
+                        data.box.OutlineColor = Color3.fromRGB(255, 0, 0)
+                        data.label.TextColor3 = Color3.fromRGB(255, 0, 0)
                     end
+                    
+                    data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
+                    data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
+                    data.label.Visible = true
+                    
+                    if isVisible and distToCenter <= FOVRadius then
+                        if distToCenter < shortestDistance then
+                            shortestDistance = distToCenter
+                            closestTarget = head
+                        end
+                    end
+                else
+                    data.label.Visible = false
+                    data.box.Adornee = nil
                 end
             else
-                data.label.Visible = false
                 data.box.Adornee = nil
+                data.label.Visible = false
             end
         else
             data.box.Adornee = nil
@@ -286,7 +401,19 @@ RunService.RenderStepped:Connect(function()
     end
     
     if closestTarget then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+        targetLockedHead = closestTarget
+    else
+        targetLockedHead = nil
+    end
+    
+    if isAimingActive and targetLockedHead then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetLockedHead.Position)
+    elseif isAimingActive and not targetLockedHead then
+        isAimingActive = false
+        if originalCameraCFrame then
+            Camera.CFrame = originalCameraCFrame
+            originalCameraCFrame = nil
+        end
     end
     
     pcall(function()
