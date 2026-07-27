@@ -1,26 +1,15 @@
---[[\
-    Blox Strike Mobile Script - Delta (iPad Compatible)
-    Monolithic and fully functional Lua script.
-]]--
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
-local Camera = Workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
 
--- Clean up previous instances if any
-if CoreGui:FindFirstChild("BloxStrikeHub") then
-    CoreGui.BloxStrikeHub:Destroy()
-end
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BloxStrikeHub"
+ScreenGui.Name = "MobileExecutorHub"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
 local success, err = pcall(function()
     ScreenGui.Parent = CoreGui
 end)
@@ -28,295 +17,288 @@ if not success then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- ==========================================
--- 1. FLOATING TOGGLE BUTTON ("TW")
--- ==========================================
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "ToggleTW"
+ToggleButton.Name = "ToggleButton"
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
-ToggleButton.Position = UDim2.new(0, 20, 0.5, -25)
+ToggleButton.Position = UDim2.new(0, 50, 0.4, 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleButton.BorderColor3 = Color3.fromRGB(80, 80, 80)
-ToggleButton.BorderSizePixel = 2
-ToggleButton.Text = "TW"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 18
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Active = true
-ToggleButton.Draggable = true
+ToggleButton.Text = "GUI"
+ToggleButton.TextSize = 14
+ToggleButton.Font = Enum.Font.SourceSansBold
 ToggleButton.Parent = ScreenGui
 
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 12)
-ToggleCorner.Parent = ToggleButton
+local UICornerBtn = Instance.new("UICorner")
+UICornerBtn.CornerRadius = UDim.new(1, 0)
+UICornerBtn.Parent = ToggleButton
 
--- ==========================================
--- 2. INTERACTIVE MAIN MENU (Draggable Center)
--- ==========================================
-local MainMenu = Instance.new("Frame")
-MainMenu.Name = "MainMenu"
-MainMenu.Size = UDim2.new(0, 340, 0, 260)
-MainMenu.Position = UDim2.new(0.5, -170, 0.5, -130)
-MainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainMenu.BorderColor3 = Color3.fromRGB(60, 60, 60)
-MainMenu.BorderSizePixel = 2
-MainMenu.Visible = false
-MainMenu.Active = true
-MainMenu.Draggable = true
-MainMenu.Parent = ScreenGui
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 350, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
 
-local MenuCorner = Instance.new("UICorner")
-MenuCorner.CornerRadius = UDim.new(0, 8)
-MenuCorner.Parent = MainMenu
+local UICornerMain = Instance.new("UICorner")
+UICornerMain.CornerRadius = UDim.new(0, 12)
+UICornerMain.Parent = MainFrame
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, 0, 0, 40)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "BLOX STRIKE - MOBILE HUB"
+TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Text = "Mobile Executor Hub"
 TitleLabel.TextSize = 16
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Parent = MainMenu
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Parent = MainFrame
 
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, -20, 0, 30)
-StatusLabel.Position = UDim2.new(0, 10, 0, 50)
-StatusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-StatusLabel.TextSize = 14
-StatusLabel.Font = Enum.Font.GothamMedium
-StatusLabel.Text = "Status: All Systems Active"
-StatusLabel.Parent = MainMenu
+local UICornerTitle = Instance.new("UICorner")
+UICornerTitle.CornerRadius = UDim.new(0, 12)
+UICornerTitle.Parent = TitleLabel
 
-local StatusCorner = Instance.new("UICorner")
-StatusCorner.CornerRadius = UDim.new(0, 6)
-StatusCorner.Parent = StatusLabel
+local FOVRadius = 150
 
-local InfoDesc = Instance.new("TextLabel")
-InfoDesc.Size = UDim2.new(1, -20, 0, 140)
-InfoDesc.Position = UDim2.new(0, 10, 0, 95)
-InfoDesc.BackgroundTransparency = 1
-InfoDesc.Text = "Features Running:\n• FOV Circle (Center Fixed)\n• Advanced ESP (Boxes, Names, HP, Dynamic Vis)\n• Falling Snow Physics Engine\n\nUse 'TW' button to hide/show this menu."
-InfoDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
-InfoDesc.TextSize = 13
-InfoDesc.Font = Enum.Font.Gotham
-InfoDesc.TextWrapped = true
-InfoDesc.TextXAlignment = Enum.TextXAlignment.Left
-InfoDesc.TextYAlignment = Enum.TextYAlignment.Top
-InfoDesc.Parent = MainMenu
+local FOVCircle = Instance.new("Frame")
+FOVCircle.Name = "FOVCircle"
+FOVCircle.Size = UDim2.new(0, FOVRadius * 2, 0, FOVRadius * 2)
+FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+FOVCircle.BackgroundTransparency = 1
+FOVCircle.Visible = true
+FOVCircle.Parent = ScreenGui
 
-ToggleButton.MouseButton1Click:Connect(function()
-    MainMenu.Visible = not MainMenu.Visible
+local UICornerFOV = Instance.new("UICorner")
+UICornerFOV.CornerRadius = UDim.new(1, 0)
+UICornerFOV.Parent = FOVCircle
+
+local UIStrokeFOV = Instance.new("UIStroke")
+UIStrokeFOV.Color = Color3.fromRGB(0, 255, 128)
+UIStrokeFOV.Thickness = 2
+UIStrokeFOV.Parent = FOVCircle
+
+local draggingBtn, dragInputBtn, dragStartBtn, startPosBtn
+ToggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingBtn = true
+        dragStartBtn = input.Position
+        startPosBtn = ToggleButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingBtn = false
+            end
+        end)
+    end
 end)
 
--- ==========================================
--- 3. FOV CIRCLE (Strictly Center Fixed)
--- ==========================================
-local FOVRadius = 120
+ToggleButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputBtn = input
+    end
+end)
 
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Visible = true
-FOVCircle.Radius = FOVRadius
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.Thickness = 1.5
-FOVCircle.Filled = false
-FOVCircle.Transparency = 0.7
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputBtn and draggingBtn then
+        local delta = input.Position - dragStartBtn
+        ToggleButton.Position = UDim2.new(startPosBtn.X.Scale, startPosBtn.X.Offset + delta.X, startPosBtn.Y.Scale, startPosBtn.Y.Offset + delta.Y)
+    end
+end)
 
-local function UpdateFOVCircle()
-    local viewportSize = Camera.ViewportSize
-    FOVCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+ToggleButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+local draggingMain, dragInputMain, dragStartMain, startPosMain
+TitleLabel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingMain = true
+        dragStartMain = input.Position
+        startPosMain = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingMain = false
+            end
+        end)
+    end
+end)
+
+TitleLabel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputMain = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputMain and draggingMain then
+        local delta = input.Position - dragStartMain
+        MainFrame.Position = UDim2.new(startPosMain.X.Scale, startPosMain.X.Offset + delta.X, startPosMain.Y.Scale, startPosMain.Y.Offset + delta.Y)
+    end
+end)
+
+local ParticleContainer = Instance.new("Folder")
+ParticleContainer.Name = "ParticleContainer"
+ParticleContainer.Parent = ScreenGui
+
+local particles = {}
+local maxParticles = 50
+
+for i = 1, maxParticles do
+    local p = Instance.new("Frame")
+    p.Size = UDim2.new(0, math.random(2, 5), 0, math.random(10, 25))
+    p.Position = UDim2.new(math.random(), 0, -0.1, 0)
+    p.BackgroundColor3 = Color3.fromRGB(200, 220, 255)
+    p.BackgroundTransparency = math.random(3, 7) / 10
+    p.BorderSizePixel = 0
+    p.Parent = ParticleContainer
+    
+    table.insert(particles, {
+        object = p,
+        speed = math.random(100, 300) / 100,
+        xOffset = math.random()
+    })
 end
 
--- ==========================================
--- 4. ADVANCED ESP (Boxes, Names, HP, Vis Check)
--- ==========================================
-local ESPStorage = {}
-
-local function CreateESP(player)
-    if ESPStorage[player] then return end
-    
-    local espData = {}
-    
-    espData.Box = Drawing.new("Square")
-    espData.Box.Visible = false
-    espData.Box.Thickness = 1.5
-    espData.Box.Filled = false
-    
-    espData.Name = Drawing.new("Text")
-    espData.Name.Visible = false
-    espData.Name.Size = 14
-    espData.Name.Center = true
-    espData.Name.Outline = true
-    espData.Name.Color = Color3.fromRGB(255, 255, 255)
-    
-    espData.HealthBar = Drawing.new("Line")
-    espData.HealthBar.Visible = false
-    espData.HealthBar.Thickness = 2.5
-    
-    ESPStorage[player] = espData
-end
-
-local function RemoveESP(player)
-    if ESPStorage[player] then
-        for _, obj in pairs(ESPStorage[player]) do
-            pcall(function() obj:Remove() end)
+RunService.RenderStepped:Connect(function(dt)
+    for _, pData in ipairs(particles) do
+        local p = pData.object
+        local currentPos = p.Position
+        local newY = currentPos.Y.Scale + (pData.speed * dt * 0.2)
+        if newY > 1.1 then
+            newY = -0.1
+            p.Position = UDim2.new(math.random(), 0, newY, 0)
+        else
+            p.Position = UDim2.new(currentPos.X.Scale, 0, newY, 0)
         end
-        ESPStorage[player] = nil
+    end
+end)
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESPFolder"
+ESPFolder.Parent = ScreenGui
+
+local espCache = {}
+
+local function createESP(player)
+    if espCache[player] then return end
+    
+    local holder = Instance.new("Folder")
+    holder.Name = player.Name .. "_ESP"
+    holder.Parent = ESPFolder
+    
+    local box = Instance.new("Highlight")
+    box.Name = "Highlight"
+    box.Adornee = nil
+    box.FillTransparency = 0.5
+    box.OutlineTransparency = 0
+    box.Parent = holder
+    
+    local infoLabel = Instance.new("TextLabel")
+    infoLabel.Name = "Info"
+    infoLabel.Size = UDim2.new(0, 150, 0, 30)
+    infoLabel.BackgroundTransparency = 1
+    infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    infoLabel.TextStrokeTransparency = 0
+    infoLabel.TextSize = 12
+    infoLabel.Font = Enum.Font.SourceSansBold
+    infoLabel.Visible = false
+    infoLabel.Parent = holder
+    
+    espCache[player] = {holder = holder, box = box, label = infoLabel}
+end
+
+local function removeESP(player)
+    if espCache[player] then
+        espCache[player].holder:Destroy()
+        espCache[player] = nil
     end
 end
 
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
-        CreateESP(player)
+        createESP(player)
     end
 end
 
 Players.PlayerAdded:Connect(function(player)
     if player ~= LocalPlayer then
-        CreateESP(player)
+        createESP(player)
     end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-    RemoveESP(player)
+    removeESP(player)
 end)
 
-local function IsVisible(targetPart)
-    if not targetPart or not Camera then return false end
-    local origin = Camera.CFrame.Position
-    local direction = targetPart.Position - origin
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = RaycastType.Blacklist
+RunService.RenderStepped:Connect(function()
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local closestTarget = nil
+    local shortestDistance = math.huge
     
-    local ignoreList = {LocalPlayer.Character, Camera}
-    if LocalPlayer.Character then
-        table.insert(ignoreList, LocalPlayer.Character)
-    end
-    raycastParams.FilterDescendantsInstances = ignoreList
-    
-    local result = Workspace:Raycast(origin, direction, raycastParams)
-    if not result then
-        return true
-    end
-    if result.Instance:IsDescendantOf(targetPart.Parent) then
-        return true
-    end
-    return false
-end
-
-local function UpdateESP()
-    for player, esp in pairs(ESPStorage) do
+    for player, data in pairs(espCache) do
         local character = player.Character
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
         local head = character and character:FindFirstChild("Head")
         
-        if character and humanoid and rootPart and head and humanoid.Health > 0 then
-            local vector, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+        if character and humanoidRootPart and humanoid and humanoid.Health > 0 and head then
+            data.box.Adornee = character
             
+            local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
             if onScreen then
-                local headVector = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                local legVector = Camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
+                local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                 
-                local height = math.abs(headVector.Y - legVector.Y)
-                local width = height / 2
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                rayParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
+                local rayResult = Workspace:Raycast(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position), rayParams)
                 
-                local boxPos = Vector2.new(vector.X - width / 2, headVector.Y)
-                local boxSize = Vector2.new(width, height)
+                local isVisible = (rayResult == nil)
                 
-                -- Visibility color check
-                local visible = IsVisible(head)
-                local dynamicColor = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                if isVisible then
+                    data.box.FillColor = Color3.fromRGB(0, 255, 0)
+                    data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
+                    data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
+                else
+                    data.box.FillColor = Color3.fromRGB(255, 0, 0)
+                    data.box.OutlineColor = Color3.fromRGB(255, 0, 0)
+                    data.label.TextColor3 = Color3.fromRGB(255, 0, 0)
+                end
                 
-                -- Update Box
-                esp.Box.Size = boxSize
-                esp.Box.Position = boxPos
-                esp.Box.Color = dynamicColor
-                esp.Box.Visible = true
+                data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
+                data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
+                data.label.Visible = true
                 
-                -- Update Name & Health
-                esp.Name.Text = player.Name
-                esp.Name.Position = Vector2.new(vector.X, headVector.Y - 18)
-                esp.Name.Visible = true
-                
-                -- Health Bar
-                local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                local barHeight = height * healthPercent
-                esp.HealthBar.From = Vector2.new(boxPos.X - 6, boxPos.Y + height)
-                esp.HealthBar.To = Vector2.new(boxPos.X - 6, (boxPos.Y + height) - barHeight)
-                esp.HealthBar.Color = Color3.fromRGB(0, 255, 0):Lerp(Color3.fromRGB(255, 0, 0), 1 - healthPercent)
-                esp.HealthBar.Visible = true
+                if distToCenter <= FOVRadius then
+                    if distToCenter < shortestDistance then
+                        shortestDistance = distToCenter
+                        closestTarget = head
+                    end
+                end
             else
-                esp.Box.Visible = false
-                esp.Name.Visible = false
-                esp.HealthBar.Visible = false
+                data.label.Visible = false
+                data.box.Adornee = nil
             end
         else
-            esp.Box.Visible = false
-            esp.Name.Visible = false
-            esp.HealthBar.Visible = false
+            data.box.Adornee = nil
+            data.label.Visible = false
         end
     end
-end
-
--- ==========================================
--- 5. FALLING SNOW PHYSICS ENGINE
--- ==========================================
-local SnowHolder = Instance.new("Folder")
-SnowHolder.Name = "SnowParticlesFolder"
-SnowHolder.Parent = ScreenGui
-
-local SnowFlakes = {}
-local MaxSnow = 45
-
-for i = 1, MaxSnow do
-    local flake = Instance.new("Frame")
-    flake.Name = "Snow"
-    local size = math.random(3, 6)
-    flake.Size = UDim2.new(0, size, 0, size)
-    flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    flake.BackgroundTransparency = math.random(20, 60) / 100
-    flake.BorderSizePixel = 0
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(1, 0)
-    corner.Parent = flake
-    
-    flake.Parent = SnowHolder
-    
-    table.insert(SnowFlakes, {
-        Object = flake,
-        X = math.random(0, 1000) / 1000,
-        Y = math.random(0, 1000) / 1000,
-        Speed = math.random(10, 30) / 10000,
-        Size = size,
-        Offset = math.random(0, 100)
-    })
-end
-
-local function UpdateSnow(dt)
-    local viewportSize = Camera.ViewportSize
-    if viewportSize.X == 0 or viewportSize.Y == 0 then return end
-    
-    for _, flake in ipairs(SnowFlakes) do
-        flake.Y = flake.Y + flake.Speed
-        if flake.Y > 1.05 then
-            flake.Y = -0.05
-            flake.X = math.random(0, 1000) / 1000
-        end
-        
-        local xPos = flake.X * viewportSize.X + math.sin(tick() * 2 + flake.Offset) * 15
-        local yPos = flake.Y * viewportSize.Y
-        
-        flake.Object.Position = UDim2.new(0, xPos, 0, yPos)
+    if closestTarget then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
     end
-end
-
--- ==========================================
--- 6. INITIALIZATION & MAIN LOOP
--- ==========================================
-RunService.RenderStepped:Connect(function(dt)
-    UpdateFOVCircle()
-    UpdateESP()
-    UpdateSnow(dt)
+    
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            for _, obj in ipairs(char:GetDescendants()) do
+                if obj:IsA("NumberValue") or obj:IsA("Vector3Value") then
+                    if obj.Name:lower():find("recoil") or obj.Name:lower():find("spread") or obj.Name:lower():find("kick") then
+                        obj.Value = 0
+                    end
+                end
+            end
+        end
+    end)
 end)
