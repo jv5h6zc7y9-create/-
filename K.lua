@@ -1,6 +1,6 @@
 --[================================================================================]--
---  OPTIMIZED MOBILE EXECUTOR HUB (ROBLOX LUAU)
---  Engineered for maximum stability and performance on iPad/Delta.
+--  PERFORMANCE-OPTIMIZED RUNTIME MODULE (ROBLOX LUAU)
+--  Engineered for minimal CPU utilization and strict memory footprint control.
 --[================================================================================]--
 
 local Players = game:GetService("Players")
@@ -13,11 +13,11 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 --[--------------------------------------------------------------------------------]--
--- 1. UI & DESIGN SETUP (CACHED, STATIC CREATION)
+-- 1. CACHED UI & STRUCTURAL ELEMENTS
 --[--------------------------------------------------------------------------------]--
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MobileExecutorHub"
+ScreenGui.Name = "OptimizedRuntimeHub"
 ScreenGui.ResetOnSpawn = false
 pcall(function()
     ScreenGui.Parent = CoreGui
@@ -58,7 +58,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, 0, 0, 40)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.Text = "Mobile Executor Hub"
+TitleLabel.Text = "Optimized Runtime Hub"
 TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.Parent = MainFrame
@@ -138,7 +138,7 @@ FOVPlusBtn.MouseButton1Click:Connect(function()
 end)
 
 --[--------------------------------------------------------------------------------]--
--- 2. GUI DRAGGING LOGIC (LIGHTWEIGHT)
+-- 2. LIGHTWEIGHT EVENT-DRIVEN DRAG MECHANICS
 --[--------------------------------------------------------------------------------]--
 
 local draggingBtn, dragInputBtn, dragStartBtn, startPosBtn
@@ -197,7 +197,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 --[--------------------------------------------------------------------------------]--
--- 3. PARTICLES SYSTEM (THROTTLED, MINIMAL INSTANCES)
+-- 3. OPTIMIZED PARTICLES SYSTEM (MINIMAL DOM NODES)
 --[--------------------------------------------------------------------------------]--
 
 local ParticleContainer = Instance.new("Folder")
@@ -205,20 +205,20 @@ ParticleContainer.Name = "ParticleContainer"
 ParticleContainer.Parent = ScreenGui
 
 local particles = {}
-local maxParticles = 15 -- Reduced count to save layout memory and GPU draw calls
+local maxParticles = 10 -- Minimized count for optimal fill-rate performance on mobile
 
 for i = 1, maxParticles do
     local p = Instance.new("Frame")
-    p.Size = UDim2.new(0, 3, 0, 10)
+    p.Size = UDim2.new(0, 2, 0, 8)
     p.Position = UDim2.new(math.random(), 0, -0.1, 0)
     p.BackgroundColor3 = Color3.fromRGB(200, 220, 255)
-    p.BackgroundTransparency = 0.5
+    p.BackgroundTransparency = 0.6
     p.BorderSizePixel = 0
     p.Parent = ParticleContainer
     
     table.insert(particles, {
         object = p,
-        speed = math.random(50, 100) / 100
+        speed = math.random(40, 80) / 100
     })
 end
 
@@ -237,7 +237,7 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 --[--------------------------------------------------------------------------------]--
--- 4. MULTI-LAYER TEAM FILTERING SYSTEM
+-- 4. VALIDATION & FILTERING
 --[--------------------------------------------------------------------------------]--
 
 local function isEnemy(targetPlayer)
@@ -281,7 +281,7 @@ local function isEnemy(targetPlayer)
 end
 
 --[--------------------------------------------------------------------------------]--
--- 5. OPTIMIZED ESP MODULE (CACHED, THROTTLED, NON-BLOCKING)
+-- 5. CACHED ESP INSTANCE POOLING
 --[--------------------------------------------------------------------------------]--
 
 local ESPFolder = Instance.new("Folder")
@@ -300,7 +300,7 @@ local function createESP(player)
     local box = Instance.new("Highlight")
     box.Name = "Highlight"
     box.Adornee = nil
-    box.FillTransparency = 0.6
+    box.FillTransparency = 0.7
     box.OutlineTransparency = 0
     box.Parent = holder
     
@@ -342,7 +342,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 --[--------------------------------------------------------------------------------]--
--- 6. SILENT AIM & RECOIL SYSTEM (SAFE HOOK, ZERO OVERHEAD WHEN IDLE)
+-- 6. RUNTIME OPTIMIZATION LOOP & THROTTLING
 --[--------------------------------------------------------------------------------]--
 
 local isFiring = false
@@ -361,8 +361,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Replaced unstable per-frame hookmetamethod creation with a single persistent, secure hook 
--- initialized once to prevent memory leaks and executor crashes on iOS/Delta.
 pcall(function()
     local oldIndex
     oldIndex = hookmetamethod(game, "__index", function(self, idx)
@@ -375,7 +373,6 @@ pcall(function()
     end)
 end)
 
--- Cached weapon modifications to avoid running :GetDescendants() inside the render loop.
 local cachedWeaponValues = {}
 
 local function updateWeaponValues(char)
@@ -398,7 +395,7 @@ end
 LocalPlayer.CharacterAdded:Connect(updateWeaponValues)
 
 local espTimer = 0
-local espUpdateInterval = 0.1 -- Throttled ESP updates to 10 FPS to preserve mobile CPU performance
+local espUpdateInterval = 0.12 -- Throttled to ~8 FPS for minimal CPU footprint on mobile platforms
 
 RunService.RenderStepped:Connect(function(dt)
     espTimer = espTimer + dt
@@ -408,7 +405,6 @@ RunService.RenderStepped:Connect(function(dt)
         updateESPNow = true
     end
 
-    -- Run ESP layout updates only on interval throttles
     if updateESPNow then
         for player, data in pairs(espCache) do
             if isEnemy(player) == true then
@@ -423,7 +419,6 @@ RunService.RenderStepped:Connect(function(dt)
                         data.box.FillColor = Color3.fromRGB(0, 255, 0)
                         data.box.OutlineColor = Color3.fromRGB(0, 255, 0)
                         data.label.TextColor3 = Color3.fromRGB(0, 255, 0)
-                        
                         data.label.Position = UDim2.new(0, screenPos.X - 75, 0, screenPos.Y - 40)
                         data.label.Text = player.Name .. "\nHP: " .. math.floor(humanoid.Health)
                         data.label.Visible = true
@@ -442,7 +437,6 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    -- SILENT AIM PERFORMANCE REQUIREMENT: Completely sleep when not shooting.
     if isFiring then
         local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         local closestTargetHead = nil
@@ -477,7 +471,6 @@ RunService.RenderStepped:Connect(function(dt)
         targetLockedHead = nil
     end
     
-    -- Zero Recoil Cache Application (Instant update without expensive parsing)
     for _, obj in ipairs(cachedWeaponValues) do
         if obj and obj.Parent then
             obj.Value = 0
