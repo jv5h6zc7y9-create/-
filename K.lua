@@ -44,12 +44,11 @@ title.Font = Enum.Font.SourceSansBold
 title.Text = "Control Menu"
 title.Parent = frame
 
--- Функция создания чекбоксов в меню
+-- Функция создания кнопок управления в меню
 local function createButton(name, posY, settingKey)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, -20, 0, 35)
 	btn.Position = UDim2.new(0, 10, 0, posY)
-	-- По умолчанию кнопки включены, задаем зелёный цвет
 	btn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	btn.TextSize = 14
