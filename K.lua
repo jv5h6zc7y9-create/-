@@ -11,6 +11,8 @@ local settings = {
 	TriggerbotEnabled = true
 }
 
+local activeEsp = {}
+
 ---------------------------------------------------------
 --- 1. ГРАФИЧЕСКОЕ МЕНЮ
 ---------------------------------------------------------
@@ -65,11 +67,10 @@ createButton("ESP (Box, HP, Skeleton)", 45, "ESPEnabled")
 createButton("Triggerbot", 85, "TriggerbotEnabled")
 
 ---------------------------------------------------------
---- 2. УТИЛИТА ПРОВЕРКИ ВРАГА (Team Check)
+--- 2. ПРОВЕРКА ВРАГА (Team Check по аналогии)
 ---------------------------------------------------------
 local function isEnemy(player)
 	if player == localPlayer then return false end
-	-- Если в игре есть команды, проверяем их
 	if player.Team and localPlayer.Team then
 		if player.Team == localPlayer.Team then
 			return false
@@ -78,10 +79,21 @@ local function isEnemy(player)
 	return true
 end
 
+local function isValidTarget(hitPart)
+	local model = hitPart:FindFirstAncestorOfClass("Model")
+	if model then
+		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		local targetPlayer = Players:GetPlayerFromCharacter(model)
+		if humanoid and humanoid.Health > 0 and targetPlayer and isEnemy(targetPlayer) then
+			return true
+		end
+	end
+	return false
+end
+
 ---------------------------------------------------------
---- 3. 2D РИСОВАНИЕ ЧЕРЕЗ DRAWING / GUI НА КАЖДЫЙ КАДР
+--- 3. ESP (Скелет, Круглая голова, Бокс, HP слева)
 ---------------------------------------------------------
--- Создаем контейнер для 2D элементов поверх экрана
 local espContainer = Instance.new("Folder")
 espContainer.Name = "ESP_Container"
 espContainer.Parent = screenGui
@@ -98,7 +110,6 @@ local function removeDrawingESP(character)
 end
 
 local function updateESPDrawing()
-	-- Очистка старых или удаленных персонажей
 	for char, items in pairs(drawingsCache) do
 		if not char or not char.Parent or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
 			removeDrawingESP(char)
@@ -113,6 +124,7 @@ local function updateESPDrawing()
 	end
 
 	for _, player in ipairs(Players:GetPlayers()) do
+		-- Работает ТОЛЬКО на врагов благодаря isEnemy
 		if isEnemy(player) and player.Character then
 			local char = player.Character
 			local root = char:FindFirstChild("HumanoidRootPart")
@@ -121,7 +133,6 @@ local function updateESPDrawing()
 			
 			if root and head and humanoid and humanoid.Health > 0 then
 				if not drawingsCache[char] then
-					-- Создаем элементы один раз для игрока
 					local folder = Instance.new("Folder")
 					folder.Parent = espContainer
 					
@@ -134,7 +145,6 @@ local function updateESPDrawing()
 					local headCircle = Instance.new("Frame")
 					headCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 					headCircle.BorderSizePixel = 0
-					-- Круглая голова (делаем UICorner)
 					local corner = Instance.new("UICorner")
 					corner.CornerRadius = UDim.new(1, 0)
 					corner.Parent = headCircle
@@ -150,7 +160,6 @@ local function updateESPDrawing()
 					hpFill.BorderSizePixel = 0
 					hpFill.Parent = hpBg
 					
-					-- Кости скелета (линии)
 					local function createBone()
 						local line = Instance.new("Frame")
 						line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -176,18 +185,19 @@ local function updateESPDrawing()
 					local height = math.abs(botPos.Y - topPos.Y)
 					local width = height / 2
 					
-					-- 1. Бокс
+					-- Ограничиваем размер бокса, чтобы он не растягивался на весь экран
+					height = math.clamp(height, 20, 800)
+					width = math.clamp(width, 10, 400)
+					
 					ui.Box.Visible = true
 					ui.Box.Size = UDim2.new(0, width, 0, height)
 					ui.Box.Position = UDim2.new(0, topPos.X - width/2, 0, topPos.Y)
 					
-					-- 2. Круглая голова
-					local headSize = height / 5
+					local headSize = math.clamp(height / 5, 6, 40)
 					ui.Head.Visible = true
 					ui.Head.Size = UDim2.new(0, headSize, 0, headSize)
 					ui.Head.Position = UDim2.new(0, topPos.X - headSize/2, 0, topPos.Y - headSize/2)
 					
-					-- 3. HP Бар слева от бокса
 					ui.HpBg.Visible = true
 					ui.HpBg.Size = UDim2.new(0, 4, 0, height)
 					ui.HpBg.Position = UDim2.new(0, topPos.X - width/2 - 7, 0, topPos.Y)
@@ -197,7 +207,6 @@ local function updateESPDrawing()
 					ui.HpFill.Position = UDim2.new(0, 0, 1 - hpRatio, 0)
 					ui.HpFill.BackgroundColor3 = Color3.fromRGB(255 * (1 - hpRatio), 255 * hpRatio, 0)
 					
-					-- 4. Скелет (упрощенные линии от головы к центру и конечностям)
 					local lArm = char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftHand")
 					local rArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightHand")
 					local lLeg = char:FindFirstChild("Left Leg") or char:FindFirstChild("LeftFoot")
@@ -246,7 +255,7 @@ local function updateESPDrawing()
 end
 
 ---------------------------------------------------------
---- 4. МОМЕНТАЛЬНЫЙ ТРИГГЕРБОТ
+--- 4. РАБОЧИЙ МГНОВЕННЫЙ ТРИГГЕРБОТ
 ---------------------------------------------------------
 local function triggerClick()
 	local x, y = camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2
@@ -273,14 +282,8 @@ local function runTriggerbot()
 	
 	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 200, raycastParams)
 	if result and result.Instance then
-		local model = result.Instance:FindFirstAncestorOfClass("Model")
-		if model then
-			local humanoid = model:FindFirstChildOfClass("Humanoid")
-			local targetPlayer = Players:GetPlayerFromCharacter(model)
-			
-			if humanoid and humanoid.Health > 0 and targetPlayer and isEnemy(targetPlayer) then
-				triggerClick()
-			end
+		if isValidTarget(result.Instance) then
+			triggerClick()
 		end
 	end
 end
