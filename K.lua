@@ -7,13 +7,11 @@ local camera = workspace.CurrentCamera
 
 -- Состояние функций (включено/выключено)
 local settings = {
-	BigHeadEnabled = false,
 	ESPEnabled = true,
 	TriggerbotEnabled = true
 }
 
 local activeEsp = {}
-local originalHeadSizes = {} -- Сохраняем оригинальные размеры голов
 
 ---------------------------------------------------------
 --- 1. СОЗДАНИЕ ГРАФИЧЕСКОГО МЕНЮ (GUI)
@@ -21,7 +19,6 @@ local originalHeadSizes = {} -- Сохраняем оригинальные ра
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "CheatMenu"
 screenGui.ResetOnSpawn = false
--- Пытаемся привязать к CoreGui или PlayerGui
 pcall(function()
 	screenGui.Parent = CoreGui
 end)
@@ -30,12 +27,12 @@ if not screenGui.Parent then
 end
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 180)
+frame.Size = UDim2.new(0, 220, 0, 140)
 frame.Position = UDim2.new(0, 50, 0, 50)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.Draggable = true -- Меню можно перетаскивать мышкой
+frame.Draggable = true
 frame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
@@ -52,11 +49,12 @@ local function createButton(name, posY, settingKey)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, -20, 0, 35)
 	btn.Position = UDim2.new(0, 10, 0, posY)
-	btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	-- По умолчанию кнопки включены, задаем зелёный цвет
+	btn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	btn.TextSize = 14
 	btn.Font = Enum.Font.SourceSans
-	btn.Text = name .. ": OFF"
+	btn.Text = name .. ": ON"
 	btn.Parent = frame
 	
 	btn.MouseButton1Click:Connect(function()
@@ -71,42 +69,11 @@ local function createButton(name, posY, settingKey)
 	end)
 end
 
-createButton("Big Head", 45, "BigHeadEnabled")
-createButton("ESP (HP Bar)", 85, "ESPEnabled")
-createButton("Triggerbot", 125, "TriggerbotEnabled")
+createButton("ESP (HP Bar)", 45, "ESPEnabled")
+createButton("Triggerbot", 85, "TriggerbotEnabled")
 
 ---------------------------------------------------------
---- 2. ФУНКЦИЯ УВЕЛИЧЕНИЯ ГОЛОВ (HEAD EXPANDER)
----------------------------------------------------------
-local function manageBigHeads()
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= localPlayer and player.Character then
-			local char = player.Character
-			local head = char:FindFirstChild("Head")
-			
-			if head then
-				if settings.BigHeadEnabled then
-					-- Сохраняем исходный размер, если еще не сохранили
-					if not originalHeadSizes[head] then
-						originalHeadSizes[head] = head.Size
-					end
-					-- Увеличиваем размер головы (например, в 3 раза)
-					head.Size = Vector3.new(5, 5, 5)
-					head.CanCollide = false -- Чтобы не мешало движению
-				else
-					-- Возвращаем исходный размер при отключении
-					if originalHeadSizes[head] then
-						head.Size = originalHeadSizes[head]
-						originalHeadSizes[head] = nil
-					end
-				end
-			end
-		end
-	end
-end
-
----------------------------------------------------------
---- 3. ЛОГИКА ESP И ПОЛОСКИ ЗДОРОВЬЯ
+--- 2. ЛОГИКА ESP И ПОЛОСКИ ЗДОРОВЬЯ
 ---------------------------------------------------------
 local function createEsp(character)
 	local rootPart = character:WaitForChild("HumanoidRootPart", 5)
@@ -169,7 +136,7 @@ for _, p in ipairs(Players:GetPlayers()) do setupPlayer(p) end
 Players.PlayerAdded:Connect(setupPlayer)
 
 ---------------------------------------------------------
---- 4. ГЛАВНЫЙ ЦИКЛ ОБРАБОТКИ (RENDERSTEPPED)
+--- 3. ГЛАВНЫЙ ЦИКЛ ОБРАБОТКИ (RENDERSTEPPED)
 ---------------------------------------------------------
 local MAX_DISTANCE = 100
 
@@ -186,10 +153,7 @@ local function isValidTarget(hitPart)
 end
 
 RunService.RenderStepped:Connect(function()
-	-- 1. Управление размером голов
-	manageBigHeads()
-
-	-- 2. Управление видимостью ESP
+	-- 1. Управление видимостью ESP
 	for char, data in pairs(activeEsp) do
 		local humanoid = data.Humanoid
 		local healthBar = data.HealthBar
@@ -205,7 +169,7 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 
-	-- 3. Триггербот
+	-- 2. Триггербот
 	if settings.TriggerbotEnabled then
 		local screenCenter = camera.ViewportSize / 2
 		local unitRay = camera:ScreenPointToRay(screenCenter.X, screenCenter.Y)
